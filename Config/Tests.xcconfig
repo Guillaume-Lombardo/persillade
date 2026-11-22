@@ -1,0 +1,5 @@
+PRODUCT_NAME = PersilladeTests
+PRODUCT_BUNDLE_IDENTIFIER = xyz.g1lom.persillade.tests
+GENERATE_INFOPLIST_FILE = YES
+BUNDLE_LOADER = $(TEST_HOST)
+TEST_HOST = $(BUILT_PRODUCTS_DIR)/Persillade.app/Persillade
