@@ -67,8 +67,14 @@ import XCTest
             app.buttons["Augmenter les portions de Crêpes"].tap()
             XCTAssertTrue(app.staticTexts["Liste faite avant ce changement"].waitForExistence(timeout: 5))
             app.buttons["Refaire la liste"].tap()
-            XCTAssertTrue(app.buttons["Remplacer"].waitForExistence(timeout: 5))
-            app.buttons["Annuler"].tap()
+            let remplacer = app.buttons["Remplacer"]
+            XCTAssertTrue(remplacer.waitForExistence(timeout: 5))
+            remplacer.tap()
+            XCTAssertTrue(app.navigationBars["Courses"].waitForExistence(timeout: 5))
+            XCTAssertFalse(app.buttons["Ne pas envoyer bananes"].exists)
+            XCTAssertTrue(
+                article("farine", dans: app).buttons
+                    .matching(NSPredicate(format: "label CONTAINS %@", "1,25")).firstMatch.exists)
         }
 
         @MainActor
