@@ -114,10 +114,17 @@ final class ConsentementFournisseurUITests: XCTestCase {
     private func regler(_ interrupteur: XCUIElement, sur active: Bool) {
         XCTAssertTrue(interrupteur.waitForExistence(timeout: 5))
         let valeur = active ? "1" : "0"
-        if interrupteur.value as? String != valeur {
-            interrupteur.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
+        guard interrupteur.value as? String != valeur else { return }
+        let predicat = NSPredicate(format: "value == %@", valeur)
+        func attendreValeur(pendant delai: TimeInterval) -> Bool {
+            let attente = XCTNSPredicateExpectation(predicate: predicat, object: interrupteur)
+            return XCTWaiter.wait(for: [attente], timeout: delai) == .completed
         }
-        XCTAssertEqual(interrupteur.value as? String, valeur)
+        interrupteur.tap()
+        if attendreValeur(pendant: 2) { return }
+        interrupteur.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5))
+            .withOffset(CGVector(dx: -25, dy: 0)).tap()
+        XCTAssertTrue(attendreValeur(pendant: 5), interrupteur.debugDescription)
     }
 
     @MainActor
