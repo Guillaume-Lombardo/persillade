@@ -35,7 +35,7 @@ public struct SelectionSemaine: Codable, Equatable, Sendable {
         public var quantitePourRecette: Quantite? {
             get throws {
                 guard let quantite = article.quantite else { return nil }
-                guard (article.unite ?? .piece) == .piece else { return quantite }
+                guard article.unite == .piece else { return quantite }
                 return try arrondirPourCourses(quantite, unite: .piece)
             }
         }

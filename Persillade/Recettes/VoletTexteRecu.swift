@@ -10,15 +10,18 @@ struct VoletTexteRecu: View {
 
     var body: some View {
         let lignes = source.components(separatedBy: .newlines)
-        let hauteur = lignes.prefix(5).reduce(0.0) { hauteur, texte in
-            let actif = ingredients.contains { Self.correspondance(texte, ligne: $0) }
-            return hauteur + (actif ? max(hauteurLigne, GrillePersillade.cible) : hauteurLigne)
+        let parIndice = Dictionary(
+            uniqueKeysWithValues: ingredients.compactMap { ligne in
+                ligne.indiceSource.map { ($0, ligne) }
+            })
+        let hauteur = lignes.indices.prefix(5).reduce(0.0) { hauteur, indice in
+            hauteur + (parIndice[indice] != nil ? max(hauteurLigne, GrillePersillade.cible) : hauteurLigne)
         }
         DisclosureGroup(isExpanded: $ouvert) {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(lignes.enumerated()), id: \.offset) { _, texte in
-                        if let ligne = ingredients.first(where: { Self.correspondance(texte, ligne: $0) }) {
+                    ForEach(Array(lignes.enumerated()), id: \.offset) { indice, texte in
+                        if let ligne = parIndice[indice] {
                             Button {
                                 atteindre(ligne.id)
                             } label: {
@@ -29,6 +32,7 @@ struct VoletTexteRecu: View {
                             }
                             .buttonStyle(.plain)
                             .accessibilityHint("Aller à l’ingrédient")
+                            .accessibilityIdentifier("extrait-source")
                         } else {
                             Text(texte.isEmpty ? " " : texte)
                                 .typographie(.precision)
@@ -48,18 +52,16 @@ struct VoletTexteRecu: View {
         .foregroundStyle(CouleurPersillade.encre.couleur)
     }
 
-    static func extrait(_ ligne: LigneIngredientCorrection, dans source: String) -> AttributedString? {
-        guard correspondance(source, ligne: ligne) else { return nil }
+    static func extrait(_ ligne: LigneIngredientCorrection) -> AttributedString? {
+        guard ligne.indiceSource != nil else { return nil }
         return surligner(ligne.origine, ligne: ligne)
-    }
-
-    private static func correspondance(_ texte: String, ligne: LigneIngredientCorrection) -> Bool {
-        !ligne.origine.isEmpty && texte.range(of: ligne.origine, options: .literal) != nil
     }
 
     private static func surligner(_ texte: String, ligne: LigneIngredientCorrection) -> AttributedString {
         var attribue = AttributedString(texte)
-        if let plage = attribue.range(of: ligne.origine, options: .literal) {
+        if let plageTexte = CorrespondancesSource.plage(ligne.origine, dans: texte),
+            let plage = Range(plageTexte, in: attribue)
+        {
             attribue[plage].backgroundColor =
                 ligne.aVerifier ? CouleurPersillade.beurre.couleur : CouleurPersillade.lu.couleur
         }

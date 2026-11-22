@@ -130,7 +130,8 @@ final class BibliothequeRecettes {
                     return semaine
                 }
             } catch {
-                self.erreur = "La recette a été supprimée. La semaine sera vérifiée à la prochaine ouverture."
+                selectionDisponible = false
+                self.erreur = "La recette a été supprimée. Réessayez de mettre à jour la semaine."
             }
         }
         return true

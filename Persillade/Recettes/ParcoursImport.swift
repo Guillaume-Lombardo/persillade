@@ -16,7 +16,6 @@ struct ParcoursImport: View {
     @Environment(\.displayScale) private var echelle
     @State private var etape: Etape
     @State private var recu: ContenuRecu?
-    @State private var texteDeRepli: ContenuRecu?
     @State private var resultat: ResultatExtraction?
     @State private var recetteEnregistree: UUID?
     @State private var erreur: String?
@@ -42,9 +41,11 @@ struct ParcoursImport: View {
         NavigationStack {
             switch etape {
             case .coller:
-                FeuilleCollage(texteSeulement: recu != nil, valider: accepterCollage)
-                    .navigationTitle(recu == nil ? "Coller" : "Coller le texte")
-                    .toolbar { boutonFermer }
+                FeuilleCollage(
+                    texteSeulement: recu != nil, texteInitial: texteDeRepli ?? "", valider: accepterCollage
+                )
+                .navigationTitle(recu == nil ? "Coller" : "Coller le texte")
+                .toolbar { boutonFermer }
             case .destination:
                 if let recu {
                     destination(recu)
@@ -55,7 +56,7 @@ struct ParcoursImport: View {
                 ProgressView("Lecture de la recette")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .navigationTitle("Import de la recette")
-                    .barreAction { BoutonActionPersillade("Annuler", action: revenir) }
+                    .barreAction { BoutonActionPersillade("Annuler") { etape = .destination } }
                     .task { await lire() }
             case .echec:
                 ecranEchec
@@ -65,7 +66,6 @@ struct ParcoursImport: View {
                 if let recu, let resultat {
                     CorrectionRecette(
                         donnees: .init(id: recu.id, resultat: resultat, url: lienRecu),
-                        confirmerFermeture: texteDeRepli != nil,
                         fermer: fermer
                     ) { recette in
                         if recetteEnregistree == nil {
@@ -94,6 +94,10 @@ struct ParcoursImport: View {
         } message: {
             Text(erreur ?? "")
         }
+    }
+
+    private var texteDeRepli: String? {
+        recu.flatMap { reception.textesDeRepli[$0.id] }
     }
 
     private var lienRecu: URL? {
@@ -131,6 +135,10 @@ struct ParcoursImport: View {
                 )
                 .typographie(.precision)
                 .foregroundStyle(CouleurPersillade.encre2.couleur)
+                if texteDeRepli != nil {
+                    Label("Texte collé disponible", systemImage: "doc.text")
+                        .typographie(.precision)
+                }
                 BoutonActionPersillade("Recette") { etape = .lecture }
                     .disabled(occupation)
                 if let importerArticles {
@@ -175,7 +183,7 @@ struct ParcoursImport: View {
                 if recetteEnregistree != nil {
                     BoutonActionPersillade("Réessayer") { etape = .lecture }
                 } else if resultat?.messageAccesPage != nil || resultat == nil {
-                    if resultat?.cause != .horsLigne {
+                    if texteDeRepli != nil || resultat?.cause != .horsLigne {
                         Button("Réessayer") { etape = .lecture }
                             .frame(minHeight: GrillePersillade.cible)
                     }
@@ -204,18 +212,14 @@ struct ParcoursImport: View {
     }
 
     private func accepterCollage(_ contenu: ContenuRecu) async throws {
-        if recu != nil {
-            texteDeRepli = contenu
+        if let recu {
+            try await reception.garderTexteDeRepli(contenu.texteRecu, pour: recu.id)
             etape = .lecture
         } else {
             try await reception.deposer(contenu)
             recu = contenu
             etape = .destination
         }
-    }
-
-    private func revenir() {
-        etape = texteDeRepli == nil ? .destination : .echec
     }
 
     private func lire() async {
@@ -227,7 +231,11 @@ struct ParcoursImport: View {
                 try await reception.retirer(recu)
                 terminer(dejaEnregistree.id)
             } else {
-                let lecture = try await extracteur.extraire(texteDeRepli ?? recu, cible: .recette)
+                let entree =
+                    texteDeRepli.map {
+                        ContenuRecu(id: recu.id, type: .texte, contenu: Data($0.utf8), origine: .pressePapiers)
+                    } ?? recu
+                let lecture = try await extracteur.extraire(entree, cible: .recette)
                 try Task.checkCancellation()
                 resultat = lecture
                 etape = lecture.statut == .echec ? .echec : .correction
@@ -264,9 +272,15 @@ private struct FeuilleCollage: View {
     let texteSeulement: Bool
     let valider: (ContenuRecu) async throws -> Void
 
-    @State private var texte = ""
+    @State private var texte: String
     @State private var erreur: String?
     @State private var occupation = false
+
+    init(texteSeulement: Bool, texteInitial: String, valider: @escaping (ContenuRecu) async throws -> Void) {
+        self.texteSeulement = texteSeulement
+        self.valider = valider
+        _texte = State(initialValue: texteInitial)
+    }
 
     private func contenu(_ valeur: String) -> ContenuRecu? {
         if texteSeulement {

@@ -46,11 +46,13 @@ struct LigneIngredientCorrection: Equatable, Identifiable {
     let id = UUID()
     let origine: String
     let uniteLue: Unite?
+    let indiceSource: Int?
     var nom: String
     var quantite: SaisieQuantite
     var nonComprise: Bool
 
-    init(_ ingredient: BrouillonIngredient) {
+    init(_ ingredient: BrouillonIngredient, indiceSource: Int? = nil) {
+        self.indiceSource = indiceSource
         origine = ingredient.texteOrigine
         uniteLue = ingredient.unite
         nom = ingredient.nom
@@ -87,10 +89,11 @@ struct FormulaireRecette: Equatable {
     var ingredients: [LigneIngredientCorrection]
     var etapes: [LigneEtapeCorrection]
 
-    init(_ brouillon: BrouillonRecette) {
+    init(_ brouillon: BrouillonRecette, source: String) {
         titre = brouillon.titre
         portions = brouillon.portions.map(String.init) ?? ""
-        ingredients = brouillon.ingredients.map(LigneIngredientCorrection.init)
+        let indices = CorrespondancesSource.indices(brouillon.ingredients.map(\.texteOrigine), dans: source)
+        ingredients = zip(brouillon.ingredients, indices).map { LigneIngredientCorrection($0, indiceSource: $1) }
         etapes = brouillon.etapes.map(LigneEtapeCorrection.init)
     }
 
@@ -99,5 +102,46 @@ struct FormulaireRecette: Equatable {
         if portions.isEmpty { return 4 }
         guard let nombre = Int(portions), nombre > 0 else { return nil }
         return nombre
+    }
+}
+
+enum CorrespondancesSource {
+    static func indices(_ origines: [String], dans source: String) -> [Int?] {
+        let lignes = source.components(separatedBy: .newlines)
+        var indices = [Int?](repeating: nil, count: origines.count)
+        var occupees: Set<Int> = []
+        for exacte in [true, false] {
+            for (index, origine) in origines.enumerated() where indices[index] == nil && !origine.isEmpty {
+                let correspondance = lignes.indices.first { indice in
+                    guard !occupees.contains(indice) else { return false }
+                    return exacte
+                        ? lignes[indice].compare(origine, options: .literal) == .orderedSame
+                        : plage(origine, dans: lignes[indice]) != nil
+                }
+                if let correspondance {
+                    indices[index] = correspondance
+                    occupees.insert(correspondance)
+                }
+            }
+        }
+        return indices
+    }
+
+    static func plage(_ origine: String, dans texte: String) -> Range<String.Index>? {
+        guard !origine.isEmpty else { return nil }
+        var debut = texte.startIndex
+        while debut < texte.endIndex,
+            let plage = texte.range(of: origine, options: .literal, range: debut..<texte.endIndex)
+        {
+            let avant = plage.lowerBound == texte.startIndex ? nil : texte[texte.index(before: plage.lowerBound)]
+            let apres = plage.upperBound == texte.endIndex ? nil : texte[plage.upperBound]
+            if !(avant?.isLetter == true || avant?.isNumber == true),
+                !(apres?.isLetter == true || apres?.isNumber == true)
+            {
+                return plage
+            }
+            debut = texte.index(after: plage.lowerBound)
+        }
+        return nil
     }
 }

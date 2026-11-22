@@ -10,7 +10,7 @@ struct CorrectionRecette: View {
 
         var ingredient: UUID? {
             switch self {
-            case .ingredient(let id), .quantite(let id): id
+            case .ingredient(let id), .quantite(let id), .unite(let id): id
             default: nil
             }
         }
@@ -28,7 +28,6 @@ struct CorrectionRecette: View {
 
     let fermer: () -> Void
     let enregistrer: (Recette) async throws -> Void
-    let confirmerFermeture: Bool
 
     @Environment(\.dynamicTypeSize) private var taille
     @Environment(\.accessibilityReduceMotion) private var mouvementReduit
@@ -46,13 +45,12 @@ struct CorrectionRecette: View {
     @State private var suppression: Suppression?
 
     init(
-        donnees: DonneesCorrection, confirmerFermeture: Bool = false, fermer: @escaping () -> Void,
+        donnees: DonneesCorrection, fermer: @escaping () -> Void,
         enregistrer: @escaping (Recette) async throws -> Void
     ) {
         self.fermer = fermer
         self.enregistrer = enregistrer
-        self.confirmerFermeture = confirmerFermeture
-        let formulaire = FormulaireRecette(donnees.brouillon)
+        let formulaire = FormulaireRecette(donnees.brouillon, source: donnees.source)
         _donnees = State(initialValue: donnees)
         _initial = State(initialValue: formulaire)
         _formulaire = State(initialValue: formulaire)
@@ -140,7 +138,7 @@ struct CorrectionRecette: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fermer") {
-                        if !enregistree && (formulaire != initial || confirmerFermeture || erreurEcriture) {
+                        if !enregistree && (formulaire != initial || erreurEcriture) {
                             confirmerQuitter = true
                         } else {
                             fermer()
@@ -171,7 +169,7 @@ struct CorrectionRecette: View {
             .sensoryFeedback(.success, trigger: alertes.isEmpty) { _, vide in vide }
         }
         .tint(CouleurPersillade.persil.couleur)
-        .interactiveDismissDisabled(formulaire != initial || confirmerFermeture || enregistrant || erreurEcriture)
+        .interactiveDismissDisabled(formulaire != initial || enregistrant || erreurEcriture)
     }
 
     private func champPortions(_ defilement: ScrollViewProxy) -> some View {
@@ -285,7 +283,7 @@ struct CorrectionRecette: View {
             if ingredientOuvert == ligne.id {
                 VStack(alignment: .leading, spacing: GrillePersillade.pas * 2) {
                     if saisie?.ingredient == ligne.id,
-                        let extrait = VoletTexteRecu.extrait(ligne, dans: donnees.source)
+                        let extrait = VoletTexteRecu.extrait(ligne)
                     {
                         Text(extrait)
                             .typographie(.precision)
@@ -301,6 +299,9 @@ struct CorrectionRecette: View {
                         .accessibilityIdentifier("nom-ingredient")
                     ChampQuantite(texte: liaison.quantite.texte).focused($saisie, equals: .quantite(ligne.id))
                     ChoixUnite(saisie: liaison.quantite, uniteLue: ligne.uniteLue)
+                    if case .autre = ligne.quantite.unite {
+                        ChampNomUnite(nom: liaison.quantite.autre).focused($saisie, equals: .unite(ligne.id))
+                    }
                     HStack {
                         Button("Suivant") { terminerLigne(ligne.id, dans: defilement) }
                             .frame(minHeight: GrillePersillade.cible)
@@ -445,9 +446,7 @@ struct CorrectionRecette: View {
             ingredientOuvert = nil
             if let suivant = alertes.first { montrer(suivant, dans: defilement) }
         } catch {
-            signaler(
-                formulaire.ingredients[index].nomVide ? "Indiquez le nom de l’ingrédient." : error.localizedDescription,
-                champ: formulaire.ingredients[index].nomVide ? .ingredient(id) : .quantite(id), dans: defilement)
+            signalerErreur(error, ligne: formulaire.ingredients[index], dans: defilement)
         }
     }
 
@@ -470,7 +469,7 @@ struct CorrectionRecette: View {
             do {
                 ingredients.append(try ligne.valider())
             } catch {
-                signaler(error.localizedDescription, champ: .quantite(ligne.id), dans: defilement)
+                signalerErreur(error, ligne: ligne, dans: defilement)
                 return
             }
         }
@@ -496,6 +495,16 @@ struct CorrectionRecette: View {
                 await Task.yield()
                 defilement.scrollTo("erreur-ecriture", anchor: .top)
             }
+        }
+    }
+
+    private func signalerErreur(_ erreur: Error, ligne: LigneIngredientCorrection, dans defilement: ScrollViewProxy) {
+        if ligne.nomVide {
+            signaler("Indiquez le nom de l’ingrédient.", champ: .ingredient(ligne.id), dans: defilement)
+        } else if case SaisieQuantite.Erreur.unite = erreur {
+            signaler(erreur.localizedDescription, champ: .unite(ligne.id), dans: defilement)
+        } else {
+            signaler(erreur.localizedDescription, champ: .quantite(ligne.id), dans: defilement)
         }
     }
 

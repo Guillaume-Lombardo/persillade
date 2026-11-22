@@ -8,6 +8,7 @@ final class ReceptionEntree {
     private var numeroLecture = 0
 
     private(set) var contenus: [ContenuRecu] = []
+    private(set) var textesDeRepli: [UUID: String] = [:]
     private(set) var message: String?
 
     init(dossier: URL? = nil) {
@@ -24,6 +25,7 @@ final class ReceptionEntree {
             let lecture = try await file.get().lire()
             guard numero == numeroLecture else { return }
             contenus = lecture.contenus
+            textesDeRepli = lecture.textesDeRepli
             message = lecture.fichiersIllisibles.isEmpty ? nil : "Des éléments illisibles ont été mis de côté."
         } catch {
             if numero == numeroLecture { message = "Impossible de lire les éléments reçus." }
@@ -35,9 +37,16 @@ final class ReceptionEntree {
         await actualiser()
     }
 
+    func garderTexteDeRepli(_ texte: String, pour id: UUID) async throws {
+        try await file.get().garderTexteDeRepli(texte, pour: id)
+        textesDeRepli[id] = texte
+        await actualiser()
+    }
+
     func retirer(_ contenu: ContenuRecu) async throws {
         try await file.get().retirer(id: contenu.id)
         contenus.removeAll { $0.id == contenu.id }
+        textesDeRepli[contenu.id] = nil
         await actualiser()
     }
 }

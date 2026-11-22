@@ -72,10 +72,16 @@ struct ChoixUnite: View {
             Text("Autre…").tag(Unite.autre("") as Unite?)
         }
         .pickerStyle(.menu)
-        if case .autre = saisie.unite {
-            TextField("Nom de l’unité", text: $saisie.autre)
-                .textFieldStyle(.roundedBorder)
-        }
+    }
+}
+
+struct ChampNomUnite: View {
+    @Binding var nom: String
+
+    var body: some View {
+        TextField("Nom de l’unité", text: $nom)
+            .textFieldStyle(.roundedBorder)
+            .frame(minHeight: GrillePersillade.cible)
     }
 }
 
@@ -85,6 +91,7 @@ struct EditeurQuantite: View {
     @State private var saisie: SaisieQuantite
     @State private var erreur: String?
     @FocusState private var saisieQuantite: Bool
+    @FocusState private var saisieUnite: Bool
     private let uniteLue: Unite?
 
     init(quantite: Quantite?, unite: Unite?, enregistrer: @escaping (Quantite?, Unite?) -> Void) {
@@ -97,6 +104,7 @@ struct EditeurQuantite: View {
         VStack(alignment: .leading, spacing: GrillePersillade.pas * 3) {
             ChampQuantite(texte: $saisie.texte).focused($saisieQuantite)
             ChoixUnite(saisie: $saisie, uniteLue: uniteLue)
+            if case .autre = saisie.unite { ChampNomUnite(nom: $saisie.autre).focused($saisieUnite) }
             if let erreur {
                 Text(erreur).typographie(.alerte)
                     .foregroundStyle(CouleurPersillade.tomate.couleur)
@@ -117,6 +125,7 @@ struct EditeurQuantite: View {
             saisie.texte = ""
             erreur = nil
             saisieQuantite = false
+            saisieUnite = false
             enregistrer(nil, nil)
         }
         .typographie(.bouton)
@@ -130,11 +139,16 @@ struct EditeurQuantite: View {
             guard let nombre else { throw SaisieQuantite.Erreur.nombre }
             erreur = nil
             saisieQuantite = false
+            saisieUnite = false
             saisie.texte = nombre.texteFrancais
             enregistrer(nombre, unite)
         } catch {
             self.erreur = error.localizedDescription
-            saisieQuantite = true
+            if case SaisieQuantite.Erreur.unite = error {
+                saisieUnite = true
+            } else {
+                saisieQuantite = true
+            }
         }
     }
 }

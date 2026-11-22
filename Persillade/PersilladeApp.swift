@@ -61,6 +61,7 @@ private struct Racine: View {
 
     @Environment(\.scenePhase) private var phase
     @Environment(\.displayScale) private var echelle
+    @Environment(\.dynamicTypeSize) private var taille
     @State private var onglet = Onglet.recettes
     @State private var feuille: Feuille?
     @State private var traiterSuivant = false
@@ -122,43 +123,7 @@ private struct Racine: View {
             await bibliotheque.actualiserSemaine()
         }
         .sheet(item: $feuille, onDismiss: apresFermeture) { contenu in
-            switch contenu {
-            case .importation(let recu):
-                ParcoursImport(
-                    initial: recu, reception: reception, bibliotheque: bibliotheque, extracteur: extracteur,
-                    fermer: { feuille = nil }, terminer: finImport)
-            case .ecriture:
-                NavigationStack {
-                    CorrectionRecette(
-                        donnees: .init(), fermer: { feuille = nil }
-                    ) { recette in
-                        try await bibliotheque.enregistrer(recette, modification: false, echelle: echelle)
-                        feuille = nil
-                        ouvrirFiche(recette.id)
-                    }
-                }
-                .presentationDetents([.large])
-            case .modification(let recette):
-                NavigationStack {
-                    CorrectionRecette(
-                        donnees: .init(recette: recette), fermer: { feuille = nil }
-                    ) { modifiee in
-                        try await bibliotheque.enregistrer(modifiee, modification: true, echelle: echelle)
-                        feuille = nil
-                    }
-                }
-                .presentationDetents([.large])
-            case .reglages:
-                NavigationStack {
-                    Form {}
-                        .navigationTitle("Réglages")
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button("Fermer") { feuille = nil }
-                            }
-                        }
-                }
-            }
+            contenuFeuille(contenu).environment(\.dynamicTypeSize, taille)
         }
         .alert(
             "Persillade",
@@ -174,6 +139,45 @@ private struct Racine: View {
         }
     }
 
+    @ViewBuilder private func contenuFeuille(_ contenu: Feuille) -> some View {
+        switch contenu {
+        case .importation(let recu):
+            ParcoursImport(
+                initial: recu, reception: reception, bibliotheque: bibliotheque, extracteur: extracteur,
+                fermer: { feuille = nil }, terminer: finImport)
+        case .ecriture:
+            NavigationStack {
+                CorrectionRecette(
+                    donnees: .init(), fermer: { feuille = nil }
+                ) { recette in
+                    try await bibliotheque.enregistrer(recette, modification: false, echelle: echelle)
+                    feuille = nil
+                    ouvrirFiche(recette.id)
+                }
+            }
+            .presentationDetents([.large])
+        case .modification(let recette):
+            NavigationStack {
+                CorrectionRecette(
+                    donnees: .init(recette: recette), fermer: { feuille = nil }
+                ) { modifiee in
+                    try await bibliotheque.enregistrer(modifiee, modification: true, echelle: echelle)
+                    feuille = nil
+                }
+            }
+            .presentationDetents([.large])
+        case .reglages:
+            NavigationStack {
+                Form {}
+                    .navigationTitle("Réglages")
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Fermer") { feuille = nil }
+                        }
+                    }
+            }
+        }
+    }
     private func recettes(chemin: Binding<[UUID]>, recherche: Bool = false) -> some View {
         OngletRecettes(
             chemin: chemin, bibliotheque: bibliotheque, rechercheActive: recherche, messageReception: reception.message,
