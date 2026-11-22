@@ -9,35 +9,67 @@ public struct LecteurImageVision: LecteurImage {
         try Task.checkCancellation()
         let pixels = try ImageCapture.decoder(image)
         try Task.checkCancellation()
-        var requete = RecognizeTextRequest()
-        requete.recognitionLevel = .accurate
-        requete.recognitionLanguages = [Locale.Language(identifier: "fr-FR")]
-        requete.usesLanguageCorrection = true
-
-        let observations: [RecognizedTextObservation]
+        let lignes: [Ligne]
         do {
-            observations = try await requete.perform(on: pixels, orientation: .up)
+            lignes = try await Self.reconnaitre(pixels)
         } catch {
             try Task.checkCancellation()
             if error is CancellationError { throw error }
             throw ErreurCapture.lectureVision(error)
         }
         try Task.checkCancellation()
-        let lignes = observations.compactMap { observation -> Ligne? in
-            guard
-                let texte = observation.topCandidates(1).first?.string
-                    .trimmingCharacters(in: .whitespacesAndNewlines), !texte.isEmpty
-            else { return nil }
-            return Ligne(texte: texte, cadre: observation.boundingBox.cgRect)
-        }
         guard !lignes.isEmpty else { throw CauseExtraction.rienTrouve }
         let rapportImage = CGFloat(pixels.height) / CGFloat(pixels.width)
         return Self.ordonner(lignes, rapportImage: rapportImage).map(\.texte).joined(separator: "\n")
     }
 
+    private static func reconnaitre(_ pixels: CGImage) async throws -> [Ligne] {
+        var requete = RecognizeTextRequest()
+        requete.recognitionLevel = .accurate
+        requete.recognitionLanguages = [Locale.Language(identifier: "fr-FR")]
+        requete.usesLanguageCorrection = true
+        do {
+            return try await requete.perform(on: pixels, orientation: .up).compactMap {
+                Ligne(texte: $0.topCandidates(1).first?.string, cadre: $0.boundingBox.cgRect)
+            }
+        } catch {
+            #if os(macOS)
+                try Task.checkCancellation()
+                if error is CancellationError { throw error }
+                return try reconnaitreSurProcesseur(pixels)
+            #else
+                throw error
+            #endif
+        }
+    }
+
+    #if os(macOS)
+        // La compilation du modèle de la requête Swift peut échouer en machine virtuelle.
+        private static func reconnaitreSurProcesseur(_ pixels: CGImage) throws -> [Ligne] {
+            let requete = VNRecognizeTextRequest()
+            requete.recognitionLevel = .accurate
+            requete.recognitionLanguages = ["fr-FR"]
+            requete.usesLanguageCorrection = true
+            for (etape, appareils) in try requete.supportedComputeStageDevices {
+                let processeur = appareils.first { if case .cpu = $0 { true } else { false } }
+                requete.setComputeDevice(processeur, for: etape)
+            }
+            try VNImageRequestHandler(cgImage: pixels, orientation: .up).perform([requete])
+            return (requete.results ?? []).compactMap {
+                Ligne(texte: $0.topCandidates(1).first?.string, cadre: $0.boundingBox)
+            }
+        }
+    #endif
+
     private struct Ligne {
         let texte: String
         let cadre: CGRect
+
+        init?(texte: String?, cadre: CGRect) {
+            guard let texte = texte?.trimmingCharacters(in: .whitespacesAndNewlines), !texte.isEmpty else { return nil }
+            self.texte = texte
+            self.cadre = cadre
+        }
     }
 
     private static func ordonner(_ lignes: [Ligne], rapportImage: CGFloat) -> [Ligne] {
