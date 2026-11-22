@@ -198,7 +198,8 @@ struct CaptureTests {
         return donnees as Data
 
         func ligneTexte(_ texte: String, taille: CGFloat) -> CTLine {
-            let police = CTFontCreateWithName((manuscrit ? "Noteworthy-Bold" : "Helvetica") as CFString, taille, nil)
+            let police = CTFontCreateWithName(
+                (manuscrit ? "ChalkboardSE-Regular" : "Helvetica") as CFString, taille, nil)
             return CTLineCreateWithAttributedString(
                 NSAttributedString(
                     string: texte, attributes: [NSAttributedString.Key(kCTFontAttributeName as String): police]))

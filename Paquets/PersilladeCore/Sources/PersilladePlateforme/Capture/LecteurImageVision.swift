@@ -36,7 +36,7 @@ public struct LecteurImageVision: LecteurImage {
             #if os(macOS)
                 try Task.checkCancellation()
                 if error is CancellationError { throw error }
-                return try reconnaitreSurProcesseur(pixels)
+                return try reconnaitreRapidement(pixels)
             #else
                 throw error
             #endif
@@ -44,16 +44,12 @@ public struct LecteurImageVision: LecteurImage {
     }
 
     #if os(macOS)
-        // La compilation du modèle de la requête Swift peut échouer en machine virtuelle.
-        private static func reconnaitreSurProcesseur(_ pixels: CGImage) throws -> [Ligne] {
+        // Certains runners macOS ne peuvent pas compiler le modèle du mode précis.
+        private static func reconnaitreRapidement(_ pixels: CGImage) throws -> [Ligne] {
             let requete = VNRecognizeTextRequest()
-            requete.recognitionLevel = .accurate
+            requete.recognitionLevel = .fast
             requete.recognitionLanguages = ["fr-FR"]
             requete.usesLanguageCorrection = true
-            for (etape, appareils) in try requete.supportedComputeStageDevices {
-                let processeur = appareils.first { if case .cpu = $0 { true } else { false } }
-                requete.setComputeDevice(processeur, for: etape)
-            }
             try VNImageRequestHandler(cgImage: pixels, orientation: .up).perform([requete])
             return (requete.results ?? []).compactMap {
                 Ligne(texte: $0.topCandidates(1).first?.string, cadre: $0.boundingBox)
