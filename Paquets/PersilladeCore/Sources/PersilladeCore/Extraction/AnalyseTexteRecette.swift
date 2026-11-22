@@ -89,7 +89,9 @@ struct AnalyseTexteRecette {
             let etapeVerbale = sansNumero.correspond(Self.verbeEtape)
             let numerotee = sansNumero != ligne
             let ingredientNumerote = section == .ingredients && numerotee ? AnalyseIngredient.analyser(sansNumero) : nil
-            let ingredientDose = ingredientNumerote?.quantite != nil && ingredientNumerote?.ligneNonComprise == false
+            let ingredientDose =
+                sansNumero.first?.isNumber == true
+                && ingredientNumerote?.quantite != nil && ingredientNumerote?.ligneNonComprise == false
             if section == .etapes || etapeVerbale || (numerotee && !ingredientsExplicites && !ingredientDose) {
                 section = .etapes
                 if !sansNumero.isEmpty {

@@ -193,13 +193,14 @@ func corpusPages(nom: String, titre: String, portions: Int, ingredients: Int, et
 }
 
 @Test func listeSansEnteteConserveTitreEtIngredientsNonDoses() async throws {
-    let contenu = texteRecu("Cake\n2 œufs\nfarine\n1. 100 g de beurre\n2. Fouetter les œufs.")
+    let contenu = texteRecu("Cake\n2 œufs\nsel\n1. 200 g de farine\n2. Une fois la pâte lisse, incorporer le beurre.")
     let resultat = try await Extracteur().extraire(contenu, cible: .recette)
     #expect(resultat.statut == .complet)
     #expect(resultat.recette?.titre == "Cake")
-    #expect(resultat.recette?.ingredients.map(\.nom) == ["œufs", "farine", "beurre"])
-    #expect(resultat.recette?.ingredients.last?.texteOrigine == "1. 100 g de beurre")
-    #expect(resultat.recette?.etapes == ["Fouetter les œufs."])
+    #expect(resultat.recette?.ingredients.map(\.nom) == ["œufs", "sel", "farine"])
+    #expect(resultat.recette?.ingredients.first { $0.nom == "farine" }?.quantite == Quantite(200))
+    #expect(resultat.recette?.ingredients.first { $0.nom == "farine" }?.texteOrigine == "1. 200 g de farine")
+    #expect(resultat.recette?.etapes == ["Une fois la pâte lisse, incorporer le beurre."])
 }
 
 @Test func brouillonOCRConserveLaLigneIncomprise() async throws {
