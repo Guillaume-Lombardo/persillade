@@ -103,3 +103,17 @@ import Testing
     #expect(recu.type == .texte)
     #expect(recu.contenu == donnees)
 }
+
+@Test @MainActor func decodeLeTexteArchiveParSafari() async throws {
+    let fournisseur = NSItemProvider()
+    let texte = "Poireaux et crème"
+    let archive = try NSKeyedArchiver.archivedData(
+        withRootObject: texte as NSString, requiringSecureCoding: true)
+    fournisseur.registerDataRepresentation(forTypeIdentifier: "public.plain-text", visibility: .all) { terminer in
+        terminer(archive, nil)
+        return nil
+    }
+    let recu = try await ContenuRecu.charger([fournisseur], origine: .feuillePartage)
+    #expect(recu.type == .texte)
+    #expect(recu.contenu == Data(texte.utf8))
+}

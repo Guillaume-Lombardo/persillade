@@ -58,15 +58,27 @@ extension ContenuRecu {
                             }
                         }
                     }
-                    let texte =
-                        String(data: donnees, encoding: .utf8)
-                        ?? String(data: donnees, encoding: .utf16)
-                    if let texte, let contenu = Self(texte: texte, origine: origine) { return contenu }
+                    if let texte = try decoderTexte(donnees),
+                        let contenu = Self(texte: texte, origine: origine)
+                    {
+                        return contenu
+                    }
                 } catch {
                     derniereErreur = error
                 }
             }
         }
         throw derniereErreur
+    }
+
+    private static func decoderTexte(_ donnees: Data) throws -> String? {
+        // Safari peut fournir un NSString archivé pour une sélection de texte.
+        if donnees.starts(with: "bplist00".utf8) {
+            return try NSKeyedUnarchiver.unarchivedObject(ofClass: NSString.self, from: donnees) as String?
+        }
+        if donnees.starts(with: [0xFE, 0xFF]) || donnees.starts(with: [0xFF, 0xFE]) {
+            return String(data: donnees, encoding: .utf16)
+        }
+        return String(data: donnees, encoding: .utf8)
     }
 }
