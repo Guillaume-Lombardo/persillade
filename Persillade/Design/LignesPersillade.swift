@@ -2,6 +2,8 @@ import PersilladeCore
 import SwiftUI
 
 extension Unite {
+    var libelleLecturePersillade: String? { self == .piece ? nil : libellePersillade }
+
     var libellePersillade: String {
         switch self {
         case .g: "g"

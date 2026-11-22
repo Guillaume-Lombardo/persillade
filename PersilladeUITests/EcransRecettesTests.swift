@@ -73,6 +73,114 @@
         }
 
         @MainActor
+        func testReprendCorrectionApresTerminaisonPuisEffaceApresEnregistrement() {
+            let app = lancer()
+            coller(app)
+            ouvrirCorrection(app)
+            let titre = app.textFields["titre-correction"]
+            titre.tap()
+            titre.typeText(" du dimanche")
+            let portions = app.textFields["portions-correction"]
+            portions.tap()
+            portions.typeText("6")
+
+            app.terminate()
+            app.launch()
+            XCTAssertTrue(titre.waitForExistence(timeout: 8))
+            XCTAssertEqual(titre.value as? String, "Crêpes maison du dimanche")
+            XCTAssertEqual(portions.value as? String, "6")
+            let oeufs = app.buttons.containing(NSPredicate(format: "label CONTAINS[c] %@", "œufs")).firstMatch
+            XCTAssertTrue(oeufs.exists)
+            XCTAssertFalse(oeufs.label.contains("pièce"))
+            joindre("Correction-reprise")
+            enregistrer(app)
+            XCTAssertEqual(app.staticTexts["titre-fiche"].label, "Crêpes maison du dimanche")
+
+            app.terminate()
+            app.launch()
+            XCTAssertTrue(app.buttons["ouvrir-recette"].firstMatch.waitForExistence(timeout: 8))
+            XCTAssertFalse(titre.exists)
+            XCTAssertFalse(app.buttons["ouvrir-contenu-recu"].exists)
+        }
+
+        @MainActor
+        func testReprendUneModificationApresArrierePlanPuisAbandonne() {
+            let app = lancer()
+            coller(app)
+            ouvrirCorrection(app)
+            enregistrer(app)
+            app.buttons["Options de la recette"].tap()
+            app.buttons["Modifier"].tap()
+            let titre = app.textFields["titre-correction"]
+            XCTAssertTrue(titre.waitForExistence(timeout: 8))
+            titre.tap()
+            titre.typeText(" en cours")
+
+            XCUIDevice.shared.press(.home)
+            app.terminate()
+            app.launch()
+            XCTAssertTrue(app.navigationBars["Modifier la recette"].waitForExistence(timeout: 8))
+            XCTAssertEqual(titre.value as? String, "Crêpes maison en cours")
+            app.buttons["fermer-correction"].tap()
+            app.buttons["Quitter"].tap()
+
+            app.terminate()
+            app.launch()
+            let recette = app.buttons["ouvrir-recette"].firstMatch
+            XCTAssertTrue(recette.waitForExistence(timeout: 8))
+            recette.tap()
+            XCTAssertTrue(app.staticTexts["titre-fiche"].waitForExistence(timeout: 8))
+            XCTAssertEqual(app.staticTexts["titre-fiche"].label, "Crêpes maison")
+        }
+
+        @MainActor
+        func testDestinationLongueGardeLesActionsVisibles() {
+            let texte = String(repeating: "Un long extrait de texte qui occupe plusieurs lignes. ", count: 40)
+            for (nom, arguments) in [("Standard", []), ("AX3", ["-recettes-ax3"])] {
+                let app = lancer(arguments: arguments, texte: texte)
+                coller(app)
+                XCTAssertTrue(app.buttons["import-destination-recette"].isHittable, nom)
+                XCTAssertTrue(app.buttons["Articles de courses"].isHittable, nom)
+                joindre("Destination-longue-\(nom)")
+                app.terminate()
+            }
+        }
+
+        @MainActor
+        func testReprendLaValidationDuMessageEtLaQuantiteEnCoursDeSaisie() {
+            let app = lancer(texte: "2 bananes\n500 g de farine")
+            coller(app)
+            app.buttons["Articles de courses"].tap()
+            let exclure = app.buttons["Ne pas envoyer farine"]
+            XCTAssertTrue(exclure.waitForExistence(timeout: 8))
+            exclure.tap()
+            let bananes = app.buttons.containing(NSPredicate(format: "label BEGINSWITH %@", "2")).matching(
+                NSPredicate(format: "label CONTAINS %@", "bananes")
+            ).firstMatch
+            XCTAssertTrue(bananes.exists)
+            XCTAssertFalse(bananes.label.contains("pièce"))
+            bananes.tap()
+            let quantite = app.textFields["editeur-quantite"]
+            XCTAssertTrue(quantite.waitForExistence(timeout: 8))
+            quantite.tap()
+            quantite.typeText(XCUIKeyboardKey.delete.rawValue + "3")
+
+            app.terminate()
+            app.launch()
+            XCTAssertTrue(quantite.waitForExistence(timeout: 10))
+            XCTAssertEqual(quantite.value as? String, "3")
+            app.buttons["Valider"].tap()
+            XCTAssertTrue(app.buttons["Remettre farine"].waitForExistence(timeout: 8))
+            app.buttons["Ajouter 1 article"].tap()
+            let terminer = app.buttons["Terminé"]
+            XCTAssertTrue(terminer.waitForExistence(timeout: 8))
+            terminer.tap()
+            XCTAssertTrue(app.buttons["article-banane"].waitForExistence(timeout: 8))
+            XCTAssertTrue(app.buttons["article-banane"].label.contains("3"))
+            XCTAssertFalse(app.buttons["article-farine"].exists)
+        }
+
+        @MainActor
         func testMessageDepuisDestination() {
             let app = lancer(texte: "2 bananes\n500 g de farine")
             coller(app)

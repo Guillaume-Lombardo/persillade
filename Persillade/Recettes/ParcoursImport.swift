@@ -15,12 +15,14 @@ struct ParcoursImport: View {
     let importerArticles: ((ContenuRecu) -> Void)?
     private let sourcePhoto: SourcePhoto?
 
+    @Environment(SuiviBrouillonCorrection.self) private var suivi
     @Environment(\.displayScale) private var echelle
     @Environment(\.dynamicTypeSize) private var taille
     @State private var etape: Etape
     @State private var recu: ContenuRecu?
     @State private var resultat: ResultatExtraction?
     @State private var recetteEnregistree: UUID?
+    @State private var saisieLibre = DonneesCorrection()
     @State private var erreur: String?
     @State private var occupation = false
     @State private var confirmerAbandon = false
@@ -47,7 +49,9 @@ struct ParcoursImport: View {
             contenuEtape.navigationBarTitleDisplayMode(.inline)
         }
         .tint(CouleurPersillade.persil.couleur)
-        .presentationDetents(enSaisie || taille >= .accessibility3 ? [.large] : [.medium, .large])
+        .presentationDetents(
+            enSaisie || (taille >= .accessibility3 && etape != .destination) ? [.large] : [.medium, .large]
+        )
         .interactiveDismissDisabled(occupation || etape == .lecture || enSaisie)
         .alert(
             "Import de la recette",
@@ -98,8 +102,8 @@ struct ParcoursImport: View {
         case .correction:
             if let recu, let resultat {
                 CorrectionRecette(
-                    donnees: .init(
-                        id: recu.id, resultat: resultat, url: lienRecu, photo: recu.type == .image ? recu.contenu : nil),
+                    donnees: .init(recu: recu, resultat: resultat, url: lienRecu),
+                    photo: recu.type == .image ? recu.contenu : nil,
                     fermer: fermer
                 ) { recette in
                     if recetteEnregistree == nil {
@@ -108,6 +112,7 @@ struct ParcoursImport: View {
                     }
                     do {
                         try await reception.retirer(recu)
+                        try await suivi.effacer()
                     } catch {
                         throw ErreurClotureImport.retrait
                     }
@@ -115,8 +120,9 @@ struct ParcoursImport: View {
                 }
             }
         case .saisie:
-            CorrectionRecette(donnees: .init(), fermer: fermer) { recette in
+            CorrectionRecette(donnees: saisieLibre, fermer: fermer) { recette in
                 try await bibliotheque.enregistrer(recette, modification: false, echelle: echelle)
+                try await suivi.effacer()
                 terminer(recette.id)
             }
         }
@@ -154,26 +160,17 @@ struct ParcoursImport: View {
                 }
                 Text(contenu.texteRecu)
                     .typographie(.section)
-                    .lineLimit(3)
+                    .lineLimit(taille.isAccessibilitySize ? 2 : 3)
                     .accessibilityAddTraits(.isHeader)
+                if texteDeRepli != nil {
+                    Label("Texte collé disponible", systemImage: "doc.text")
+                        .typographie(.precision)
+                }
                 Text(
                     "\(contenu.libelleType) · \(contenu.libelleOrigine) · \(contenu.recuLe.formatted(date: .omitted, time: .shortened))"
                 )
                 .typographie(.precision)
                 .foregroundStyle(CouleurPersillade.encre2.couleur)
-                if texteDeRepli != nil {
-                    Label("Texte collé disponible", systemImage: "doc.text")
-                        .typographie(.precision)
-                }
-                BoutonActionPersillade("Recette") { etape = .lecture }
-                    .disabled(occupation)
-                    .accessibilityIdentifier("import-destination-recette")
-                if let importerArticles {
-                    Button("Articles de courses") { importerArticles(contenu) }
-                        .buttonStyle(.glass)
-                        .controlSize(.large)
-                        .disabled(occupation)
-                }
                 Button("Abandonner", role: .destructive) { confirmerAbandon = true }
                     .frame(minHeight: GrillePersillade.cible)
                     .tint(CouleurPersillade.tomate.couleur)
@@ -188,6 +185,18 @@ struct ParcoursImport: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(GrillePersillade.marge)
+        }
+        .barreAction {
+            VStack(spacing: GrillePersillade.pas) {
+                BoutonActionPersillade("Recette") { etape = .lecture }
+                    .accessibilityIdentifier("import-destination-recette")
+                if let importerArticles {
+                    Button("Articles de courses") { importerArticles(contenu) }
+                        .buttonStyle(.glass)
+                        .controlSize(.large)
+                }
+            }
+            .disabled(occupation)
         }
         .confirmationDialog("Abandonner ce contenu ?", isPresented: $confirmerAbandon, titleVisibility: .visible) {
             Button("Abandonner", role: .destructive) { Task { await abandonner(contenu) } }
@@ -293,7 +302,7 @@ struct ParcoursImport: View {
 enum ErreurClotureImport: Error {
     case retrait
 
-    static let message = "La recette est enregistrée. Le contenu reçu reste dans la file."
+    static let message = "La recette est enregistrée. La correction n’a pas pu être clôturée."
 }
 
 private struct FeuilleCollage: View {

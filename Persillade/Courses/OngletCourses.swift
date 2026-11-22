@@ -4,13 +4,12 @@ import UIKit
 
 struct OngletCourses: View {
     private enum Feuille: Identifiable {
-        case ajout, message, destination, acces, rapport
+        case ajout, destination, acces, rapport
         case detail(UUID)
 
         var id: String {
             switch self {
             case .ajout: "ajout"
-            case .message: "message"
             case .destination: "destination"
             case .acces: "acces"
             case .rapport: "rapport"
@@ -31,7 +30,7 @@ struct OngletCourses: View {
 
     let session: SessionCourses
     let reglages: () -> Void
-    let extracteur: Extracteur
+    let importerMessage: () -> Void
 
     var body: some View {
         NavigationStack {
@@ -95,8 +94,6 @@ struct OngletCourses: View {
                     switch choix {
                     case .ajout:
                         AjoutArticleCourses(session: session)
-                    case .message:
-                        ArticlesMessageCourses(session: session, extracteur: extracteur)
                     case .destination:
                         choixRappels
                     case .acces:
@@ -231,7 +228,7 @@ struct OngletCourses: View {
     private var menuAjout: some View {
         Menu {
             Button("Ajouter un article", systemImage: "plus") { feuille = .ajout }
-            Button("Articles d’un message", systemImage: "text.bubble") { feuille = .message }
+            Button("Articles d’un message", systemImage: "text.bubble", action: importerMessage)
         } label: {
             Image(systemName: "plus")
                 .font(.headline)

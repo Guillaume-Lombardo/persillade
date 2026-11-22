@@ -8,7 +8,7 @@ public enum StatutExtraction: String, Sendable {
     case complet, partiel, echec
 }
 
-public enum CauseExtraction: String, Error, Sendable {
+public enum CauseExtraction: String, Codable, Error, Sendable {
     case iaIndisponible = "ia_indisponible"
     case iaEnErreur = "ia_en_erreur"
     case horsLigne = "hors_ligne"

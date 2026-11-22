@@ -1,7 +1,7 @@
 import PersilladeCore
 import SwiftUI
 
-struct SaisieQuantite: Equatable {
+struct SaisieQuantite: Codable, Equatable, Sendable {
     static let standards: [Unite] = [.g, .kg, .ml, .cl, .l, .piece, .cas, .cac]
 
     var texte: String
@@ -15,6 +15,32 @@ struct SaisieQuantite: Equatable {
             autre = libelle
         } else {
             autre = ""
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case texte, unite, unitePersonnalisee, autre
+    }
+
+    init(from decoder: any Decoder) throws {
+        let champs = try decoder.container(keyedBy: CodingKeys.self)
+        texte = try champs.decode(String.self, forKey: .texte)
+        autre = try champs.decode(String.self, forKey: .autre)
+        if let libelle = try champs.decodeIfPresent(String.self, forKey: .unitePersonnalisee) {
+            unite = .autre(libelle)
+        } else {
+            unite = try champs.decodeIfPresent(Unite.self, forKey: .unite)
+        }
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var champs = encoder.container(keyedBy: CodingKeys.self)
+        try champs.encode(texte, forKey: .texte)
+        try champs.encode(autre, forKey: .autre)
+        if case .autre(let libelle) = unite {
+            try champs.encode(libelle, forKey: .unitePersonnalisee)
+        } else {
+            try champs.encodeIfPresent(unite, forKey: .unite)
         }
     }
 
@@ -88,7 +114,8 @@ struct ChampNomUnite: View {
 struct EditeurQuantite: View {
     let enregistrer: (Quantite?, Unite?) -> Void
 
-    @State private var saisie: SaisieQuantite
+    @State private var saisieLocale: SaisieQuantite
+    private let saisieExterne: Binding<SaisieQuantite>?
     @State private var erreur: String?
     @FocusState private var saisieQuantite: Bool
     @FocusState private var saisieUnite: Bool
@@ -97,14 +124,24 @@ struct EditeurQuantite: View {
     init(quantite: Quantite?, unite: Unite?, enregistrer: @escaping (Quantite?, Unite?) -> Void) {
         self.enregistrer = enregistrer
         uniteLue = unite
-        _saisie = State(initialValue: SaisieQuantite(quantite: quantite, unite: unite))
+        saisieExterne = nil
+        _saisieLocale = State(initialValue: SaisieQuantite(quantite: quantite, unite: unite))
     }
+
+    init(saisie: Binding<SaisieQuantite>, uniteLue: Unite?, enregistrer: @escaping (Quantite?, Unite?) -> Void) {
+        self.enregistrer = enregistrer
+        self.uniteLue = uniteLue
+        saisieExterne = saisie
+        _saisieLocale = State(initialValue: saisie.wrappedValue)
+    }
+
+    private var liaison: Binding<SaisieQuantite> { saisieExterne ?? $saisieLocale }
 
     var body: some View {
         VStack(alignment: .leading, spacing: GrillePersillade.pas * 3) {
-            ChampQuantite(texte: $saisie.texte).focused($saisieQuantite)
-            ChoixUnite(saisie: $saisie, uniteLue: uniteLue)
-            if case .autre = saisie.unite { ChampNomUnite(nom: $saisie.autre).focused($saisieUnite) }
+            ChampQuantite(texte: liaison.texte).focused($saisieQuantite)
+            ChoixUnite(saisie: liaison, uniteLue: uniteLue)
+            if case .autre = liaison.wrappedValue.unite { ChampNomUnite(nom: liaison.autre).focused($saisieUnite) }
             if let erreur {
                 Text(erreur).typographie(.alerte)
                     .foregroundStyle(CouleurPersillade.tomate.couleur)
@@ -122,7 +159,7 @@ struct EditeurQuantite: View {
     @ViewBuilder private var actions: some View {
         BoutonActionPersillade("Valider", action: valider)
         Button("Effacer la quantité") {
-            saisie.texte = ""
+            liaison.wrappedValue.texte = ""
             erreur = nil
             saisieQuantite = false
             saisieUnite = false
@@ -135,12 +172,12 @@ struct EditeurQuantite: View {
 
     private func valider() {
         do {
-            let (nombre, unite) = try saisie.valider()
+            let (nombre, unite) = try liaison.wrappedValue.valider()
             guard let nombre else { throw SaisieQuantite.Erreur.nombre }
             erreur = nil
             saisieQuantite = false
             saisieUnite = false
-            saisie.texte = nombre.texteFrancais
+            liaison.wrappedValue.texte = nombre.texteFrancais
             enregistrer(nombre, unite)
         } catch {
             self.erreur = error.localizedDescription

@@ -228,7 +228,7 @@ struct IngredientsRecette: View {
                 let ingredient = recette.ingredients[index]
                 LigneArticle(
                     nom: ingredient.nom, quantite: quantites[index]?.texteFrancais,
-                    unite: ingredient.unite == .piece ? nil : ingredient.unite?.libellePersillade)
+                    unite: ingredient.unite?.libelleLecturePersillade)
             }
         case .failure:
             Text("Impossible de calculer les quantités pour ces portions.")

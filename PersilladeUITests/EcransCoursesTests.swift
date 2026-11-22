@@ -87,6 +87,28 @@ import XCTest
         }
 
         @MainActor
+        func testRefusRappelsAfficheLeCheminEtOuvreReglages() {
+            let app = lancer(["-courses-eventkit"])
+            app.resetAuthorizationStatus(for: .reminders)
+            ouvrirOnglet("Courses", dans: app)
+            bouton("Choisir une liste", dans: app).tap()
+            let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+            let refuser = springboard.alerts.buttons.matching(
+                NSPredicate(format: "label IN %@", ["Don’t Allow", "Don't Allow", "Ne pas autoriser"])
+            ).firstMatch
+            XCTAssertTrue(refuser.waitForExistence(timeout: 10), springboard.debugDescription)
+            refuser.tap()
+            let chemin = app.staticTexts.containing(
+                NSPredicate(format: "label CONTAINS %@", "Apps → Persillade → Rappels")
+            ).firstMatch
+            XCTAssertTrue(chemin.waitForExistence(timeout: 10))
+            joindreCapture("Acces-Rappels-refuse")
+            bouton("Ouvrir Réglages", dans: app).tap()
+            let reglages = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
+            XCTAssertTrue(reglages.wait(for: .runningForeground, timeout: 10))
+        }
+
+        @MainActor
         func testCapturesSemaineEtCourses() {
             for (nom, arguments) in [
                 ("clair", []), ("sombre", ["-courses-sombre"]), ("AX3", ["-courses-ax3"]), ("AX5", ["-courses-ax5"]),

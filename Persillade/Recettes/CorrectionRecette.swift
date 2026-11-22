@@ -31,11 +31,16 @@ struct CorrectionRecette: View {
     let fermer: () -> Void
     let enregistrer: (Recette) async throws -> Void
 
+    private let donnees: ContexteCorrection
+    private let photo: Data?
+    private let repris: Bool
+    @State private var initial: FormulaireRecette
+
+    @Environment(SuiviBrouillonCorrection.self) private var suivi
+    @Environment(\.scenePhase) private var phase
     @Environment(\.dynamicTypeSize) private var taille
     @Environment(\.accessibilityReduceMotion) private var mouvementReduit
     @FocusState private var saisie: Champ?
-    @State private var donnees: DonneesCorrection
-    @State private var initial: FormulaireRecette
     @State private var formulaire: FormulaireRecette
     @State private var ingredientOuvert: UUID?
     @State private var confirmerQuitter = false
@@ -43,19 +48,27 @@ struct CorrectionRecette: View {
     @State private var enregistree = false
     @State private var erreurValidation: String?
     @State private var erreurEcriture = false
+    @State private var erreurAbandon = false
     @State private var sourceOuverte: Bool?
     @State private var suppression: Suppression?
 
     init(
-        donnees: DonneesCorrection, fermer: @escaping () -> Void,
-        enregistrer: @escaping (Recette) async throws -> Void
+        donnees: DonneesCorrection, photo: Data? = nil, repris: Bool = false,
+        fermer: @escaping () -> Void, enregistrer: @escaping (Recette) async throws -> Void
     ) {
         self.fermer = fermer
         self.enregistrer = enregistrer
-        let formulaire = FormulaireRecette(donnees.brouillon, source: donnees.source)
-        _donnees = State(initialValue: donnees)
-        _initial = State(initialValue: formulaire)
-        _formulaire = State(initialValue: formulaire)
+        self.donnees = donnees.contexte
+        self.photo = photo
+        self.repris = repris
+        _initial = State(initialValue: donnees.formulaire)
+        _formulaire = State(initialValue: donnees.formulaire)
+    }
+
+    private var brouillon: BrouillonCorrection { .recette(donnees, formulaire, validation: false) }
+
+    private var brouillonNecessaire: Bool {
+        repris || donnees.sourceId != nil || formulaire != initial
     }
 
     private var alertes: [Champ] {
@@ -68,6 +81,17 @@ struct CorrectionRecette: View {
     var body: some View {
         ScrollViewReader { defilement in
             List {
+                if suivi.erreurEcriture {
+                    Section {
+                        Label(
+                            "Impossible de garder le brouillon sur l’iPhone.",
+                            systemImage: "exclamationmark.circle"
+                        )
+                        .foregroundStyle(CouleurPersillade.tomate.couleur)
+                        Button("Réessayer") { suivi.programmer(brouillon) }
+                            .disabled(enregistrant || enregistree)
+                    }
+                }
                 if erreurEcriture {
                     Section {
                         VStack(alignment: .leading, spacing: GrillePersillade.pas * 2) {
@@ -103,7 +127,7 @@ struct CorrectionRecette: View {
                     }
                     .listRowBackground(CouleurPersillade.page2.couleur)
                 }
-                if let photo = donnees.photo, let image = UIImage(data: photo) {
+                if let photo, let image = UIImage(data: photo) {
                     Section {
                         Image(uiImage: image)
                             .resizable()
@@ -164,10 +188,10 @@ struct CorrectionRecette: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fermer") {
-                        if !enregistree && (formulaire != initial || erreurEcriture) {
+                        if !enregistree && (repris || formulaire != initial || erreurEcriture) {
                             confirmerQuitter = true
                         } else {
-                            fermer()
+                            abandonner()
                         }
                     }
                     .disabled(enregistrant)
@@ -185,7 +209,7 @@ struct CorrectionRecette: View {
             .confirmationDialog("Quitter sans enregistrer ?", isPresented: $confirmerQuitter, titleVisibility: .visible)
             {
                 Button("Continuer", role: .cancel) {}
-                Button("Quitter", role: .destructive, action: fermer)
+                Button("Quitter", role: .destructive, action: abandonner)
             } message: {
                 Text("Les corrections seront perdues.")
             }
@@ -197,7 +221,33 @@ struct CorrectionRecette: View {
             .sensoryFeedback(.success, trigger: alertes.isEmpty) { _, vide in vide }
         }
         .tint(CouleurPersillade.persil.couleur)
-        .interactiveDismissDisabled(formulaire != initial || enregistrant || erreurEcriture)
+        .interactiveDismissDisabled()
+        .onChange(of: formulaire, initial: true) { precedent, _ in
+            if (brouillonNecessaire || precedent != initial) && !enregistrant && !enregistree {
+                suivi.programmer(brouillon)
+            }
+        }
+        .onChange(of: phase) { _, phase in
+            if phase != .active && brouillonNecessaire && !enregistrant && !enregistree {
+                suivi.enArrierePlan(brouillon)
+            }
+        }
+        .alert("Impossible d’abandonner le brouillon.", isPresented: $erreurAbandon) {
+            Button("OK", role: .cancel) {}
+        }
+    }
+
+    private func abandonner() {
+        enregistrant = true
+        Task {
+            defer { enregistrant = false }
+            do {
+                try await suivi.effacer()
+                fermer()
+            } catch {
+                erreurAbandon = true
+            }
+        }
     }
 
     private func champPortions(_ defilement: ScrollViewProxy) -> some View {
@@ -278,9 +328,9 @@ struct CorrectionRecette: View {
 
     private func panneauSource(_ defilement: ScrollViewProxy) -> some View {
         VoletTexteRecu(
-            source: donnees.source, ingredients: formulaire.ingredients,
+            source: donnees.source, debut: donnees.debutExtrait, ingredients: formulaire.ingredients,
             ouvert: Binding(
-                get: { sourceOuverte ?? (donnees.photo == nil && !taille.isAccessibilitySize) },
+                get: { sourceOuverte ?? (photo == nil && !taille.isAccessibilitySize) },
                 set: { sourceOuverte = $0 })
         ) { id in
             montrer(.ingredient(id), dans: defilement)
@@ -353,7 +403,7 @@ struct CorrectionRecette: View {
                         LigneArticle(
                             nom: ligne.nomVide ? "Nom manquant" : ligne.nom,
                             quantite: ligne.quantite.texte.isEmpty ? nil : ligne.quantite.texte,
-                            unite: ligne.quantite.texte.isEmpty ? nil : ligne.quantite.unite?.libellePersillade,
+                            unite: ligne.quantite.texte.isEmpty ? nil : ligne.quantite.unite?.libelleLecturePersillade,
                             precision: ligne.note,
                             ouvrir: { montrer(champ, dans: defilement) })
                         if ligne.aVerifier {
@@ -511,12 +561,8 @@ struct CorrectionRecette: View {
         Task {
             defer { enregistrant = false }
             do {
-                let recette = try Recette(
-                    id: donnees.id, titre: formulaire.titre, portions: portions, ingredients: ingredients,
-                    etapes: formulaire.etapes.map(\.texte).filter {
-                        !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    },
-                    texteSource: donnees.source, urlSource: donnees.url)
+                let recette = try formulaire.recette(donnees, portions: portions, ingredients: ingredients)
+                if !enregistree { try await suivi.forcer(.recette(donnees, formulaire, validation: true)) }
                 try await enregistrer(recette)
             } catch {
                 enregistree = error is ErreurClotureImport
