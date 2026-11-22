@@ -30,7 +30,7 @@ jobs:
 
   app:
     runs-on: xcode-27
-    timeout-minutes: 25
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -40,12 +40,28 @@ jobs:
           xcodebuild -version
           simulateur=$(xcrun simctl create "Persillade CI" com.apple.CoreSimulator.SimDeviceType.iPhone-17 com.apple.CoreSimulator.SimRuntime.iOS-27-0)
           trap 'xcrun simctl delete "$simulateur"' EXIT
-          bash .github/scripts/preparer-phototheque-test.sh "$simulateur"
-          xcodebuild -project Persillade.xcodeproj -scheme Persillade \
+          time xcodebuild -project Persillade.xcodeproj -scheme Persillade \
             -destination "platform=iOS Simulator,id=$simulateur" \
-            -derivedDataPath .build/DerivedData -parallel-testing-enabled NO build test
+            -derivedDataPath .build/DerivedData build-for-testing
+
+          xcrun simctl boot "$simulateur"
+          time bash .github/scripts/preparer-phototheque-test.sh "$simulateur"
+
+          mkdir -p .build/ResultatsTests
+          time xcodebuild -project Persillade.xcodeproj -scheme Persillade \
+            -destination "platform=iOS Simulator,id=$simulateur" \
+            -derivedDataPath .build/DerivedData -parallel-testing-enabled NO \
+            -resultBundlePath .build/ResultatsTests/Persillade.xcresult test-without-building
       - name: Compiler pour un iPhone sans signer
         run: |
           xcodebuild -project Persillade.xcodeproj -scheme Persillade \
             -destination 'generic/platform=iOS' -derivedDataPath .build/DerivedData \
             CODE_SIGNING_ALLOWED=NO build
+      - name: Joindre le rapport de tests en cas d’échec
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: resultats-tests-ios
+          path: .build/ResultatsTests/
+          if-no-files-found: ignore
+          retention-days: 3
