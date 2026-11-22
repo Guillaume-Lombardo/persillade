@@ -1,10 +1,25 @@
 import SwiftUI
+import UIKit
 
 @main
 struct PersilladeApp: App {
     var body: some Scene {
         WindowGroup {
-            Racine()
+            Group {
+                #if DEBUG
+                    if ProcessInfo.processInfo.arguments.contains("-galerie") {
+                        GalerieDesign()
+                    } else {
+                        Racine()
+                    }
+                #else
+                    Racine()
+                #endif
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) {
+                _ in
+                Task { await RenduPlanche.partage.vider() }
+            }
         }
     }
 }
