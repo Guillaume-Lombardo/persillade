@@ -21,10 +21,17 @@ public enum Unite: Codable, Hashable, Sendable {
                 throw DecodingError.dataCorruptedError(in: champ, debugDescription: "Unité inconnue")
             }
             self = .autre(String(valeur.dropFirst("autre:".count)))
+            guard nomAutreNormalise != "" else {
+                throw DecodingError.dataCorruptedError(in: champ, debugDescription: "Libellé d’unité vide")
+            }
         }
     }
 
     public func encode(to encoder: any Encoder) throws {
+        guard nomAutreNormalise != "" else {
+            throw EncodingError.invalidValue(
+                self, .init(codingPath: encoder.codingPath, debugDescription: "Libellé d’unité vide"))
+        }
         let valeur: String =
             switch self {
             case .g: "g"
@@ -40,6 +47,11 @@ public enum Unite: Codable, Hashable, Sendable {
         var champ = encoder.singleValueContainer()
         try champ.encode(valeur)
     }
+
+    var nomAutreNormalise: String? {
+        guard case .autre(let nom) = self else { return nil }
+        return normaliserNom(nom)
+    }
 }
 
 public struct Ingredient: Codable, Hashable, Sendable {
@@ -47,6 +59,7 @@ public struct Ingredient: Codable, Hashable, Sendable {
         case nomVide
         case quantiteNonPositive
         case uniteSansQuantite
+        case uniteSansLibelle
     }
 
     public let nom: String
@@ -65,6 +78,7 @@ public struct Ingredient: Codable, Hashable, Sendable {
         } else if unite != nil {
             throw Erreur.uniteSansQuantite
         }
+        guard unite?.nomAutreNormalise != "" else { throw Erreur.uniteSansLibelle }
         self.nom = nom
         self.quantite = quantite
         self.unite = unite

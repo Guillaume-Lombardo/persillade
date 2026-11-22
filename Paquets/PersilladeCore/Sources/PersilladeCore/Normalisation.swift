@@ -30,10 +30,10 @@ public func normaliserNom(_ nom: String) -> String {
 }
 
 public func convertir(_ quantite: Quantite, _ source: Unite, _ cible: Unite) throws -> Quantite? {
-    if source == cible { return quantite }
-    if case .autre(let a) = source, case .autre(let b) = cible {
-        return normaliserNom(a) == normaliserNom(b) ? quantite : nil
+    if let a = source.nomAutreNormalise, let b = cible.nomAutreNormalise {
+        return !a.isEmpty && a == b ? quantite : nil
     }
+    if source == cible { return quantite }
     guard let origine = source.echelle, let destination = cible.echelle,
         origine.canonique == destination.canonique
     else { return nil }

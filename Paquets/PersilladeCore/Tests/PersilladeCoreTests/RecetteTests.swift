@@ -53,6 +53,18 @@ private func fixture() throws -> Data {
     #expect(Recette.portionsImportees(2) == (2, false))
 }
 
+@Test(arguments: ["", "  ", "de l’"])
+func uneUnitePersonnaliseeExigeUnLibelle(libelle: String) throws {
+    let unite = Unite.autre(libelle)
+    #expect(throws: Ingredient.Erreur.uniteSansLibelle) {
+        try Ingredient(nom: "Sel", quantite: Quantite(1), unite: unite, texteOrigine: "")
+    }
+    #expect(throws: EncodingError.self) { try JSONEncoder().encode(unite) }
+    let json = try JSONEncoder().encode("autre:" + libelle)
+    #expect(throws: DecodingError.self) { try JSONDecoder().decode(Unite.self, from: json) }
+    #expect(try convertir(Quantite(1), unite, unite) == nil)
+}
+
 @Test func leDecodageRevalideLesDonnees() throws {
     let lecteur = JSONDecoder()
     let source = String(decoding: try fixture(), as: UTF8.self)
