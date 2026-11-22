@@ -259,6 +259,9 @@ struct ArticlesMessageCourses: View {
             }
         }
         .presentationDetents([.medium, .large])
+        #if DEBUG
+            .overlay(alignment: .topTrailing) { suivi.temoinEcriturePourEssai }
+        #endif
     }
 
     private func conserverSource() {

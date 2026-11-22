@@ -245,6 +245,9 @@ struct CorrectionRecette: View {
                 suivi.enArrierePlan(brouillon)
             }
         }
+        #if DEBUG
+            .overlay(alignment: .topTrailing) { suivi.temoinEcriturePourEssai }
+        #endif
         .alert("Impossible d’abandonner le brouillon.", isPresented: $erreurAbandon) {
             Button("OK", role: .cancel) {}
         }

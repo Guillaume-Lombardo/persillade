@@ -74,6 +74,11 @@ final class SuiviBrouillonCorrection {
     private var derniereOperation: Task<Void, any Error>?
     private var courant: BrouillonCorrection?
     private var aEcrire: BrouillonCorrection?
+    #if DEBUG
+        private static let observerEcriture = ProcessInfo.processInfo.arguments.contains("-test-observer-brouillon")
+        private var nombreEcritPourEssai: String?
+    #endif
+
     private(set) var erreurEcriture = false
     var aUnBrouillon: Bool { aEcrire != nil || courant != nil || erreurEcriture }
 
@@ -92,9 +97,11 @@ final class SuiviBrouillonCorrection {
         guard brouillon != courant || aEcrire != nil || erreurEcriture else { return }
         aEcrire = brouillon
         guard attente == nil else { return }
+        let horloge = ContinuousClock()
+        let echeance = horloge.now + .milliseconds(150)
         attente = Task { [weak self] in
             do {
-                try await Task.sleep(for: .milliseconds(250))
+                try await horloge.sleep(until: echeance, tolerance: .zero)
             } catch {
                 return
             }
@@ -156,6 +163,16 @@ final class SuiviBrouillonCorrection {
         do {
             try resultat.get()
             erreurEcriture = false
+            #if DEBUG
+                if Self.observerEcriture {
+                    nombreEcritPourEssai =
+                        switch courant {
+                        case .recette(_, let formulaire, _): formulaire.portions
+                        case .message(let formulaire): formulaire.edition?.saisie.texte
+                        case nil: nil
+                        }
+                }
+            #endif
         } catch {
             Logger(subsystem: "xyz.g1lom.persillade", category: "Brouillon")
                 .error("Écriture du brouillon impossible : \(String(describing: error), privacy: .private)")
@@ -163,3 +180,18 @@ final class SuiviBrouillonCorrection {
         }
     }
 }
+
+#if DEBUG
+    extension SuiviBrouillonCorrection {
+        @ViewBuilder var temoinEcriturePourEssai: some View {
+            if Self.observerEcriture, let nombreEcritPourEssai {
+                Text("Brouillon écrit \(nombreEcritPourEssai)")
+                    .font(.caption2)
+                    .padding(4)
+                    .background(.thinMaterial)
+                    .accessibilityIdentifier("brouillon-ecrit")
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+#endif

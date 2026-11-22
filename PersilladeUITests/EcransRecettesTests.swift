@@ -74,7 +74,7 @@
 
         @MainActor
         func testReprendCorrectionApresTerminaisonPuisEffaceApresEnregistrement() {
-            let app = lancer()
+            let app = lancer(arguments: ["-test-observer-brouillon"])
             coller(app)
             ouvrirCorrection(app)
             let titre = app.textFields["titre-correction"]
@@ -82,7 +82,11 @@
             titre.typeText(" du dimanche")
             let portions = app.textFields["portions-correction"]
             portions.tap()
+            XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 8))
             portions.typeText("6")
+            attendreBrouillon("6", dans: app)
+            XCTAssertEqual(portions.value as? String, "6")
+            XCTAssertTrue(app.keyboards.firstMatch.exists)
 
             app.terminate()
             app.launch()
@@ -127,6 +131,7 @@
             XCTAssertEqual(titre.value as? String, "Crêpes maison en cours")
             app.buttons["fermer-correction"].tap()
             app.buttons["Quitter"].tap()
+            XCTAssertTrue(app.buttons["fermer-correction"].waitForNonExistence(timeout: 10))
 
             app.terminate()
             app.launch()
@@ -155,7 +160,7 @@
 
         @MainActor
         func testReprendLaValidationDuMessageEtLaQuantiteEnCoursDeSaisie() {
-            let app = lancer(texte: "2 bananes\n500 g de farine")
+            let app = lancer(arguments: ["-test-observer-brouillon"], texte: "2 bananes\n500 g de farine")
             coller(app)
             app.buttons["Articles de courses"].tap()
             let exclure = app.buttons["Ne pas envoyer farine"]
@@ -170,7 +175,11 @@
             let quantite = app.textFields["editeur-quantite"]
             XCTAssertTrue(quantite.waitForExistence(timeout: 8))
             quantite.tap()
+            XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 8))
             quantite.typeText(XCUIKeyboardKey.delete.rawValue + "3")
+            attendreBrouillon("3", dans: app)
+            XCTAssertEqual(quantite.value as? String, "3")
+            XCTAssertTrue(app.keyboards.firstMatch.exists)
 
             app.terminate()
             app.launch()
@@ -261,6 +270,15 @@
                 joindre("Fiche-dernière-ligne-\(nom)")
                 app.terminate()
             }
+        }
+
+        @MainActor
+        private func attendreBrouillon(_ valeur: String, dans app: XCUIApplication) {
+            let temoin = app.staticTexts["brouillon-ecrit"]
+            let ecrit = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "label == %@", "Brouillon écrit \(valeur)"),
+                object: temoin)
+            XCTAssertEqual(XCTWaiter.wait(for: [ecrit], timeout: 10), .completed)
         }
 
         @MainActor
