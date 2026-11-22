@@ -37,64 +37,84 @@ struct PresentationQuantite {
 }
 
 struct PresentationEnvoi {
-    private let libelle: String
-    private let symbole: String
-    private let couleur: CouleurPersillade
-    var echec = false
+    let marque: LigneArticle.Marque
+    private let etatLigne: EtatEnvoiLigne?
+    var echec: Bool {
+        guard let etatLigne else { return true }
+        if case .echec = etatLigne { return true }
+        return false
+    }
+    var envoyee: Bool { etatLigne == .envoyee }
+    var traitee: Bool { envoyee || etatLigne == .rienAAjouter }
 
     init(etat: EtatCourses, ligne: LigneCourses) {
         do {
-            switch try etat.etatEnvoi(de: ligne) {
+            let etatLigne = try etat.etatEnvoi(de: ligne)
+            switch etatLigne {
             case .aEnvoyer:
-                (libelle, symbole, couleur) = ("À envoyer", "arrow.up.circle", .persil)
+                marque = .init(libelle: "À envoyer", symbole: "arrow.up.circle", couleur: .persil)
             case .envoyee:
-                (libelle, symbole, couleur) = ("Envoyé", "arrow.up.circle.fill", .encre2)
+                marque = .init(libelle: "Envoyé", symbole: "arrow.up.circle.fill", couleur: .encre2, discrete: true)
             case .rienAAjouter:
-                (libelle, symbole, couleur) = ("Rien à ajouter", "checkmark.circle", .encre2)
+                marque = .init(libelle: "Rien à ajouter", symbole: "checkmark.circle", couleur: .encre2, discrete: true)
             case .supplement(let quantite, let unite):
                 let complement = try formaterQuantiteCourses(quantite, unite: unite)
-                (libelle, symbole, couleur) = ("\(complement) de plus à envoyer", "arrow.up.circle", .persil)
+                marque = .init(libelle: "\(complement) de plus à envoyer", symbole: "arrow.up.circle", couleur: .persil)
             case .echec:
-                (libelle, symbole, couleur) = ("Échec de l’envoi", "exclamationmark.triangle.fill", .tomate)
-                echec = true
+                marque = .init(libelle: "Échec de l’envoi", symbole: "exclamationmark.triangle.fill", couleur: .tomate)
             }
+            self.etatLigne = etatLigne
         } catch {
+            etatLigne = nil
             Logger(subsystem: "xyz.g1lom.persillade", category: "Courses").error(
                 "État d’envoi illisible : \(String(describing: error), privacy: .private)")
-            (libelle, symbole, couleur) = ("État d’envoi indisponible", "exclamationmark.triangle.fill", .tomate)
-            echec = true
+            marque = .init(
+                libelle: "État d’envoi indisponible", symbole: "exclamationmark.triangle.fill", couleur: .tomate)
         }
-    }
-
-    @MainActor
-    var marque: some View {
-        Label(libelle, systemImage: symbole)
-            .typographie(.precision)
-            .foregroundStyle(couleur.couleur)
     }
 }
 
-struct ActionPrincipaleCourses: View {
+struct ActionSecondaireCourses: View {
     let libelle: String
+    let symbole: String
+    var couleur = CouleurPersillade.encre
     let action: () -> Void
-
-    init(_ libelle: String, action: @escaping () -> Void) {
-        self.libelle = libelle
-        self.action = action
-    }
 
     var body: some View {
         Button(action: action) {
-            Text(libelle)
-                .typographie(.bouton)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(CouleurPersillade.surPersil.couleur)
-                .frame(maxWidth: .infinity)
+            LabelActionCourses(libelle: libelle, symbole: symbole, couleur: couleur)
         }
-        .buttonStyle(.borderedProminent)
-        .buttonBorderShape(.capsule)
-        .controlSize(.large)
-        .tint(CouleurPersillade.persil.couleur)
+        .buttonStyle(.plain)
+        .accessibilityLabel(libelle)
+        .accessibilityShowsLargeContentViewer { Label(libelle, systemImage: symbole) }
+    }
+}
+
+struct LabelActionCourses: View {
+    let libelle: String
+    let symbole: String
+    var couleur = CouleurPersillade.encre
+
+    @Environment(\.dynamicTypeSize) private var taille
+    @Environment(\.isEnabled) private var actif
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            if !taille.isAccessibilitySize {
+                Label(libelle, systemImage: symbole)
+                    .typographie(.bouton)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .padding(.horizontal, 14)
+            }
+            Image(systemName: symbole)
+                .font(.headline)
+                .frame(width: 52)
+        }
+        .frame(minHeight: 52)
+        .foregroundStyle((actif ? couleur : .encre2).couleur)
+        .background(CouleurPersillade.page2.couleur, in: .capsule)
+        .contentShape(.capsule)
     }
 }
 
@@ -115,6 +135,8 @@ struct FeuilleCourses<Contenu: View>: View {
     var body: some View {
         NavigationStack {
             contenu()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(CouleurPersillade.page.couleur)
                 .navigationTitle(titre)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -125,6 +147,7 @@ struct FeuilleCourses<Contenu: View>: View {
                 }
         }
         .tint(CouleurPersillade.persil.couleur)
+        .presentationBackground(CouleurPersillade.page.couleur)
     }
 }
 
@@ -133,12 +156,23 @@ struct AccesRappels: View {
     @Environment(\.openURL) private var ouvrirURL
 
     var body: some View {
-        Form {
-            Section {
-                Label("Persillade n’a pas accès à Rappels.", systemImage: "lock.circle")
-                Text("Autorisez l’accès complet dans Réglages. La liste de courses est conservée.")
-                Button("Ouvrir Réglages", action: ouvrirReglages)
-                Button("Plus tard", role: .cancel) { fermer() }
+        ScrollView {
+            EtatVide(
+                titre: "Persillade n’a pas accès à Rappels.",
+                message: "Autorisez l’accès complet dans Réglages. La liste de courses est conservée."
+            ) {
+                Image(systemName: "lock.fill")
+                    .foregroundStyle(CouleurPersillade.tomate.couleur)
+                    .padding(.horizontal, GrillePersillade.marge)
+            } actions: {
+                EmptyView()
+            }
+            .padding(.top, GrillePersillade.marge)
+        }
+        .barreAction(tailleMax: .accessibility5) {
+            HStack {
+                ActionSecondaireCourses(libelle: "Plus tard", symbole: "clock", action: { fermer() })
+                BoutonActionPersillade("Ouvrir Réglages", symbole: "gear", action: ouvrirReglages)
             }
         }
     }
@@ -151,13 +185,11 @@ struct AccesRappels: View {
 extension View {
     func erreurCourses(_ session: SessionCourses) -> some View {
         alert(
-            "Persillade",
+            session.erreur ?? "",
             isPresented: Binding(
                 get: { session.erreur != nil }, set: { if !$0 { session.erreur = nil } })
         ) {
             Button("OK", role: .cancel) {}
-        } message: {
-            Text(session.erreur ?? "")
         }
     }
 }
@@ -174,87 +206,155 @@ struct BilanEnvoiCourses: View {
 
     @Environment(\.openURL) private var ouvrirURL
 
+    private var ecritures: Int { rapport.ajoutes.count + rapport.complements.count }
+    private var aEchoue: Bool { !rapport.echecs.isEmpty || rapport.causeGenerale != nil }
+
+    private var titre: String {
+        let echecs = rapport.echecs.count
+        if echecs > 0 {
+            return "\(ecritures) envoyé\(ecritures > 1 ? "s" : ""), \(echecs) échec\(echecs > 1 ? "s" : "")"
+        }
+        if aEchoue { return "Envoi interrompu" }
+        if ecritures == 0 { return "Rien à ajouter" }
+        return ecritures == 1 ? "1 article envoyé" : "\(ecritures) articles envoyés"
+    }
+
     var body: some View {
         List {
-            Section {
-                let ecritures = rapport.ajoutes.count + rapport.complements.count
-                Text(ecritures == 1 ? "1 rappel écrit" : "\(ecritures) rappels écrits")
-                    .typographie(.rayon)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(titre).typographie(.fiche)
                     .accessibilityAddTraits(.isHeader)
                 if let destination = session.destination {
                     Label(destination.titre, systemImage: "checklist")
+                        .typographie(.texte)
                 }
                 if let cause = rapport.causeGenerale {
-                    Text(explication(cause))
-                    if cause == .accesRefuse {
-                        Button("Ouvrir Réglages") {
-                            if let url = URL(string: UIApplication.openSettingsURLString) { ouvrirURL(url) }
-                        }
-                    } else if cause != .ecriture {
-                        if session.etat?.destinationVerrouillee == false, let choisir {
-                            Button("Choisir une liste", action: choisir)
-                        } else if cause == .listeIntrouvable, let nouvelleListe {
-                            Button("Nouvelle liste", action: nouvelleListe)
-                        } else if cause == .listeNonModifiable, let ouvrirRappels {
-                            Button("Ouvrir Rappels", action: ouvrirRappels)
-                        }
-                    }
+                    Text(explication(cause)).typographie(.precision)
+                    actionCause(cause)
                 } else {
-                    Text("Au magasin, cochez dans Rappels.")
+                    Text("Au magasin, cochez dans Rappels.").typographie(.precision)
                 }
             }
-            if !rapport.echecs.isEmpty {
-                Section("À réessayer") {
+            .foregroundStyle(CouleurPersillade.encre.couleur)
+            .listRowSeparator(.hidden)
+            .listRowBackground(CouleurPersillade.page.couleur)
+
+            if aEchoue {
+                Section {
                     ForEach(rapport.echecs, id: \.ligneId) { echec in
-                        Label {
-                            VStack(alignment: .leading) {
-                                Text(session.etat?.liste.ligne(id: echec.ligneId)?.libelle ?? "Article")
-                                Text(explication(echec.cause)).typographie(.precision)
-                            }
-                        } icon: {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(CouleurPersillade.tomate.couleur)
+                        if let ligne = session.etat?.liste.ligne(id: echec.ligneId) {
+                            let quantite = PresentationQuantite(ligne: ligne)
+                            LigneArticle(
+                                nom: ligne.libelle.lowercased(), quantite: quantite.nombre, unite: quantite.unite,
+                                marque: .init(
+                                    libelle: explication(echec.cause), symbole: "exclamationmark.triangle.fill",
+                                    couleur: .tomate)
+                            )
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(CouleurPersillade.page.couleur)
                         }
                     }
+                    ActionSecondaireCourses(libelle: "Réessayer", symbole: "arrow.clockwise", action: reessayer)
+                        .disabled(envoiEnCours)
+                        .listRowBackground(CouleurPersillade.page.couleur)
+                } header: {
+                    bandeau("À réessayer", symbole: "exclamationmark.triangle.fill", nombre: rapport.echecs.count)
                 }
             }
-            articles("Compléments", ids: rapport.complements, complement: true)
-            articles("Aucun ajout nécessaire", ids: rapport.ignores)
-            articles("Ajoutés", ids: rapport.ajoutes)
-        }
-        .listStyle(.insetGrouped)
-        .barreAction {
-            if envoiEnCours {
-                ProgressView("Envoi vers Rappels", value: session.progressionEnvoi ?? 0)
-            } else {
-                ActionPrincipaleCourses(
-                    rapport.echecs.isEmpty && rapport.causeGenerale == nil ? "Terminé" : "Réessayer",
-                    action: rapport.echecs.isEmpty && rapport.causeGenerale == nil ? terminer : reessayer
-                )
-                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+
+            if !rapport.complements.isEmpty {
+                Section {
+                    articles(rapport.complements, complement: true)
+                } header: {
+                    bandeau("Compléments", symbole: "plus.circle", nombre: rapport.complements.count)
+                }
             }
+            groupe("Déjà là", ids: rapport.ignores)
+            groupe("Ajoutés", ids: rapport.ajoutes)
         }
-        .sensoryFeedback(
-            rapport.echecs.isEmpty && rapport.causeGenerale == nil ? .success : .warning,
-            trigger: rapport
-        )
+        .listStyle(.plain)
+        .listSectionSpacing(0)
+        .scrollContentBackground(.hidden)
+        .barreAction(tailleMax: .accessibility5) {
+            HStack {
+                ActionSecondaireCourses(
+                    libelle: "Ouvrir Rappels", symbole: "arrow.up.forward.app", action: ouvrirListeRappels
+                )
+                BoutonActionPersillade(
+                    "Terminé", symbole: "checkmark",
+                    progression: envoiEnCours ? session.progressionEnvoi ?? 0 : nil, action: terminer)
+            }
+            .disabled(envoiEnCours)
+        }
+        .sensoryFeedback(aEchoue ? .warning : .success, trigger: rapport)
         .erreurCourses(session)
     }
 
+    private func bandeau(_ titre: String, symbole: String, nombre: Int) -> some View {
+        HStack {
+            Label(titre, systemImage: symbole).typographie(.rayon)
+            Spacer()
+            if nombre > 0 { Text(nombre.formatted()).typographie(.precision) }
+        }
+        .foregroundStyle(CouleurPersillade.encre.couleur)
+        .padding(.horizontal, GrillePersillade.marge)
+        .frame(minHeight: GrillePersillade.rayon)
+        .background(CouleurPersillade.page2.couleur)
+        .listRowInsets(EdgeInsets())
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
+
     @ViewBuilder
-    private func articles(_ titre: String, ids: [UUID], complement: Bool = false) -> some View {
+    private func groupe(_ titre: String, ids: [UUID]) -> some View {
         if !ids.isEmpty {
-            Section(titre) {
-                ForEach(ids, id: \.self) { id in
-                    if let ligne = session.etat?.liste.ligne(id: id) {
-                        let quantite = PresentationQuantite(ligne: ligne)
-                        LigneArticle(
-                            nom: ligne.libelle, quantite: quantite.nombre, unite: quantite.unite,
-                            precision: complement ? couverture(ligne) : nil
-                        )
-                        .listRowInsets(EdgeInsets())
-                    }
-                }
+            DisclosureGroup {
+                articles(ids)
+            } label: {
+                Text("\(titre) · \(ids.count)").typographie(.rayon)
+            }
+            .listRowBackground(CouleurPersillade.page2.couleur)
+        }
+    }
+
+    @ViewBuilder
+    private func articles(_ ids: [UUID], complement: Bool = false) -> some View {
+        ForEach(ids, id: \.self) { id in
+            if let ligne = session.etat?.liste.ligne(id: id) {
+                let quantite = PresentationQuantite(ligne: ligne)
+                LigneArticle(
+                    nom: ligne.libelle.lowercased(), quantite: quantite.nombre, unite: quantite.unite,
+                    precision: complement ? couverture(ligne) : nil
+                )
+                .listRowInsets(EdgeInsets())
+                .listRowSeparator(.hidden)
+                .listRowBackground(CouleurPersillade.page.couleur)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func actionCause(_ cause: CauseEchecEnvoi) -> some View {
+        if cause == .accesRefuse {
+            Button("Ouvrir Réglages") {
+                if let url = URL(string: UIApplication.openSettingsURLString) { ouvrirURL(url) }
+            }
+        } else if cause != .ecriture {
+            if session.etat?.destinationVerrouillee == false, let choisir {
+                Button("Choisir une liste", action: choisir)
+            } else if cause == .listeIntrouvable, let nouvelleListe {
+                Button("Nouvelle liste", action: nouvelleListe)
+            }
+        }
+    }
+
+    private func ouvrirListeRappels() {
+        if let ouvrirRappels {
+            ouvrirRappels()
+        } else if let url = URL(string: "x-apple-reminderkit://") {
+            ouvrirURL(url) { ouvert in
+                if !ouvert { session.erreur = "Ouvrez l’app Rappels pour voir la liste." }
             }
         }
     }

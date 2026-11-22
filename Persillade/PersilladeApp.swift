@@ -125,7 +125,6 @@ private struct Racine: View {
                 )
                 .erreurCourses(courses)
             }
-            .badge(bibliotheque.selection.choix.count)
             Tab("Courses", systemImage: "basket.fill", value: .courses) {
                 OngletCourses(session: courses, reglages: { feuille = .reglages }, extracteur: extracteur)
                     .erreurCourses(courses)

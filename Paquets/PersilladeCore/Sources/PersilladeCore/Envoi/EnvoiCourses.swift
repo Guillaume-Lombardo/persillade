@@ -101,7 +101,7 @@ public actor EnvoiCourses {
         if let manquante = concernees.subtracting(etat.liste.lignes.map(\.id)).first {
             throw ListeCourses.Erreur.ligneIntrouvable(manquante)
         }
-        let aTraiter = etat.liste.lignesAEnvoyer.filter { concernees.contains($0.id) }
+        let aTraiter = etat.liste.rayons.flatMap(\.lignes).filter { !$0.cochee && concernees.contains($0.id) }
         var rapport = RapportEnvoi()
         if lignes != nil && aTraiter.isEmpty { return rapport }
         guard let destination = etat.destinationId else { throw Erreur.destinationNonChoisie }

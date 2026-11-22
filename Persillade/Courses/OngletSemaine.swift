@@ -22,10 +22,14 @@ struct OngletSemaine: View {
                 } else if session.occupee {
                     ProgressView("Lecture de la semaine")
                 } else {
-                    ContentUnavailableView {
-                        Label("Semaine indisponible", systemImage: "calendar")
-                    } actions: {
-                        Button("Réessayer") { Task { await session.actualiser() } }
+                    ScrollView {
+                        EtatVide(titre: "Semaine indisponible.", message: "La semaine n’a pas pu être lue.") {
+                            EmptyView()
+                        } actions: {
+                            BoutonActionPersillade("Réessayer", symbole: "arrow.clockwise") {
+                                Task { await session.actualiser() }
+                            }
+                        }
                     }
                 }
             }
@@ -86,7 +90,7 @@ struct OngletSemaine: View {
                 {
                     EmptyView()
                 } actions: {
-                    ActionPrincipaleCourses("Voir les recettes", action: voirRecettes)
+                    BoutonActionPersillade("Voir les recettes", symbole: "text.book.closed", action: voirRecettes)
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowSeparator(.hidden)
@@ -113,14 +117,13 @@ struct OngletSemaine: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .barreAction {
+        .barreAction(tailleMax: .accessibility5) {
             if !etat.selection.choix.isEmpty {
-                ActionPrincipaleCourses(etat.selectionModifieeDepuisGeneration ? "Refaire la liste" : "Faire la liste")
-                {
-                    faireListe()
-                }
+                BoutonActionPersillade(
+                    etat.selectionModifieeDepuisGeneration ? "Refaire la liste" : "Faire la liste",
+                    symbole: "list.bullet"
+                ) { faireListe() }
                 .disabled(session.occupee)
-                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
             }
         }
     }
@@ -137,46 +140,52 @@ struct OngletSemaine: View {
     }
 
     private func bande(_ recette: Recette, choix: SelectionSemaine.Choix, planche: Planche) -> some View {
-        HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 4) {
-                Button {
-                    ouvrirFiche(recette.id)
-                } label: {
-                    Text(recette.titre).typographie(.rayon)
-                        .frame(maxWidth: .infinity, minHeight: GrillePersillade.cible, alignment: .leading)
-                        .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-                let controles = HStack(spacing: 4) {
-                    boutonPortions("Diminuer les portions", symbole: "minus", choix: choix, variation: -1)
-                    Text("\(choix.portions)").typographie(.texte).monospacedDigit()
-                        .contentTransition(.numericText())
-                        .frame(minWidth: 44, minHeight: 44)
+        ZStack {
+            Button {
+                ouvrirFiche(recette.id)
+            } label: {
+                Color.clear
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(recette.titre)
+
+            HStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(recette.titre).typographie(.recette)
+                        .frame(minHeight: GrillePersillade.cible, alignment: .leading)
                         .accessibilityHidden(true)
-                    boutonPortions("Augmenter les portions", symbole: "plus", choix: choix, variation: 1)
-                }
-                if taille >= .accessibility3 {
-                    Text("\(choix.portions) portions").typographie(.texte).contentTransition(.numericText())
-                        .accessibilityHidden(true)
-                    HStack {
+                        .allowsHitTesting(false)
+                    HStack(spacing: taille.isAccessibilitySize ? 12 : 4) {
                         boutonPortions("Diminuer les portions", symbole: "minus", choix: choix, variation: -1)
+                        Text(libellePortions(choix.portions))
+                            .font(.system(.subheadline, weight: .semibold))
+                            .monospacedDigit()
+                            .multilineTextAlignment(.center)
+                            .contentTransition(.numericText())
+                            .accessibilityHidden(true)
+                            .allowsHitTesting(false)
                         boutonPortions("Augmenter les portions", symbole: "plus", choix: choix, variation: 1)
                     }
-                } else {
-                    controles
+                }
+                .padding(.horizontal, GrillePersillade.marge)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if taille < .accessibility3 {
+                    VignetteMotif(planche: planche, cadrage: .semaine)
+                        .frame(width: taille.isAccessibilitySize ? 64 : 168, height: GrillePersillade.semaine)
+                        .allowsHitTesting(false)
                 }
             }
-            .padding(.leading, GrillePersillade.marge)
-            .padding(.vertical, 6)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            if taille < .accessibility3 {
-                VignetteMotif(planche: planche, cadrage: .semaine)
-                    .frame(width: taille.isAccessibilitySize ? 64 : 128, height: 104)
-            }
         }
-        .frame(minHeight: 104)
+        .frame(minHeight: GrillePersillade.semaine)
         .foregroundStyle(Color(motif: planche.fond.encre(sombre: apparence == .dark)))
         .background(Color(motif: planche.fond.couleur(sombre: apparence == .dark)))
+    }
+
+    private func libellePortions(_ portions: Int) -> String {
+        portions == 1 ? "1 portion" : "\(portions) portions"
     }
 
     private func boutonPortions(
@@ -185,12 +194,17 @@ struct OngletSemaine: View {
         Button {
             choisir(choix.portions + variation, choix: choix)
         } label: {
-            Image(systemName: symbole).frame(minWidth: 44, minHeight: 44).contentShape(.rect)
+            Image(systemName: symbole)
+                .font(.system(size: 14, weight: .semibold))
+                .frame(width: 34, height: 34)
+                .overlay { Circle().strokeBorder(lineWidth: 2) }
+                .frame(width: GrillePersillade.cible, height: GrillePersillade.cible)
+                .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .disabled(session.occupee || (variation < 0 ? choix.portions <= 1 : choix.portions == Int.max))
         .accessibilityLabel("\(nom) de \(session.recettes[choix.recetteId]?.titre ?? "la recette")")
-        .accessibilityValue("\(choix.portions) portions")
+        .accessibilityValue(libellePortions(choix.portions))
         .accessibilityShowsLargeContentViewer { Label(nom, systemImage: symbole) }
     }
 

@@ -3,7 +3,7 @@ import SwiftUI
 
 struct DetailArticleCourses: View {
     @Environment(\.dismiss) private var fermer
-    @State private var modifierQuantite = false
+    @State private var editerQuantite = false
     @State private var confirmerRetrait = false
     @State private var rappelsInchanges = false
 
@@ -12,32 +12,46 @@ struct DetailArticleCourses: View {
 
     var body: some View {
         if let ligne = session.etat?.liste.ligne(id: id) {
-            FeuilleCourses(ligne.libelle) {
-                Form {
-                    Section {
+            let nom = ligne.libelle.lowercased()
+            FeuilleCourses(nom.prefix(1).uppercased() + String(nom.dropFirst())) {
+                List {
+                    HStack(spacing: GrillePersillade.pas) {
                         Button {
-                            modifierQuantite = true
+                            editerQuantite = true
                         } label: {
                             let quantite = PresentationQuantite(ligne: ligne)
                             let texte = [quantite.nombre, quantite.unite].compactMap { $0 }.joined(separator: " ")
-                            LabeledContent("Quantité", value: texte.isEmpty ? "Sans quantité" : texte)
+                            Text(texte.isEmpty ? "Sans quantité" : texte).typographie(.fiche)
+                                .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+                                .contentShape(.rect)
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Modifier la quantité")
                         .accessibilityIdentifier("modifier-quantite-courses")
-                        Picker(
-                            "Rayon",
-                            selection: Binding(
-                                get: { ligne.categorie },
-                                set: { categorie in
-                                    modifier("Impossible de changer le rayon.") { liste in
-                                        try liste.changerCategorie(ligne.id, categorie: categorie)
-                                    }
-                                }
-                            )
-                        ) {
-                            ForEach(Categorie.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-                        }
+                        boutonQuantite("Diminuer la quantité", symbole: "minus", ligne: ligne, variation: -1)
+                            .disabled((ligne.quantite ?? Quantite(0)) <= Quantite(1))
+                        boutonQuantite("Augmenter la quantité", symbole: "plus", ligne: ligne, variation: 1)
                     }
-                    Section("Provenance") {
+                    .listRowBackground(CouleurPersillade.page.couleur)
+
+                    Picker(
+                        "Rayon",
+                        selection: Binding(
+                            get: { ligne.categorie },
+                            set: { categorie in
+                                modifier("Impossible de changer le rayon.") { liste in
+                                    try liste.changerCategorie(ligne.id, categorie: categorie)
+                                }
+                            }
+                        )
+                    ) {
+                        ForEach(Categorie.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                    .tint(CouleurPersillade.encre.couleur)
+                    .listRowBackground(CouleurPersillade.page.couleur)
+
+                    Section {
                         ForEach(ligne.origines, id: \.self) { origine in
                             switch origine.type {
                             case .recette:
@@ -56,14 +70,31 @@ struct DetailArticleCourses: View {
                                 Label("Ajout manuel", systemImage: "plus.circle")
                             }
                         }
+                        .listRowBackground(CouleurPersillade.page.couleur)
+                    } header: {
+                        Text("Demandé par").typographie(.rayon)
+                            .frame(maxWidth: .infinity, minHeight: GrillePersillade.rayon, alignment: .leading)
+                            .padding(.horizontal, GrillePersillade.marge)
+                            .background(CouleurPersillade.page2.couleur)
+                            .listRowInsets(EdgeInsets())
+                            .accessibilityAddTraits(.isHeader)
                     }
-                    Section {
-                        Button(ligne.cochee ? "Remettre" : "Ne pas envoyer") {
+                }
+                .listStyle(.plain)
+                .listSectionSpacing(0)
+                .scrollContentBackground(.hidden)
+                .foregroundStyle(CouleurPersillade.encre.couleur)
+                .barreAction(tailleMax: .accessibility5) {
+                    HStack {
+                        ActionSecondaireCourses(
+                            libelle: ligne.cochee ? "Remettre" : "Ne pas envoyer",
+                            symbole: ligne.cochee ? "plus.circle" : "minus.circle"
+                        ) {
                             modifier("Impossible de modifier l’exclusion.", avertir: !ligne.cochee) { liste in
                                 try liste.cocher(ligne.id, cochee: !ligne.cochee)
                             }
                         }
-                        Button("Retirer", role: .destructive) {
+                        ActionSecondaireCourses(libelle: "Retirer", symbole: "trash", couleur: .tomate) {
                             if session.etat?.liste.envoyee == true {
                                 confirmerRetrait = true
                             } else {
@@ -73,18 +104,14 @@ struct DetailArticleCourses: View {
                     }
                 }
                 .disabled(session.occupee)
-                .sheet(isPresented: $modifierQuantite) {
+                .sheet(isPresented: $editerQuantite) {
                     FeuilleCourses("Modifier la quantité") {
                         ScrollView {
                             EditeurQuantite(quantite: ligne.quantite, unite: ligne.unite) { valeur, unite in
                                 Task {
                                     await session.effectuer("Impossible de modifier la quantité. Réessayez.") {
-                                        let effets = try await session.envoi.modifier { liste, _ in
-                                            try liste.modifierQuantite(ligne.id, valeur: valeur, unite: unite)
-                                        }
-                                        try await session.relire()
-                                        modifierQuantite = false
-                                        rappelsInchanges = effets.rappelsInchanges
+                                        try await modifierQuantite(ligne, valeur: valeur, unite: unite)
+                                        editerQuantite = false
                                     }
                                 }
                             }
@@ -110,6 +137,34 @@ struct DetailArticleCourses: View {
             }
             .presentationDetents([.medium, .large])
         }
+    }
+
+    private func boutonQuantite(
+        _ libelle: String, symbole: String, ligne: LigneCourses, variation: Int64
+    ) -> some View {
+        Button {
+            Task {
+                await session.effectuer("Impossible de modifier la quantité. Réessayez.") {
+                    let quantite = try (ligne.quantite ?? Quantite(0)) + Quantite(variation)
+                    try await modifierQuantite(ligne, valeur: quantite, unite: ligne.unite)
+                }
+            }
+        } label: {
+            Image(systemName: symbole)
+                .frame(width: 44, height: 44)
+                .background(CouleurPersillade.page2.couleur, in: .circle)
+                .contentShape(.circle)
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel(libelle)
+    }
+
+    private func modifierQuantite(_ ligne: LigneCourses, valeur: Quantite?, unite: Unite?) async throws {
+        let effets = try await session.envoi.modifier { liste, _ in
+            try liste.modifierQuantite(ligne.id, valeur: valeur, unite: unite)
+        }
+        try await session.relire()
+        rappelsInchanges = effets.rappelsInchanges
     }
 
     private func retirer(_ id: UUID) {

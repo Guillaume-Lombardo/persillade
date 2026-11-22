@@ -6,38 +6,108 @@ extension EnvironmentValues {
 
 struct BoutonActionPersillade: View {
     let libelle: String
+    let symbole: String?
+    let progression: Double?
+    let pleineLargeur: Bool
     let action: () -> Void
 
     @Environment(\.dansBarreAction) private var dansBarre
+    @Environment(\.dynamicTypeSize) private var taille
+    @Environment(\.isEnabled) private var actif
+    @ScaledMetric(relativeTo: .headline) private var hauteurTexte = 21.0
 
-    init(_ libelle: String, action: @escaping () -> Void) {
+    init(
+        _ libelle: String, symbole: String? = nil, progression: Double? = nil,
+        pleineLargeur: Bool = false, action: @escaping () -> Void
+    ) {
         self.libelle = libelle
+        self.symbole = symbole
+        self.progression = progression
+        self.pleineLargeur = pleineLargeur
         self.action = action
     }
 
     var body: some View {
+        if symbole == nil, !pleineLargeur, actif, progression == nil {
+            Button(action: action) {
+                libelleAction
+                    .frame(maxWidth: dansBarre ? .infinity : nil)
+                    .foregroundStyle(CouleurPersillade.surPersil.couleur)
+            }
+            .buttonStyle(.glassProminent)
+            .controlSize(.large)
+            .tint(CouleurPersillade.persil.couleur)
+        } else {
+            boutonCapsule
+        }
+    }
+
+    private var boutonCapsule: some View {
         Button(action: action) {
+            libelleAction
+                .opacity(progression == nil ? 1 : 0)
+                .overlay {
+                    if let progression {
+                        ProgressView(value: progression)
+                            .tint(CouleurPersillade.surPersil.couleur)
+                            .padding(.horizontal, GrillePersillade.pas * 2)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .frame(minHeight: 52)
+                .frame(maxWidth: pleineLargeur || dansBarre ? .infinity : nil)
+                .foregroundStyle(
+                    actif || progression != nil ? CouleurPersillade.surPersil.couleur : CouleurPersillade.encre2.couleur
+                )
+                .background(
+                    actif || progression != nil ? CouleurPersillade.persil.couleur : CouleurPersillade.page2.couleur,
+                    in: .capsule
+                )
+                .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(progression == nil ? libelle : "Envoi vers Rappels")
+        .accessibilityValue(progression?.formatted(.percent.precision(.fractionLength(0))) ?? "")
+        .accessibilityShowsLargeContentViewer {
+            if let symbole { Label(libelle, systemImage: symbole) } else { Text(libelle) }
+        }
+    }
+
+    @ViewBuilder
+    private var libelleAction: some View {
+        if let symbole {
+            ViewThatFits(in: .vertical) {
+                HStack(spacing: GrillePersillade.pas * 2) {
+                    if !taille.isAccessibilitySize {
+                        Image(systemName: symbole).accessibilityHidden(true)
+                    }
+                    Text(libelle).multilineTextAlignment(.center)
+                }
+                .typographie(.bouton)
+                .fixedSize(horizontal: false, vertical: true)
+                Image(systemName: symbole).font(.headline)
+            }
+            .frame(maxHeight: max(40, hauteurTexte * 2.1))
+        } else {
             Text(libelle)
                 .typographie(.bouton)
+                .lineLimit(2)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: dansBarre ? .infinity : nil)
-                .foregroundStyle(CouleurPersillade.surPersil.couleur)
         }
-        .buttonStyle(.glassProminent)
-        .controlSize(.large)
-        .tint(CouleurPersillade.persil.couleur)
     }
 }
 
 struct BarreAction<Actions: View>: ViewModifier {
+    let tailleMax: DynamicTypeSize
     @ViewBuilder let actions: () -> Actions
 
     func body(content: Content) -> some View {
         content.safeAreaBar(edge: .bottom, spacing: 0) {
             actions()
                 .environment(\.dansBarreAction, true)
-                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+                .dynamicTypeSize(...tailleMax)
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, GrillePersillade.margeBarre)
                 .padding(.vertical, GrillePersillade.pas * 2)
@@ -47,8 +117,10 @@ struct BarreAction<Actions: View>: ViewModifier {
 }
 
 extension View {
-    func barreAction(@ViewBuilder _ actions: @escaping () -> some View) -> some View {
-        modifier(BarreAction(actions: actions))
+    func barreAction(
+        tailleMax: DynamicTypeSize = .accessibility1, @ViewBuilder _ actions: @escaping () -> some View
+    ) -> some View {
+        modifier(BarreAction(tailleMax: tailleMax, actions: actions))
     }
 }
 

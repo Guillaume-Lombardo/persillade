@@ -150,7 +150,7 @@ struct ArticlesMessageCourses: View {
         }
         .listStyle(.plain)
         .barreAction {
-            ActionPrincipaleCourses(articles.count == 1 ? "Ajouter 1 article" : "Ajouter \(articles.count) articles") {
+            BoutonActionPersillade(articles.count == 1 ? "Ajouter 1 article" : "Ajouter \(articles.count) articles") {
                 integrer()
             }
             .disabled(articles.isEmpty || session.occupee)
