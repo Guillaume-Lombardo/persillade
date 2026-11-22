@@ -6,6 +6,7 @@ struct CorrectionRecette: View {
         case titre, portions
         case ingredient(UUID)
         case quantite(UUID)
+        case unite(UUID)
         case etape(UUID)
 
         var ingredient: UUID? {

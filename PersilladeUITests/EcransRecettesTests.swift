@@ -91,7 +91,8 @@
                 coller(app)
                 ouvrirCorrection(app)
                 if nom.hasPrefix("AX") {
-                    XCTAssertFalse(app.buttons.matching(identifier: "extrait-source").firstMatch.exists, nom)
+                    XCTAssertFalse(
+                        app.descendants(matching: .any).matching(identifier: "extrait-source").firstMatch.exists, nom)
                 }
                 joindre("Correction-\(nom)")
                 enregistrer(app)

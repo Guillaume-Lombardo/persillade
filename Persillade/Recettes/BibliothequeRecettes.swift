@@ -124,6 +124,7 @@ final class BibliothequeRecettes {
         revision += 1
         if portionsChoisies(id) != nil {
             selection.deselectionner(id)
+            guard selectionDisponible else { return true }
             do {
                 selection = try await envoiCourses.modifier { _, semaine in
                     semaine.deselectionner(id)

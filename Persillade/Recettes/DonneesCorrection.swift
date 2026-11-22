@@ -46,13 +46,13 @@ struct LigneIngredientCorrection: Equatable, Identifiable {
     let id = UUID()
     let origine: String
     let uniteLue: Unite?
-    let indiceSource: Int?
+    let citation: CorrespondancesSource.Citation?
     var nom: String
     var quantite: SaisieQuantite
     var nonComprise: Bool
 
-    init(_ ingredient: BrouillonIngredient, indiceSource: Int? = nil) {
-        self.indiceSource = indiceSource
+    init(_ ingredient: BrouillonIngredient, citation: CorrespondancesSource.Citation? = nil) {
+        self.citation = citation
         origine = ingredient.texteOrigine
         uniteLue = ingredient.unite
         nom = ingredient.nom
@@ -92,8 +92,8 @@ struct FormulaireRecette: Equatable {
     init(_ brouillon: BrouillonRecette, source: String) {
         titre = brouillon.titre
         portions = brouillon.portions.map(String.init) ?? ""
-        let indices = CorrespondancesSource.indices(brouillon.ingredients.map(\.texteOrigine), dans: source)
-        ingredients = zip(brouillon.ingredients, indices).map { LigneIngredientCorrection($0, indiceSource: $1) }
+        let citations = CorrespondancesSource.associer(brouillon.ingredients.map(\.texteOrigine), dans: source)
+        ingredients = zip(brouillon.ingredients, citations).map { LigneIngredientCorrection($0, citation: $1) }
         etapes = brouillon.etapes.map(LigneEtapeCorrection.init)
     }
 
@@ -106,39 +106,43 @@ struct FormulaireRecette: Equatable {
 }
 
 enum CorrespondancesSource {
-    static func indices(_ origines: [String], dans source: String) -> [Int?] {
+    struct Citation: Equatable {
+        let ligne: Int
+        let plage: NSRange
+    }
+
+    static func associer(_ origines: [String], dans source: String) -> [Citation?] {
         let lignes = source.components(separatedBy: .newlines)
-        var indices = [Int?](repeating: nil, count: origines.count)
-        var occupees: Set<Int> = []
+        var citations = [Citation?](repeating: nil, count: origines.count)
+        var occupees: [Int: [NSRange]] = [:]
         for exacte in [true, false] {
-            for (index, origine) in origines.enumerated() where indices[index] == nil && !origine.isEmpty {
-                let correspondance = lignes.indices.first { indice in
-                    guard !occupees.contains(indice) else { return false }
-                    return exacte
-                        ? lignes[indice].compare(origine, options: .literal) == .orderedSame
-                        : plage(origine, dans: lignes[indice]) != nil
-                }
-                if let correspondance {
-                    indices[index] = correspondance
-                    occupees.insert(correspondance)
+            for (index, origine) in origines.enumerated() where citations[index] == nil && !origine.isEmpty {
+                for (indice, ligne) in lignes.enumerated() {
+                    if exacte, ligne.compare(origine, options: .literal) != .orderedSame { continue }
+                    guard let plage = plageDisponible(origine, dans: ligne, occupees: occupees[indice, default: []])
+                    else { continue }
+                    citations[index] = Citation(ligne: indice, plage: plage)
+                    occupees[indice, default: []].append(plage)
+                    break
                 }
             }
         }
-        return indices
+        return citations
     }
 
-    static func plage(_ origine: String, dans texte: String) -> Range<String.Index>? {
-        guard !origine.isEmpty else { return nil }
+    private static func plageDisponible(_ origine: String, dans texte: String, occupees: [NSRange]) -> NSRange? {
         var debut = texte.startIndex
         while debut < texte.endIndex,
             let plage = texte.range(of: origine, options: .literal, range: debut..<texte.endIndex)
         {
             let avant = plage.lowerBound == texte.startIndex ? nil : texte[texte.index(before: plage.lowerBound)]
             let apres = plage.upperBound == texte.endIndex ? nil : texte[plage.upperBound]
+            let candidate = NSRange(plage, in: texte)
             if !(avant?.isLetter == true || avant?.isNumber == true),
-                !(apres?.isLetter == true || apres?.isNumber == true)
+                !(apres?.isLetter == true || apres?.isNumber == true),
+                !occupees.contains(where: { NSIntersectionRange($0, candidate).length > 0 })
             {
-                return plage
+                return candidate
             }
             debut = texte.index(after: plage.lowerBound)
         }

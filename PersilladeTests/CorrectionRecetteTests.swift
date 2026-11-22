@@ -9,7 +9,11 @@ import Testing
         • 1 oignon (émincé)
         2 carottes
         1 oignon
+        3 tomates et 1 oignon
         """
-    let extraits = ["1 oignon", "2 carottes", "2 carottes", "1 oignon", "1 oignon", "oignon râpé"]
-    #expect(CorrespondancesSource.indices(extraits, dans: source) == [4, 1, 3, 2, nil, nil])
+    let extraits = ["1 oignon", "2 carottes", "2 carottes", "1 oignon", "1 oignon", "1 oignon", "3 tomates"]
+    let citations = CorrespondancesSource.associer(extraits, dans: source)
+    #expect(citations.map { $0?.ligne } == [4, 1, 3, 2, 5, nil, 5])
+    #expect(citations[4]?.plage.location == 13)
+    #expect(citations[6]?.plage.location == 0)
 }
