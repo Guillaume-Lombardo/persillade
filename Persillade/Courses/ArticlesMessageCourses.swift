@@ -1,5 +1,4 @@
 import PersilladeCore
-import PersilladePlateforme
 import SwiftUI
 
 struct ArticlesMessageCourses: View {
@@ -31,10 +30,15 @@ struct ArticlesMessageCourses: View {
     @State private var confirmerRemise = false
 
     let session: SessionCourses
+    let extracteur: Extracteur
     private let retirerReception: (() async throws -> Void)?
 
-    init(session: SessionCourses, contenu: ContenuRecu? = nil, retirerReception: (() async throws -> Void)? = nil) {
+    init(
+        session: SessionCourses, contenu: ContenuRecu? = nil, extracteur: Extracteur,
+        retirerReception: (() async throws -> Void)? = nil
+    ) {
         self.session = session
+        self.extracteur = extracteur
         _contenu = State(initialValue: contenu)
         self.retirerReception = retirerReception
     }
@@ -188,7 +192,7 @@ struct ArticlesMessageCourses: View {
             lireMessage = false
         }
         do {
-            let extraction = try await Extracteur.local().extraire(contenu, cible: .message)
+            let extraction = try await extracteur.extraire(contenu, cible: .message)
             try Task.checkCancellation()
             resultat = extraction
             propositions = extraction.articles.map {

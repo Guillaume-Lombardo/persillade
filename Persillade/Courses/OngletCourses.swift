@@ -30,6 +30,7 @@ struct OngletCourses: View {
 
     let session: SessionCourses
     let reglages: () -> Void
+    let extracteur: Extracteur
 
     var body: some View {
         NavigationStack {
@@ -89,7 +90,7 @@ struct OngletCourses: View {
                 case .ajout:
                     AjoutArticleCourses(session: session)
                 case .message:
-                    ArticlesMessageCourses(session: session)
+                    ArticlesMessageCourses(session: session, extracteur: extracteur)
                 case .destination:
                     choixRappels
                 case .acces:

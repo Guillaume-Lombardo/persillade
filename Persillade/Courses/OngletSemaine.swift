@@ -12,7 +12,7 @@ struct OngletSemaine: View {
     let voirRecettes: () -> Void
     let voirCourses: () -> Void
     let reglages: () -> Void
-    var ouvrirFiche: ((UUID) -> Void)?
+    let ouvrirFiche: (UUID) -> Void
 
     var body: some View {
         NavigationStack {
@@ -132,12 +132,14 @@ struct OngletSemaine: View {
         let planche = Planche(recette: recette)
         return HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 4) {
-                if let ouvrirFiche {
-                    Button(recette.titre) { ouvrirFiche(recette.id) }.buttonStyle(.plain)
-                        .typographie(.rayon)
-                } else {
-                    Text(recette.titre).typographie(.rayon).accessibilityAddTraits(.isHeader)
+                Button {
+                    ouvrirFiche(recette.id)
+                } label: {
+                    Text(recette.titre).typographie(.rayon)
+                        .frame(maxWidth: .infinity, minHeight: GrillePersillade.cible, alignment: .leading)
+                        .contentShape(.rect)
                 }
+                .buttonStyle(.plain)
                 let controles = HStack(spacing: 4) {
                     boutonPortions("Diminuer les portions", symbole: "minus", choix: choix, variation: -1)
                     Text("\(choix.portions)").typographie(.texte).monospacedDigit()
@@ -158,7 +160,7 @@ struct OngletSemaine: View {
                 }
             }
             .padding(.leading, GrillePersillade.marge)
-            .padding(.vertical, 8)
+            .padding(.vertical, 6)
             .frame(maxWidth: .infinity, alignment: .leading)
             if taille < .accessibility3 {
                 VignetteMotif(planche: planche, cadrage: .semaine)

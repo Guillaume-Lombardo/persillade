@@ -1,56 +1,31 @@
 import OSLog
 import PersilladeCore
-import PersilladePlateforme
 import SwiftUI
 
 @MainActor
 @Observable
 final class SessionCourses {
-    let envoi: EnvoiCourses
-    private let bibliotheque: Result<any Bibliotheque, any Error>
+    private let bibliotheque: BibliothequeRecettes
+    var envoi: EnvoiCourses { bibliotheque.envoiCourses }
     #if DEBUG
         private var preparerEssai = false
     #endif
 
-    private(set) var etat: EtatCourses?
+    var etat: EtatCourses? { bibliotheque.etatCourses }
     private(set) var recettes: [UUID: Recette] = [:]
     private(set) var destinations: [DestinationRappels] = []
-    private(set) var occupee = false
+    var occupee: Bool { bibliotheque.operationSemaine }
     private(set) var progressionEnvoi: Double?
     private(set) var recettesAbsentes = 0
     var erreur: String?
 
     var destination: DestinationRappels? { destinations.first { $0.id == etat?.destinationId } }
 
-    init(bibliotheque: Result<any Bibliotheque, any Error>? = nil) {
+    init(bibliotheque: BibliothequeRecettes) {
+        self.bibliotheque = bibliotheque
         #if DEBUG
-            let argument = ProcessInfo.processInfo.arguments
-            if argument.contains("-courses-recettes") {
-                preparerEssai = true
-                let id =
-                    ProcessInfo.processInfo.environment["PERSILLADE_COURSES_SESSION"]
-                    .flatMap(UUID.init(uuidString:)) ?? UUID()
-                let dossier = URL.temporaryDirectory.appending(path: "Courses-\(id.uuidString)")
-                self.bibliotheque = Result {
-                    try FileManager.default.createDirectory(at: dossier, withIntermediateDirectories: true)
-                    return try BibliothequeSwiftData(url: dossier.appending(path: "Recettes.store"))
-                }
-                let documents = MagasinDocumentFichiers(dossier: dossier)
-                if argument.contains("-courses-eventkit") {
-                    envoi = EnvoiCourses(documents: documents, rappels: MagasinRappelsEventKit())
-                } else {
-                    envoi = EnvoiCourses(
-                        documents: documents,
-                        rappels: MagasinRappelsMemoire(destinations: [
-                            .init(id: "maison", titre: "Maison", compte: "Sur mon iPhone", modifiable: true),
-                            .init(id: "archive", titre: "Archives", compte: "Sur mon iPhone", modifiable: false),
-                        ]))
-                }
-                return
-            }
+            preparerEssai = ProcessInfo.processInfo.arguments.contains("-courses-recettes")
         #endif
-        self.bibliotheque = bibliotheque ?? Result { try BibliothequeSwiftData() }
-        envoi = EnvoiCourses(documents: MagasinDocumentFichiers(), rappels: MagasinRappelsEventKit())
     }
 
     func actualiser(semaine: Bool = false) async {
@@ -76,9 +51,8 @@ final class SessionCourses {
     }
 
     func effectuer(_ message: String, operation: () async throws -> Void) async {
-        guard !occupee else { return }
-        occupee = true
-        defer { occupee = false }
+        guard bibliotheque.commencerOperation() else { return }
+        defer { bibliotheque.terminerOperation() }
         do {
             try await operation()
         } catch {
@@ -93,7 +67,7 @@ final class SessionCourses {
     }
 
     func relire() async throws {
-        etat = try await envoi.lire()
+        try await bibliotheque.relireCourses()
     }
 
     func actualiserRecettes() async throws {
@@ -105,10 +79,9 @@ final class SessionCourses {
             recettes = [:]
             return
         }
-        let bibliotheque = try bibliotheque.get()
         var relues: [UUID: Recette] = [:]
         for id in ids {
-            relues[id] = try await bibliotheque.lire(id: id)
+            relues[id] = try await bibliotheque.lire(id)
         }
         recettes = relues
 
@@ -188,8 +161,7 @@ final class SessionCourses {
 
     #if DEBUG
         private func peuplerRecettesEssai() async throws {
-            let bibliotheque = try bibliotheque.get()
-            guard try await bibliotheque.lister().isEmpty else { return }
+            guard try await bibliotheque.lister(recherche: "").isEmpty else { return }
             var choix: [SelectionSemaine.Choix] = []
             for (titre, farine, etape) in [
                 ("Crêpes", 500, "Mélanger la pâte."), ("Gaufres", 1_000, "Cuire les gaufres."),
@@ -203,8 +175,8 @@ final class SessionCourses {
                             texteOrigine: "\(farine) g de farine"),
                     ],
                     etapes: [etape], texteSource: titre)
-                let id = try await bibliotheque.enregistrer(recette)
-                choix.append(try .init(recetteId: id, portions: recette.portions))
+                try await bibliotheque.enregistrer(recette, modification: false, echelle: 1)
+                choix.append(try .init(recetteId: recette.id, portions: recette.portions))
             }
             let semaine = choix
             try await envoi.modifier { _, selection in

@@ -7,7 +7,7 @@ import XCTest
             continueAfterFailure = false
             let app = lancer()
             ouvrirOnglet("Semaine", dans: app)
-            XCTAssertTrue(app.staticTexts["Crêpes"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.buttons["Crêpes"].waitForExistence(timeout: 10))
             app.buttons["Diminuer les portions de Crêpes"].tap()
             app.buttons["Diminuer les portions de Gaufres"].tap()
             faireListe(dans: app)

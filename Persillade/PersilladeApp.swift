@@ -14,7 +14,7 @@ struct PersilladeApp: App {
                     } else {
                         Racine()
                             .preferredColorScheme(
-                                ProcessInfo.processInfo.arguments.contains("-recettes-sombre") ? .dark : nil
+                                apparenceEssai
                             )
                             .environment(\.dynamicTypeSize, tailleEssai)
                     }
@@ -31,10 +31,15 @@ struct PersilladeApp: App {
     #if DEBUG
         @Environment(\.dynamicTypeSize) private var tailleSysteme
 
+        private var apparenceEssai: ColorScheme? {
+            let arguments = ProcessInfo.processInfo.arguments
+            return arguments.contains("-recettes-sombre") || arguments.contains("-courses-sombre") ? .dark : nil
+        }
+
         private var tailleEssai: DynamicTypeSize {
             let arguments = ProcessInfo.processInfo.arguments
-            if arguments.contains("-recettes-ax3") { return .accessibility3 }
-            if arguments.contains("-recettes-ax5") { return .accessibility5 }
+            if arguments.contains("-recettes-ax3") || arguments.contains("-courses-ax3") { return .accessibility3 }
+            if arguments.contains("-recettes-ax5") || arguments.contains("-courses-ax5") { return .accessibility5 }
             return tailleSysteme
         }
     #endif
@@ -45,6 +50,7 @@ private struct Racine: View {
 
     private enum Feuille: Identifiable {
         case importation(ContenuRecu?)
+        case articles(ContenuRecu)
         case photo(SourcePhoto)
         case ecriture
         case modification(Recette)
@@ -53,6 +59,7 @@ private struct Racine: View {
         var id: String {
             switch self {
             case .importation: "importation"
+            case .articles: "articles"
             case .photo: "photo"
             case .ecriture: "ecriture"
             case .modification: "modification"
@@ -71,21 +78,36 @@ private struct Racine: View {
     @State private var cheminRecherche: [UUID] = []
     @State private var reception: ReceptionEntree
     @State private var bibliotheque: BibliothequeRecettes
+    @State private var courses: SessionCourses
     private let extracteur: Extracteur
     private let repliConsenti: Extracteur.RepliConsenti?
 
     init() {
         var dossier: URL?
         var moteur: (any MoteurIA)? = MoteurFondation()
+        var rappels: any MagasinRappels = MagasinRappelsEventKit()
         #if DEBUG
             let processus = ProcessInfo.processInfo
             if let nom = processus.environment["PERSILLADE_TEST_SESSION"], let id = UUID(uuidString: nom) {
                 dossier = URL.temporaryDirectory.appending(path: id.uuidString)
                 moteur = nil
             }
+            if processus.arguments.contains("-courses-recettes") {
+                let id = processus.environment["PERSILLADE_COURSES_SESSION"].flatMap(UUID.init(uuidString:)) ?? UUID()
+                dossier = URL.temporaryDirectory.appending(path: "Courses-\(id.uuidString)")
+                moteur = nil
+                if !processus.arguments.contains("-courses-eventkit") {
+                    rappels = MagasinRappelsMemoire(destinations: [
+                        .init(id: "maison", titre: "Maison", compte: "Sur mon iPhone", modifiable: true),
+                        .init(id: "archive", titre: "Archives", compte: "Sur mon iPhone", modifiable: false),
+                    ])
+                }
+            }
         #endif
+        let bibliotheque = BibliothequeRecettes(dossier: dossier, rappels: rappels)
         _reception = State(initialValue: ReceptionEntree(dossier: dossier))
-        _bibliotheque = State(initialValue: BibliothequeRecettes(dossier: dossier))
+        _bibliotheque = State(initialValue: bibliotheque)
+        _courses = State(initialValue: SessionCourses(bibliotheque: bibliotheque))
         extracteur = Extracteur(
             telechargeur: TelechargeurURLSession(), moteurIA: moteur, lecteurImage: LecteurImageVision())
         repliConsenti = dossier == nil ? ReglagesFournisseur.partage.repliConsenti : nil
@@ -97,11 +119,16 @@ private struct Racine: View {
                 recettes(chemin: $chemin)
             }
             Tab("Semaine", systemImage: "calendar", value: .semaine) {
-                ecran("Semaine", "Aucun repas prévu", icone: "calendar")
+                OngletSemaine(
+                    session: courses, voirRecettes: { onglet = .recettes }, voirCourses: { onglet = .courses },
+                    reglages: { feuille = .reglages }, ouvrirFiche: ouvrirFiche
+                )
+                .erreurCourses(courses)
             }
             .badge(bibliotheque.selection.choix.count)
             Tab("Courses", systemImage: "basket.fill", value: .courses) {
-                ecran("Courses", "Aucun article", icone: "basket")
+                OngletCourses(session: courses, reglages: { feuille = .reglages }, extracteur: extracteur)
+                    .erreurCourses(courses)
             }
             Tab(value: .recherche, role: .search) {
                 recettes(chemin: $cheminRecherche, recherche: true)
@@ -125,10 +152,12 @@ private struct Racine: View {
             #endif
             await reception.actualiser()
             if !Task.isCancelled, feuille == nil { ouvrirPremier() }
-            await bibliotheque.actualiserSemaine()
+            await actualiserCourses()
         }
         .sheet(item: $feuille, onDismiss: apresFermeture) { contenu in
-            contenuFeuille(contenu).environment(\.dynamicTypeSize, taille)
+            contenuFeuille(contenu)
+                .environment(\.dynamicTypeSize, taille)
+                .tint(CouleurPersillade.persil.couleur)
         }
         .alert(
             "Persillade",
@@ -136,7 +165,7 @@ private struct Racine: View {
                 get: { bibliotheque.erreur != nil }, set: { if !$0 { bibliotheque.erreur = nil } })
         ) {
             if !bibliotheque.selectionDisponible {
-                Button("Réessayer") { Task { await bibliotheque.actualiserSemaine() } }
+                Button("Réessayer") { Task { await actualiserCourses() } }
             }
             Button("OK", role: .cancel) {}
         } message: {
@@ -149,7 +178,14 @@ private struct Racine: View {
         case .importation(let recu):
             ParcoursImport(
                 initial: recu, reception: reception, bibliotheque: bibliotheque, extracteur: extracteur,
-                repliConsenti: repliConsenti, fermer: { feuille = nil }, terminer: finImport)
+                repliConsenti: repliConsenti, fermer: { feuille = nil }, terminer: finImport,
+                importerArticles: { feuille = .articles($0) })
+        case .articles(let recu):
+            ArticlesMessageCourses(session: courses, contenu: recu, extracteur: extracteur) {
+                try await reception.retirer(recu)
+                traiterSuivant = true
+                onglet = .courses
+            }
         case .photo(let source):
             ParcoursImport(
                 initial: nil, reception: reception, bibliotheque: bibliotheque, extracteur: extracteur,
@@ -217,15 +253,11 @@ private struct Racine: View {
         ouvrirPremier()
     }
 
-    private func ecran(_ titre: LocalizedStringKey, _ etat: LocalizedStringKey, icone: String) -> some View {
-        NavigationStack {
-            ContentUnavailableView(etat, systemImage: icone)
-                .navigationTitle(titre)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("Réglages", systemImage: "gear") { feuille = .reglages }
-                    }
-                }
+    private func actualiserCourses() async {
+        await courses.actualiser(semaine: true)
+        if !bibliotheque.selectionDisponible, let erreur = courses.erreur {
+            bibliotheque.erreur = erreur
+            courses.erreur = nil
         }
     }
 }
