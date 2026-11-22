@@ -1,7 +1,8 @@
 import Foundation
-import PersilladeCore
 import PersilladePlateforme
 import Testing
+
+@testable import PersilladeCore
 
 struct EnvoiCoursesTests {
     private static let seuil = Date(timeIntervalSinceReferenceDate: 1_000)
@@ -72,6 +73,20 @@ struct EnvoiCoursesTests {
         let articles = try await rappels.lire(destinationId: "courses")
         await rappels.remplacerRappels(articles.filter { $0.id == "ancien" }, destinationId: "courses")
         #expect(try await relance.renvoyer().ajoutes.count == 1)
+        try nettoyer()
+    }
+
+    @Test func uneCocheDateeApresLeSeuilCompteDesLaPremiereLecture() async throws {
+        let (envoi, rappels) = scenario()
+        await rappels.remplacerRappels(
+            [RappelCourses(id: "nouveau", titre: "œufs 6", coche: true, cocheLe: Self.seuil.addingTimeInterval(0.6))],
+            destinationId: "courses")
+        try await envoi.choisirDestination("courses")
+        try await envoi.modifier { liste, _ in
+            try liste.ajouter(ArticleCourses(nom: "œufs", quantite: Quantite(6)))
+        }
+        #expect(try await envoi.renvoyer().ignores.count == 1)
+        #expect(try await !envoi.lire().destinationVerrouillee)
         try nettoyer()
     }
 
@@ -276,6 +291,16 @@ struct EnvoiCoursesTests {
         }
 
         let relance = service(rappels)
+        if effacerNotes {
+            await #expect(throws: EnvoiCourses.Erreur.ecritureIncertaine) {
+                try await relance.choisirDestination("autre")
+            }
+            #expect(try await relance.renvoyer().ignores.count == 1)
+            #expect(try await rappels.lire(destinationId: "courses").count == 1)
+            #expect(try await relance.lire().journal.entrees.isEmpty)
+            #expect(try await !relance.lire().destinationVerrouillee)
+            await rappels.remplacerRappels(rappelsEcrits, destinationId: "courses")
+        }
         await #expect(throws: EnvoiCourses.Erreur.destinationVerrouillee) {
             try await relance.choisirDestination("autre")
         }
@@ -289,6 +314,33 @@ struct EnvoiCoursesTests {
         #expect(try await relance.lire().journal.article(du: renomme).nomNormalise == "lait")
         try nettoyer()
     }
+    @Test func unTitreAjouteManuellementApresCoupureNeProuvePasUneEcriture() async throws {
+        let (_, rappels) = scenario()
+        let disque = MagasinDocumentFichiers(dossier: dossier)
+        let envoi = EnvoiCourses(
+            documents: DocumentsAvecCoupure(disque, avantEventKit: true),
+            rappels: rappels, maintenant: { Self.seuil })
+        try await envoi.choisirDestination("courses")
+        try await envoi.modifier { liste, _ in try liste.ajouter(ArticleCourses(nom: "5 épices")) }
+        await #expect(throws: DocumentsAvecCoupure.Erreur.coupure) { try await envoi.renvoyer() }
+        #expect(try await rappels.lire(destinationId: "courses").isEmpty)
+        await rappels.remplacerRappels(
+            [RappelCourses(id: "manuel", titre: "5 épices", creeLe: Self.seuil)], destinationId: "courses")
+
+        let relance = service(rappels)
+        #expect(try await relance.renvoyer().ignores.count == 1)
+        #expect(try await rappels.lire(destinationId: "courses").map(\.id) == ["manuel"])
+        #expect(try await relance.lire().journal.entrees.isEmpty)
+        #expect(try await !relance.lire().destinationVerrouillee)
+        await #expect(throws: EnvoiCourses.Erreur.ecritureIncertaine) {
+            try await relance.choisirDestination("autre")
+        }
+        await rappels.remplacerRappels([], destinationId: "courses")
+        try await relance.choisirDestination("autre")
+        #expect(try await relance.lire().destinationId == "autre")
+        try nettoyer()
+    }
+
     @Test(arguments: [false, true])
     func nouvelleListeLocalePossibleApresCoupureEtDestinationInaccessible(supprimee: Bool) async throws {
         let (_, rappels) = scenario()
@@ -327,9 +379,11 @@ private actor DocumentsAvecCoupure: MagasinDocument {
     }
 
     let disque: MagasinDocumentFichiers
+    let avantEventKit: Bool
 
-    init(_ disque: MagasinDocumentFichiers) {
+    init(_ disque: MagasinDocumentFichiers, avantEventKit: Bool = false) {
         self.disque = disque
+        self.avantEventKit = avantEventKit
     }
 
     func lire<Document: Codable & Sendable>(_ type: Document.Type, cle: String, version: Int) async throws -> Document {
@@ -337,7 +391,9 @@ private actor DocumentsAvecCoupure: MagasinDocument {
     }
 
     func ecrire<Document: Codable & Sendable>(_ document: Document, cle: String, version: Int) async throws {
-        if let etat = document as? EtatCourses, etat.destinationVerrouillee { throw Erreur.coupure }
+        let etat = document as? EtatCourses
+        if !avantEventKit, etat?.destinationVerrouillee == true { throw Erreur.coupure }
         try await disque.ecrire(document, cle: cle, version: version)
+        if avantEventKit, etat?.enAttente.isEmpty == false { throw Erreur.coupure }
     }
 }

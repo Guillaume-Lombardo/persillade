@@ -6,6 +6,7 @@ public actor EnvoiCourses {
         case operationEnCours
         case destinationVerrouillee
         case destinationNonChoisie
+        case ecritureIncertaine
     }
 
     private let documents: any MagasinDocument
@@ -67,10 +68,13 @@ public actor EnvoiCourses {
             etat.enAttente.contains(where: { $0.listeId == etat.liste.id })
         {
             let anciensRappels = try await rappels.lire(destinationId: precedente)
-            reprendre(&etat, rappelsLus: anciensRappels, destinationId: precedente)
+            _ = reprendre(&etat, rappelsLus: anciensRappels, destinationId: precedente)
             try await persister(etat)
+            guard !etat.destinationVerrouillee else { throw Erreur.destinationVerrouillee }
+            guard !etat.enAttente.contains(where: { $0.listeId == etat.liste.id }) else {
+                throw Erreur.ecritureIncertaine
+            }
         }
-        guard !etat.destinationVerrouillee else { throw Erreur.destinationVerrouillee }
         etat.destinationId = id
         etat.liste.premierEnvoiLe = nil
         etat.cochesAnterieures = []
@@ -111,7 +115,7 @@ public actor EnvoiCourses {
             return rapport
         }
 
-        reprendre(&etat, rappelsLus: rappelsLus, destinationId: destination)
+        var reprises = reprendre(&etat, rappelsLus: rappelsLus, destinationId: destination)
         let seuil = etat.liste.premierEnvoiLe ?? avantLecture
         if etat.liste.premierEnvoiLe == nil {
             etat.liste.premierEnvoiLe = seuil
@@ -130,14 +134,22 @@ public actor EnvoiCourses {
                 try await signaler(cause, lignes: aTraiter[index...], etat: &etat, rapport: &rapport)
                 return rapport
             }
-            let plan = try PlanEnvoi(
-                ligne: ligne, rappels: rappelsActuels, journal: etat.journal, destinationId: destination
-            ) { rappel in
-                guard let date = rappel.cocheLe else { return false }
-                return date >= seuil
-                    || (date == seuil.debutSeconde
-                        && !cochesAnterieures.contains { $0.correspondent(au: rappel) })
+            if index > 0 {
+                reprises = reprendre(&etat, rappelsLus: rappelsActuels, destinationId: destination)
             }
+            let journal = etat.journal
+            let rapprochements = reprises
+            let plan = try PlanEnvoi(
+                ligne: ligne, rappels: rappelsActuels,
+                lireArticle: { rappel in
+                    rapprochements[rappel.id]?.article ?? journal.article(du: rappel, destinationId: destination)
+                },
+                cocheDepuisPremierEnvoi: { rappel in
+                    guard let date = rappel.cocheLe else { return false }
+                    return date >= seuil
+                        || (date == seuil.debutSeconde
+                            && !cochesAnterieures.contains { $0.correspondent(au: rappel) })
+                })
             let quantite = try ligne.quantiteArrondie
             let ecriture: EtatCourses.Ecriture
             switch plan {
@@ -156,6 +168,18 @@ public actor EnvoiCourses {
                 ecriture = try preparer(
                     ligne, valeur: valeur, quantiteTraitee: quantite, issue: .completee,
                     listeId: etat.liste.id, destinationId: destination, rappelsActuels: rappelsActuels)
+            }
+
+            if etat.enAttente.contains(where: { enAttente in
+                enAttente.destinationId == destination
+                    && enAttente.article.nomNormalise == ligne.nomNormalise
+                    && (ligne.unite == nil
+                        || enAttente.resultat.correspond(nom: ligne.nomNormalise, unite: ligne.unite))
+                    && !reprises.values.contains { $0.id == enAttente.id }
+            }) {
+                signaler(.ecriture, ligne: ligne, etat: &etat, rapport: &rapport)
+                try await persister(etat)
+                continue
             }
 
             etat.enAttente.append(ecriture)
@@ -191,7 +215,10 @@ public actor EnvoiCourses {
         try await documents.ecrire(etat, cle: "courses", version: EtatCourses.versionSchemaCourante)
     }
 
-    private func reprendre(_ etat: inout EtatCourses, rappelsLus: [RappelCourses], destinationId: String) {
+    private func reprendre(
+        _ etat: inout EtatCourses, rappelsLus: [RappelCourses], destinationId: String
+    ) -> [String: EtatCourses.Ecriture] {
+        var rapprochements: [String: EtatCourses.Ecriture] = [:]
         for ecriture in etat.enAttente where ecriture.destinationId == destinationId {
             let marques = rappelsLus.filter { $0.identifiantEcriture == ecriture.id }
             if marques.count == 1, let rappel = marques.first {
@@ -204,12 +231,14 @@ public actor EnvoiCourses {
                     && !ecriture.rappelsAvant.contains { $0.correspondent(au: rappel) }
                     && !etat.journal.entrees.contains { $0.rappelId == rappel.id }
             }
-            if candidats.count == 1, let rappel = candidats.first {
-                etat.confirmer(ecriture, rappel: rappel)
-            } else {
+            if candidats.isEmpty && marques.isEmpty {
                 etat.retirerEcriture(ecriture.id)
+            } else if candidats.count == 1, let rappel = candidats.first {
+                // Un titre permet de calculer la couverture. Seul le marqueur prouve l'écriture.
+                rapprochements[rappel.id] = ecriture
             }
         }
+        return rapprochements
     }
 
     private func preparer(
