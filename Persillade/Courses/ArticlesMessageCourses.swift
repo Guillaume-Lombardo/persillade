@@ -153,6 +153,12 @@ struct ArticlesMessageCourses: View {
         }
     }
 
+    private var sourceDisponible: ContenuRecu? {
+        if let contenu { return contenu }
+        guard let id = formulaire?.sourceId else { return nil }
+        return reception.contenus.first { $0.id == id }
+    }
+
     private var articles: [ArticleCourses] {
         formulaire?.propositions.filter { !$0.exclue }.compactMap(\.article) ?? []
     }
@@ -164,8 +170,16 @@ struct ArticlesMessageCourses: View {
                     .foregroundStyle(CouleurPersillade.tomate.couleur)
                 Button("Réessayer") { suivi.programmer(.message(brouillon)) }
             }
-            DisclosureGroup("Texte reçu") {
-                Text(brouillon.texteDerive ?? contenu?.texteRecu ?? "").textSelection(.enabled)
+            if let texte = brouillon.texteDerive ?? sourceDisponible?.texteRecu {
+                DisclosureGroup("Texte reçu") {
+                    Text(texte).textSelection(.enabled)
+                }
+            }
+            if sourceDisponible == nil {
+                Label(
+                    "Le message d’origine est indisponible. Le brouillon est conservé.",
+                    systemImage: "exclamationmark.circle")
+                Button("Relire le message") { Task { await reception.actualiser() } }
             }
             if let cause = brouillon.cause {
                 Text(explication(cause)).typographie(.precision)
@@ -203,7 +217,7 @@ struct ArticlesMessageCourses: View {
                 articles.count == 1 ? "Ajouter 1 article" : "Ajouter \(articles.count) articles",
                 symbole: "plus", action: { integrer() }
             )
-            .disabled(articles.isEmpty || session.occupee)
+            .disabled(sourceDisponible == nil || articles.isEmpty || session.occupee || clotureEnCours)
         }
         .sheet(
             isPresented: Binding(
@@ -322,7 +336,7 @@ struct ArticlesMessageCourses: View {
     }
 
     private func integrer(_ choix: ListeCourses.ChoixIntegration? = nil) {
-        guard let formulaire, !clotureEnCours else { return }
+        guard let formulaire, sourceDisponible != nil, !clotureEnCours else { return }
         let id = formulaire.sourceId
         let articles = articles
         Task {
@@ -413,7 +427,7 @@ struct ArticlesMessageCourses: View {
 
     private func retirerContenuRecu() async throws {
         guard !receptionRetiree else { return }
-        if let contenu { try await reception.retirer(contenu) }
+        if let sourceDisponible { try await reception.retirer(sourceDisponible) }
         try await suivi.effacer()
         receptionRetiree = true
         receptionTraitee()
