@@ -5,19 +5,8 @@ import PersilladePlateforme
 @MainActor
 @Observable
 final class BibliothequeRecettes {
-    private struct ChoixStocke: Codable {
-        let recetteId: UUID
-        let portions: Int
-
-        enum CodingKeys: String, CodingKey {
-            case recetteId = "recette_id"
-            case portions
-        }
-    }
-
     private let bibliotheque: Result<any Bibliotheque, any Error>
-    private let documents: any MagasinDocument
-    private static let cleSemaine = "selection-semaine"
+    let envoiCourses: EnvoiCourses
 
     private(set) var selection = SelectionSemaine()
     private(set) var revision = 0
@@ -41,29 +30,30 @@ final class BibliothequeRecettes {
                 dossier != nil
                 && ProcessInfo.processInfo.arguments.contains("-recettes-echec-ecriture")
         #endif
-        documents = dossier.map { MagasinDocumentFichiers(dossier: $0) } ?? MagasinDocumentFichiers()
+        let documents = dossier.map { MagasinDocumentFichiers(dossier: $0) } ?? MagasinDocumentFichiers()
+        envoiCourses = EnvoiCourses(documents: documents, rappels: MagasinRappelsEventKit())
     }
 
     func actualiserSemaine() async {
-        guard !operationSemaine, !selectionDisponible else { return }
+        guard !operationSemaine else { return }
         operationSemaine = true
         defer { operationSemaine = false }
         do {
-            let choix = try await documents.lire([ChoixStocke].self, cle: Self.cleSemaine, version: 1)
+            let semaine = try await envoiCourses.lire().selection
             let ids = Set(try await bibliotheque.get().lister().map(\.id))
-            var semaine = SelectionSemaine()
-            for entree in choix where ids.contains(entree.recetteId) {
-                semaine.selectionner(try .init(recetteId: entree.recetteId, portions: entree.portions))
-            }
-            selection = semaine
-            if semaine.choix.count < choix.count {
+            let absentes = semaine.choix.map(\.recetteId).filter { !ids.contains($0) }
+            if absentes.isEmpty {
+                selection = semaine
+            } else {
+                selection = try await envoiCourses.modifier { _, choix in
+                    for id in absentes { choix.deselectionner(id) }
+                    return choix
+                }
                 erreur = "La semaine a été mise à jour. Des recettes ont été supprimées."
-                try await ecrireSemaine(semaine)
             }
-            selectionDisponible = true
-        } catch ErreurMagasinDocument.absent {
             selectionDisponible = true
         } catch {
+            selectionDisponible = false
             self.erreur = "Impossible de lire la semaine."
         }
     }
@@ -104,18 +94,18 @@ final class BibliothequeRecettes {
         operationSemaine = true
         defer { operationSemaine = false }
         do {
-            var semaine = selection
-            if let portions {
-                guard try await lire(id) != nil else {
-                    self.erreur = "Cette recette a été supprimée."
-                    return
-                }
-                semaine.selectionner(try .init(recetteId: id, portions: portions))
-            } else {
-                semaine.deselectionner(id)
+            if portions != nil, try await lire(id) == nil {
+                self.erreur = "Cette recette a été supprimée."
+                return
             }
-            try await ecrireSemaine(semaine)
-            selection = semaine
+            selection = try await envoiCourses.modifier { _, semaine in
+                if let portions {
+                    semaine.selectionner(try .init(recetteId: id, portions: portions))
+                } else {
+                    semaine.deselectionner(id)
+                }
+                return semaine
+            }
         } catch {
             self.erreur = "Impossible de mettre à jour la semaine. Réessayez."
         }
@@ -135,7 +125,10 @@ final class BibliothequeRecettes {
         if portionsChoisies(id) != nil {
             selection.deselectionner(id)
             do {
-                try await ecrireSemaine(selection)
+                selection = try await envoiCourses.modifier { _, semaine in
+                    semaine.deselectionner(id)
+                    return semaine
+                }
             } catch {
                 self.erreur = "La recette a été supprimée. La semaine sera vérifiée à la prochaine ouverture."
             }
@@ -143,8 +136,4 @@ final class BibliothequeRecettes {
         return true
     }
 
-    private func ecrireSemaine(_ semaine: SelectionSemaine) async throws {
-        let choix = semaine.choix.map { ChoixStocke(recetteId: $0.recetteId, portions: $0.portions) }
-        try await documents.ecrire(choix, cle: Self.cleSemaine, version: 1)
-    }
 }

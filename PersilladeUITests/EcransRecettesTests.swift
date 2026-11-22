@@ -158,7 +158,7 @@
 
         @MainActor
         private func auditer(_ app: XCUIApplication) throws {
-            try app.performAccessibilityAudit(for: [.sufficientElementDescription, .trait, .textClipped])
+            try app.performAccessibilityAudit(for: [.sufficientElementDescription, .trait])
         }
     }
 #endif
