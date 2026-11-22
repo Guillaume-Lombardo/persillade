@@ -74,6 +74,31 @@ struct PresentationEnvoi {
     }
 }
 
+struct ActionPrincipaleCourses: View {
+    let libelle: String
+    let action: () -> Void
+
+    init(_ libelle: String, action: @escaping () -> Void) {
+        self.libelle = libelle
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            Text(libelle)
+                .typographie(.bouton)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(CouleurPersillade.surPersil.couleur)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.capsule)
+        .controlSize(.large)
+        .tint(CouleurPersillade.persil.couleur)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+    }
+}
+
 struct FeuilleCourses<Contenu: View>: View {
     @Environment(\.dismiss) private var fermer
     let titre: String
@@ -198,11 +223,11 @@ struct BilanEnvoiCourses: View {
             if envoiEnCours {
                 ProgressView("Envoi vers Rappels", value: session.progressionEnvoi ?? 0)
             } else {
-                BoutonActionPersillade(
+                ActionPrincipaleCourses(
                     rapport.echecs.isEmpty && rapport.causeGenerale == nil ? "Terminé" : "Réessayer",
                     action: rapport.echecs.isEmpty && rapport.causeGenerale == nil ? terminer : reessayer
                 )
-                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+
             }
         }
         .sensoryFeedback(

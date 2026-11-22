@@ -85,6 +85,7 @@ struct ArticlesMessageCourses: View {
             ) {
                 Button("Compléter cette liste") { integrer(.completer) }
                 Button("Nouvelle liste", role: .destructive) { integrer(.nouvelleListe) }
+                Button("Annuler", role: .cancel) {}
             } message: {
                 Text(
                     "Compléter garde ses articles. Une nouvelle liste efface ses \(session.etat?.liste.lignes.count ?? 0) lignes dans Persillade. Rappels ne change pas."
@@ -94,6 +95,7 @@ struct ArticlesMessageCourses: View {
                 "Remettre les articles exclus ?", isPresented: $confirmerRemise, titleVisibility: .visible
             ) {
                 Button("Remettre", action: remettre)
+                Button("Annuler", role: .cancel) {}
             } message: {
                 let noms = exclus.compactMap { session.etat?.liste.ligne(id: $0)?.libelle }.joined(separator: ", ")
                 Text("Articles exclus de l’envoi. \(noms).")
@@ -144,11 +146,11 @@ struct ArticlesMessageCourses: View {
         }
         .listStyle(.plain)
         .barreAction {
-            BoutonActionPersillade(articles.count == 1 ? "Ajouter 1 article" : "Ajouter \(articles.count) articles") {
+            ActionPrincipaleCourses(articles.count == 1 ? "Ajouter 1 article" : "Ajouter \(articles.count) articles") {
                 integrer()
             }
             .disabled(articles.isEmpty || session.occupee)
-            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+
         }
         .sheet(
             isPresented: Binding(get: { edition != nil }, set: { if !$0 { edition = nil } })

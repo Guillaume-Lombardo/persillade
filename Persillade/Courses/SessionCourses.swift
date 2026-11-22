@@ -82,10 +82,14 @@ final class SessionCourses {
         do {
             try await operation()
         } catch {
-            Logger(subsystem: "xyz.g1lom.persillade", category: "Courses").error(
-                "\(message, privacy: .public) \(String(describing: error), privacy: .private)")
-            erreur = message
+            signaler(message, erreur: error)
         }
+    }
+
+    func signaler(_ message: String, erreur: any Error) {
+        Logger(subsystem: "xyz.g1lom.persillade", category: "Courses").error(
+            "\(message, privacy: .public) \(String(describing: erreur), privacy: .private)")
+        self.erreur = message
     }
 
     func relire() async throws {

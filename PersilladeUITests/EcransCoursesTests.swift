@@ -81,12 +81,13 @@ import XCTest
                 faireListe(dans: app)
                 XCTAssertTrue(app.buttons["Choisir une liste"].waitForExistence(timeout: 5), nom)
                 XCTAssertTrue(app.buttons["Choisir une liste"].isHittable, nom)
-                joindreCapture("Courses-\(nom)")
                 if nom == "AX5" {
+                    app.swipeUp(velocity: .slow)
                     let derniere = app.buttons["Ne pas envoyer farine"]
-                    if !derniere.isHittable { app.swipeUp(velocity: .slow) }
                     XCTAssertTrue(derniere.isHittable, app.debugDescription)
+                    XCTAssertLessThan(derniere.frame.midY, app.buttons["Choisir une liste"].frame.minY)
                 }
+                joindreCapture("Courses-\(nom)")
                 app.terminate()
             }
         }

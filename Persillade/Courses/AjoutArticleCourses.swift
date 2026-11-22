@@ -22,8 +22,9 @@ struct AjoutArticleCourses: View {
     var body: some View {
         FeuilleCourses("Ajouter un article") {
             List {
-                ForEach(ajouts, id: \.self) { id in
-                    if let etat = session.etat, let ligne = etat.liste.ligne(id: id) {
+                if let etat = session.etat {
+                    let ids = Set(ajouts.compactMap { etat.liste.ligne(id: $0)?.id })
+                    ForEach(etat.liste.lignes.filter { ids.contains($0.id) }) { ligne in
                         let quantite = PresentationQuantite(ligne: ligne)
                         VStack(alignment: .leading) {
                             LigneArticle(
@@ -53,7 +54,7 @@ struct AjoutArticleCourses: View {
                         .textFieldStyle(.roundedBorder)
                         .focused($saisieActive)
                         .accessibilityIdentifier("ajout-saisie-courses")
-                    BoutonActionPersillade("Ajouter", action: ajouter)
+                    ActionPrincipaleCourses("Ajouter", action: ajouter)
                         .disabled(!nomValide)
                         .accessibilityIdentifier("ajout-valider-courses")
                 }
@@ -92,6 +93,7 @@ struct AjoutArticleCourses: View {
                 "Remettre les articles exclus ?", isPresented: $confirmerRemise, titleVisibility: .visible
             ) {
                 Button("Remettre", action: remettre)
+                Button("Annuler", role: .cancel) {}
             } message: {
                 let noms = exclus.compactMap { session.etat?.liste.ligne(id: $0)?.libelle }.joined(separator: ", ")
                 Text("Articles exclus de l’envoi. \(noms).")
@@ -145,9 +147,13 @@ struct AjoutArticleCourses: View {
                 saisie = ""
                 exclus = effets.decochagePropose
                 if !exclus.isEmpty { confirmerRemise = true }
-                try await session.relire()
+                do {
+                    try await session.relire()
+                } catch {
+                    session.signaler("L’article est enregistré. Impossible de relire les courses.", erreur: error)
+                }
                 if !effets.lignesAEnvoyer.isEmpty {
-                    try await envoyerArticles(effets.lignesAEnvoyer)
+                    await envoyerArticles(effets.lignesAEnvoyer)
                 }
             }
         }
@@ -162,7 +168,7 @@ struct AjoutArticleCourses: View {
                     return liste.envoyee
                 }
                 try await session.relire()
-                if aEnvoyer { try await envoyerArticles(ids) }
+                if aEnvoyer { await envoyerArticles(ids) }
             }
         }
     }
@@ -170,20 +176,19 @@ struct AjoutArticleCourses: View {
     private func envoyer(_ ids: [UUID]) {
         Task {
             await session.effectuer("L’envoi des articles a été interrompu. Réessayez.") {
-                try await envoyerArticles(ids)
+                await envoyerArticles(ids)
             }
         }
     }
 
-    private func envoyerArticles(_ ids: [UUID]) async throws {
+    private func envoyerArticles(_ ids: [UUID]) async {
         echecEnvoi.removeAll { ids.contains($0) }
         do {
             let rapport = try await session.envoyer(ids)
             echecEnvoi.append(contentsOf: rapport.echecs.map(\.ligneId))
         } catch {
             echecEnvoi.append(contentsOf: ids)
-            session.erreur = "L’article est dans les courses. Son envoi a été interrompu."
-            throw error
+            session.signaler("L’article est dans les courses. Son envoi a été interrompu.", erreur: error)
         }
     }
 }

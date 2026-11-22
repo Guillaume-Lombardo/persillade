@@ -99,6 +99,7 @@ struct DetailArticleCourses: View {
                     "Retirer « \(ligne.libelle) » ?", isPresented: $confirmerRetrait, titleVisibility: .visible
                 ) {
                     Button("Retirer", role: .destructive) { retirer(ligne.id) }
+                    Button("Annuler", role: .cancel) {}
                 } message: {
                     Text("Rappels ne change pas.")
                 }

@@ -3,6 +3,7 @@ import SwiftUI
 
 struct OngletSemaine: View {
     @Environment(\.dynamicTypeSize) private var taille
+
     @Environment(\.colorScheme) private var apparence
     @State private var remplacer = false
     @State private var vider = false
@@ -45,11 +46,13 @@ struct OngletSemaine: View {
             }
             .confirmationDialog("Vider la semaine ?", isPresented: $vider, titleVisibility: .visible) {
                 Button("Vider", role: .destructive) { viderSemaine() }
+                Button("Annuler", role: .cancel) {}
             } message: {
                 Text("La liste de courses ne change pas.")
             }
             .confirmationDialog("Remplacer la liste ?", isPresented: $remplacer, titleVisibility: .visible) {
                 Button("Remplacer", role: .destructive) { faireListe(confirmee: true) }
+                Button("Annuler", role: .cancel) {}
             } message: {
                 Text(
                     "Les \(session.etat?.liste.lignes.count ?? 0) lignes seront perdues et les articles déjà achetés seront redemandés."
@@ -80,7 +83,7 @@ struct OngletSemaine: View {
                 {
                     EmptyView()
                 } actions: {
-                    BoutonActionPersillade("Voir les recettes", action: voirRecettes)
+                    ActionPrincipaleCourses("Voir les recettes", action: voirRecettes)
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowSeparator(.hidden)
@@ -104,11 +107,12 @@ struct OngletSemaine: View {
         .scrollContentBackground(.hidden)
         .barreAction {
             if !etat.selection.choix.isEmpty {
-                BoutonActionPersillade(etat.selectionModifieeDepuisGeneration ? "Refaire la liste" : "Faire la liste") {
+                ActionPrincipaleCourses(etat.selectionModifieeDepuisGeneration ? "Refaire la liste" : "Faire la liste")
+                {
                     faireListe()
                 }
                 .disabled(session.occupee)
-                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+
             }
         }
     }
@@ -138,6 +142,7 @@ struct OngletSemaine: View {
                     boutonPortions("Diminuer les portions", symbole: "minus", choix: choix, variation: -1)
                     Text("\(choix.portions)").typographie(.texte).monospacedDigit()
                         .contentTransition(.numericText())
+                        .frame(minWidth: 44, minHeight: 44)
                         .accessibilityLabel("\(choix.portions) portions")
                     boutonPortions("Augmenter les portions", symbole: "plus", choix: choix, variation: 1)
                 }

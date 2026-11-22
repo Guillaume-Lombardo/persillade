@@ -65,6 +65,7 @@ struct OngletCourses: View {
             .confirmationDialog("Remplacer la liste ?", isPresented: $confirmerNouvelleListe, titleVisibility: .visible)
             {
                 Button("Remplacer", role: .destructive) { nouvelleListe(confirmee: true) }
+                Button("Annuler", role: .cancel) {}
             } message: {
                 Text(
                     "Les \(session.etat?.liste.lignes.count ?? 0) lignes seront perdues dans Persillade. Rappels ne change pas."
@@ -76,6 +77,7 @@ struct OngletCourses: View {
                 titleVisibility: .visible, presenting: retirer
             ) { ligne in
                 Button("Retirer", role: .destructive) { retirerLigne(ligne.id) }
+                Button("Annuler", role: .cancel) {}
             } message: { _ in
                 Text("Rappels ne change pas.")
             }
@@ -139,7 +141,7 @@ struct OngletCourses: View {
                 ) {
                     EmptyView()
                 } actions: {
-                    BoutonActionPersillade("Ajouter un article") { feuille = .ajout }
+                    ActionPrincipaleCourses("Ajouter un article") { feuille = .ajout }
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowSeparator(.hidden)
@@ -242,11 +244,11 @@ struct OngletCourses: View {
         if envoiEnCours {
             ProgressView("Envoi vers Rappels", value: session.progressionEnvoi ?? 0)
         } else if etat.destinationId == nil {
-            BoutonActionPersillade("Choisir une liste") { preparerDestinations() }
+            ActionPrincipaleCourses("Choisir une liste") { preparerDestinations() }
         } else if etat.liste.envoyee {
-            BoutonActionPersillade("Renvoyer") { envoyer() }.accessibilityIdentifier("courses-renvoyer")
+            ActionPrincipaleCourses("Renvoyer") { envoyer() }.accessibilityIdentifier("courses-renvoyer")
         } else {
-            BoutonActionPersillade("Envoyer \(etat.liste.lignesAEnvoyer.count)") { envoyer() }
+            ActionPrincipaleCourses("Envoyer \(etat.liste.lignesAEnvoyer.count)") { envoyer() }
                 .disabled(etat.liste.lignesAEnvoyer.isEmpty)
                 .accessibilityIdentifier("courses-envoyer")
         }
