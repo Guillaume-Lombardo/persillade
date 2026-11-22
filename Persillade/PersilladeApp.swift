@@ -5,8 +5,6 @@ import UIKit
 
 @main
 struct PersilladeApp: App {
-    @UIApplicationDelegateAdaptor(OrientationPersillade.self) private var orientation
-
     var body: some Scene {
         WindowGroup {
             Group {

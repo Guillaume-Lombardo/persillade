@@ -171,7 +171,7 @@ struct FicheRecette: View {
                     }
             }
         }
-        .fullScreenCover(isPresented: $cuisiner, onDismiss: { autoriserPaysageCuisine(false) }) {
+        .fullScreenCover(isPresented: $cuisiner) {
             if let session = SessionCuisine(recette: recette, position: positionCuisine) {
                 PasAPas(recette: recette, portions: portions, fond: planche.fond, session: session) { position in
                     positionCuisine = position

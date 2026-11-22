@@ -326,7 +326,7 @@
         }
 
         @MainActor
-        func testPaysageReserveALaCuisine() throws {
+        func testRecettesEtCuisineEnPaysage() throws {
             let app = lancer()
             coller(app)
             ouvrirCorrection(app)
@@ -335,26 +335,24 @@
             let appareil = XCUIDevice.shared
             appareil.orientation = .landscapeLeft
             defer { appareil.orientation = .portrait }
+            let fenetre = app.windows.firstMatch
+            let paysage = NSPredicate { _, _ in fenetre.frame.width > fenetre.frame.height }
+            wait(for: [XCTNSPredicateExpectation(predicate: paysage, object: fenetre)], timeout: 8)
             let cuisiner = app.buttons["ouvrir-cuisine"]
-            let paysage = NSPredicate { _, _ in app.frame.width > app.frame.height }
-            let rotationInterdite = XCTNSPredicateExpectation(predicate: paysage, object: app)
-            rotationInterdite.isInverted = true
-            wait(for: [rotationInterdite], timeout: 1.5)
             XCTAssertTrue(cuisiner.isHittable)
-            appareil.orientation = .portrait
+            joindre("fiche-paysage")
             cuisiner.tap()
             let fermer = app.buttons["fermer-cuisine"]
             XCTAssertTrue(fermer.waitForExistence(timeout: 5))
-            appareil.orientation = .landscapeLeft
-            joindre("cuisine-apres-rotation")
-            wait(for: [XCTNSPredicateExpectation(predicate: paysage, object: app)], timeout: 5)
             XCTAssertTrue(app.buttons["suivante-cuisine"].isHittable)
             joindre("cuisine-paysage")
             try auditer(app)
             fermer.tap()
-            let portrait = NSPredicate { _, _ in app.frame.width < app.frame.height }
-            wait(for: [XCTNSPredicateExpectation(predicate: portrait, object: app)], timeout: 5)
             XCTAssertTrue(cuisiner.wait(for: \.isHittable, toEqual: true, timeout: 5))
+            app.navigationBars.buttons.firstMatch.tap()
+            let recette = app.descendants(matching: .any)["ouvrir-recette"].firstMatch
+            XCTAssertTrue(recette.wait(for: \.isHittable, toEqual: true, timeout: 5))
+            joindre("recettes-paysage")
         }
 
         @MainActor

@@ -60,11 +60,6 @@ struct PasAPas: View {
         .onAppear {
             visible = true
             garderEcranAllume(phase == .active)
-            UIDevice.current.beginGeneratingDeviceOrientationNotifications()
-            autoriserPaysageCuisine(true)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
-            if visible { autoriserPaysageCuisine(true) }
         }
         .onChange(of: phase) { _, phase in garderEcranAllume(visible && phase == .active) }
         .onChange(of: taille.isAccessibilitySize) { _, accessible in
@@ -72,7 +67,6 @@ struct PasAPas: View {
         }
         .onDisappear {
             visible = false
-            UIDevice.current.endGeneratingDeviceOrientationNotifications()
             garderEcranAllume(false)
         }
         .sensoryFeedback(.impact(weight: .medium), trigger: session.position)
