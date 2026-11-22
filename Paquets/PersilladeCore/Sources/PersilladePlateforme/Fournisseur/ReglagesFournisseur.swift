@@ -7,8 +7,19 @@ public enum ErreurReglagesFournisseur: Error {
 
 @MainActor
 public final class ReglagesFournisseur {
-    public static let partage = ReglagesFournisseur(
-        preferences: .standard, service: "xyz.g1lom.persillade.fournisseur", fournisseur: FournisseurURLSession())
+    public static let partage: ReglagesFournisseur = {
+        let service = "xyz.g1lom.persillade.fournisseur"
+        #if DEBUG
+            if let id = ProcessInfo.processInfo.environment["PERSILLADE_TEST_SESSION"].flatMap(UUID.init(uuidString:)),
+                let preferences = UserDefaults(suiteName: "\(service).\(id.uuidString)")
+            {
+                return ReglagesFournisseur(
+                    preferences: preferences, service: "\(service).\(id.uuidString)",
+                    fournisseur: FournisseurURLSession())
+            }
+        #endif
+        return ReglagesFournisseur(preferences: .standard, service: service, fournisseur: FournisseurURLSession())
+    }()
 
     private let preferences: UserDefaults
     private let trousseau: TrousseauFournisseur

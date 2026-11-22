@@ -67,26 +67,28 @@ struct FicheRecette: View {
             sombre || planche.fond == .persil || planche.fond == .aubergine ? .dark : .light
         return ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                VStack(alignment: .leading, spacing: GrillePersillade.pas) {
-                    Text(recette.titre)
-                        .typographie(.fiche)
-                        .accessibilityAddTraits(.isHeader)
-                        .accessibilityIdentifier("titre-fiche")
-                    if let url = recette.urlSource {
-                        Link(destination: url) {
-                            Label(url.host(percentEncoded: false) ?? url.absoluteString, systemImage: "link")
-                                .typographie(.texte)
+                VStack(alignment: .leading, spacing: 0) {
+                    VStack(alignment: .leading, spacing: GrillePersillade.pas) {
+                        Text(recette.titre)
+                            .typographie(.fiche)
+                            .accessibilityAddTraits(.isHeader)
+                            .accessibilityIdentifier("titre-fiche")
+                        if let url = recette.urlSource {
+                            Link(destination: url) {
+                                Label(url.host(percentEncoded: false) ?? url.absoluteString, systemImage: "link")
+                                    .typographie(.texte)
+                            }
+                            .accessibilityHint("Ouvre la source de la recette")
                         }
-                        .accessibilityHint("Ouvre la source de la recette")
                     }
+                    .foregroundStyle(couleurTexte)
+                    .tint(couleurTexte)
+                    .padding(.horizontal, GrillePersillade.marge)
+                    EnTeteMotif(planche: planche).frame(height: 238)
                 }
-                .foregroundStyle(couleurTexte)
-                .tint(couleurTexte)
-                .padding(.horizontal, GrillePersillade.marge)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(couleurFond)
-                EnTeteMotif(planche: planche).frame(height: 238)
-                    .onScrollVisibilityChange(threshold: 0.1) { enteteVisible = $0 }
+                .onScrollVisibilityChange(threshold: 0.01) { enteteVisible = $0 }
                 blocPortions(portions)
                 if !recette.ingredients.isEmpty {
                     titreSection("Ingrédients")

@@ -6,9 +6,9 @@ final class ConsentementFournisseurUITests: XCTestCase {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"]
-        let domaine = UUID().uuidString.lowercased()
-        let adresseInitiale = "https://\(domaine).test/v1"
-        let autreAdresse = "https://autre.\(domaine).test/v1"
+        app.launchEnvironment["PERSILLADE_TEST_SESSION"] = UUID().uuidString
+        let adresseInitiale = "https://api.exemple.test/v1"
+        let autreAdresse = "https://autre.exemple.test/v1"
         app.launch()
         ouvrirReglages(app)
         let reglages = app.navigationBars["Réglages"]
@@ -21,8 +21,7 @@ final class ConsentementFournisseurUITests: XCTestCase {
         let images = app.switches["fournisseur-images"]
         let enregistrer = reglages.buttons["Enregistrer"]
         let supprimer = app.buttons["Supprimer la clé enregistrée"]
-        if supprimer.exists { supprimerCle(app) }
-        regler(actif, sur: false)
+        XCTAssertEqual(actif.value as? String, "0")
         XCTAssertFalse(adresse.exists)
         XCTAssertFalse(modele.exists)
         XCTAssertFalse(cle.exists)

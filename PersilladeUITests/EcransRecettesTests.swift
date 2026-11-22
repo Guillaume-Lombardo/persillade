@@ -336,20 +336,24 @@
             appareil.orientation = .landscapeLeft
             defer { appareil.orientation = .portrait }
             let cuisiner = app.buttons["ouvrir-cuisine"]
-            XCTAssertLessThan(app.frame.width, app.frame.height)
+            let paysage = NSPredicate { _, _ in app.frame.width > app.frame.height }
+            let rotationInterdite = XCTNSPredicateExpectation(predicate: paysage, object: app)
+            rotationInterdite.isInverted = true
+            wait(for: [rotationInterdite], timeout: 1.5)
             XCTAssertTrue(cuisiner.isHittable)
             appareil.orientation = .portrait
             cuisiner.tap()
             let fermer = app.buttons["fermer-cuisine"]
             XCTAssertTrue(fermer.waitForExistence(timeout: 5))
             appareil.orientation = .landscapeLeft
-            XCTAssertGreaterThan(app.frame.width, app.frame.height)
+            wait(for: [XCTNSPredicateExpectation(predicate: paysage, object: app)], timeout: 5)
             XCTAssertTrue(app.buttons["suivante-cuisine"].isHittable)
             joindre("cuisine-paysage")
             try auditer(app)
             fermer.tap()
-            XCTAssertTrue(cuisiner.wait(for: \.isHittable, toEqual: true, timeout: 5))
-            XCTAssertLessThan(app.frame.width, app.frame.height)
+            let portrait = NSPredicate { _, _ in app.frame.width < app.frame.height }
+            wait(for: [XCTNSPredicateExpectation(predicate: portrait, object: app)], timeout: 5)
+            XCTAssertTrue(cuisiner.isHittable)
         }
 
         @MainActor
