@@ -181,6 +181,7 @@ struct OngletCourses: View {
             LigneArticle(
                 nom: ligne.libelle, quantite: quantite.nombre, unite: quantite.unite, exclu: ligne.cochee,
                 ouvrir: { feuille = .detail(ligne.id) },
+                identifiantOuverture: "article-\(ligne.nomNormalise)",
                 basculerExclusion: { exclure(ligne) })
             if !ligne.cochee, etat.liste.envoyee || statut.echec {
                 statut.marque
@@ -191,7 +192,6 @@ struct OngletCourses: View {
         .disabled(session.occupee)
         .background(CouleurPersillade.page.couleur)
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("article-\(ligne.nomNormalise)")
     }
 
     private func barre(_ etat: EtatCourses) -> some View {
@@ -286,6 +286,7 @@ struct OngletCourses: View {
                                         ? "checkmark.circle.fill" : "checklist")
                             }
                         }
+                        .accessibilityIdentifier("destination-rappels-\(destination.id)")
                         .disabled(!destination.modifiable || session.occupee)
                     }
                 } footer: {
