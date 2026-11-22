@@ -38,8 +38,11 @@ jobs:
       - name: Compiler et tester sur iPhone
         run: |
           xcodebuild -version
+          simulateur=$(xcrun simctl create "Persillade CI" com.apple.CoreSimulator.SimDeviceType.iPhone-17 com.apple.CoreSimulator.SimRuntime.iOS-27-0)
+          trap 'xcrun simctl delete "$simulateur"' EXIT
+          bash .github/scripts/preparer-phototheque-test.sh "$simulateur"
           xcodebuild -project Persillade.xcodeproj -scheme Persillade \
-            -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.0' \
+            -destination "platform=iOS Simulator,id=$simulateur" \
             -derivedDataPath .build/DerivedData -parallel-testing-enabled NO build test
       - name: Compiler pour un iPhone sans signer
         run: |

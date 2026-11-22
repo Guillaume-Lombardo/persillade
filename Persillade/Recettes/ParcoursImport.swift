@@ -3,7 +3,7 @@ import SwiftUI
 
 struct ParcoursImport: View {
     private enum Etape {
-        case coller, destination, lecture, echec, correction
+        case coller, photo, destination, lecture, echec, correction, saisie
     }
 
     let reception: ReceptionEntree
@@ -13,6 +13,7 @@ struct ParcoursImport: View {
     let fermer: () -> Void
     let terminer: (UUID?) -> Void
     let importerArticles: ((ContenuRecu) -> Void)?
+    private let sourcePhoto: SourcePhoto?
 
     @Environment(\.displayScale) private var echelle
     @Environment(\.dynamicTypeSize) private var taille
@@ -27,7 +28,7 @@ struct ParcoursImport: View {
     init(
         initial: ContenuRecu?, reception: ReceptionEntree, bibliotheque: BibliothequeRecettes, extracteur: Extracteur,
         repliConsenti: Extracteur.RepliConsenti?, fermer: @escaping () -> Void, terminer: @escaping (UUID?) -> Void,
-        importerArticles: ((ContenuRecu) -> Void)? = nil
+        importerArticles: ((ContenuRecu) -> Void)? = nil, sourcePhoto: SourcePhoto? = nil
     ) {
         self.reception = reception
         self.bibliotheque = bibliotheque
@@ -36,8 +37,9 @@ struct ParcoursImport: View {
         self.fermer = fermer
         self.terminer = terminer
         self.importerArticles = importerArticles
+        self.sourcePhoto = sourcePhoto
         _recu = State(initialValue: initial)
-        _etape = State(initialValue: initial == nil ? .coller : .destination)
+        _etape = State(initialValue: initial != nil ? .destination : sourcePhoto == nil ? .coller : .photo)
     }
 
     var body: some View {
@@ -45,8 +47,8 @@ struct ParcoursImport: View {
             contenuEtape.navigationBarTitleDisplayMode(.inline)
         }
         .tint(CouleurPersillade.persil.couleur)
-        .presentationDetents(etape == .correction || taille >= .accessibility3 ? [.large] : [.medium, .large])
-        .interactiveDismissDisabled(occupation || etape == .lecture || etape == .correction)
+        .presentationDetents(enSaisie || taille >= .accessibility3 ? [.large] : [.medium, .large])
+        .interactiveDismissDisabled(occupation || etape == .lecture || enSaisie)
         .alert(
             "Import de la recette",
             isPresented: Binding(get: { erreur != nil }, set: { if !$0 { erreur = nil } })
@@ -57,6 +59,8 @@ struct ParcoursImport: View {
         }
     }
 
+    private var enSaisie: Bool { etape == .correction || etape == .saisie }
+
     @ViewBuilder private var contenuEtape: some View {
         switch etape {
         case .coller:
@@ -65,6 +69,16 @@ struct ParcoursImport: View {
             )
             .navigationTitle(recu == nil ? "Coller" : "Coller le texte")
             .toolbar { boutonFermer }
+        case .photo:
+            if let sourcePhoto {
+                FeuillePhoto(source: sourcePhoto, occupation: $occupation, saisir: { etape = .saisie }) {
+                    photo, origine in
+                    recu = try await reception.deposerPhoto(photo, origine: origine)
+                    etape = .destination
+                }
+                .navigationTitle("Photo de la recette")
+                .toolbar { boutonFermer }
+            }
         case .destination:
             if let recu {
                 destination(recu)
@@ -84,7 +98,8 @@ struct ParcoursImport: View {
         case .correction:
             if let recu, let resultat {
                 CorrectionRecette(
-                    donnees: .init(id: recu.id, resultat: resultat, url: lienRecu),
+                    donnees: .init(
+                        id: recu.id, resultat: resultat, url: lienRecu, photo: recu.type == .image ? recu.contenu : nil),
                     fermer: fermer
                 ) { recette in
                     if recetteEnregistree == nil {
@@ -98,6 +113,11 @@ struct ParcoursImport: View {
                     }
                     terminer(recette.id)
                 }
+            }
+        case .saisie:
+            CorrectionRecette(donnees: .init(), fermer: fermer) { recette in
+                try await bibliotheque.enregistrer(recette, modification: false, echelle: echelle)
+                terminer(recette.id)
             }
         }
     }
@@ -147,6 +167,7 @@ struct ParcoursImport: View {
                 }
                 BoutonActionPersillade("Recette") { etape = .lecture }
                     .disabled(occupation)
+                    .accessibilityIdentifier("import-destination-recette")
                 if let importerArticles {
                     Button("Articles de courses") { importerArticles(contenu) }
                         .buttonStyle(.glass)
@@ -245,7 +266,7 @@ struct ParcoursImport: View {
                 let lecture = try await extracteur.extraire(entree, cible: .recette, repliConsenti: repliConsenti)
                 try Task.checkCancellation()
                 resultat = lecture
-                etape = lecture.statut == .echec ? .echec : .correction
+                etape = lecture.statut == .echec && recu.type != .image ? .echec : .correction
             }
         } catch is CancellationError {
         } catch {

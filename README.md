@@ -7,14 +7,20 @@ avec les premiers parcours.
 
 ## Construction et tests
 
-Il faut Xcode 27 ou plus récent, avec le runtime iOS 27. Ouvrir `Persillade.xcodeproj`, sélectionner le
-schéma partagé **Persillade** et choisir un simulateur iPhone. Depuis le terminal, adapter le nom du
-simulateur à celui installé dans Xcode.
+Il faut Xcode 27 ou plus récent, avec le runtime iOS 27. Ouvrir `Persillade.xcodeproj` et sélectionner
+le schéma partagé **Persillade**. Le test de la photothèque utilise un simulateur neuf où le script
+d’installation ajoute une seule photo de recette générée.
 
 ```sh
 swift test --package-path Paquets/PersilladeCore
-xcodebuild -scheme Persillade -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=27.0' \
-  -derivedDataPath .build/DerivedData -parallel-testing-enabled NO build test
+(
+  set -e
+  simulateur=$(xcrun simctl create "Persillade Tests" com.apple.CoreSimulator.SimDeviceType.iPhone-15-Pro com.apple.CoreSimulator.SimRuntime.iOS-27-0)
+  trap 'xcrun simctl delete "$simulateur"' EXIT
+  bash .github/scripts/preparer-phototheque-test.sh "$simulateur"
+  xcodebuild -scheme Persillade -destination "platform=iOS Simulator,id=$simulateur" \
+    -derivedDataPath .build/DerivedData -parallel-testing-enabled NO build test
+)
 xcodebuild -scheme Persillade -destination 'generic/platform=iOS' \
   -derivedDataPath .build/DerivedData CODE_SIGNING_ALLOWED=NO build
 git ls-files -z '*.swift' | xargs -0 swift format lint --strict
