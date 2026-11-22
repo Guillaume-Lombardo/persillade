@@ -100,7 +100,7 @@ struct OngletCourses: View {
                     case .destination:
                         choixRappels
                     case .acces:
-                        FeuilleCourses("Accès à Rappels") { AccesRappels() }.presentationDetents([.medium, .large])
+                        FeuilleCourses("Accès à Rappels") { AccesRappels() }.presentationDetents(detentesFeuille)
                     case .rapport:
                         if let rapport {
                             FeuilleCourses("Rapport d’envoi") {
@@ -133,6 +133,10 @@ struct OngletCourses: View {
         .task { await session.actualiser() }
     }
 
+    private var detentesFeuille: Set<PresentationDetent> {
+        taille.isAccessibilitySize ? [.large] : [.medium, .large]
+    }
+
     private func liste(_ etat: EtatCourses) -> some View {
         let statuts = Dictionary(
             uniqueKeysWithValues: etat.liste.lignesAEnvoyer.map {
@@ -156,7 +160,7 @@ struct OngletCourses: View {
                 ) {
                     EmptyView()
                 } actions: {
-                    BoutonActionPersillade("Ajouter un article", symbole: "plus") { feuille = .ajout }
+                    EmptyView()
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowSeparator(.hidden)
@@ -212,10 +216,14 @@ struct OngletCourses: View {
     private func barre(_ etat: EtatCourses) -> some View {
         HStack(spacing: GrillePersillade.pas * 2) {
             menuAjout
-            if etat.destinationId != nil {
-                destinationActuelle(etat)
+            if etat.liste.lignes.isEmpty {
+                BoutonActionPersillade("Ajouter un article", symbole: "plus") { feuille = .ajout }
+            } else {
+                if etat.destinationId != nil {
+                    destinationActuelle(etat)
+                }
+                actionEnvoi(etat)
             }
-            actionEnvoi(etat)
         }
         .disabled(session.occupee)
     }
@@ -243,7 +251,7 @@ struct OngletCourses: View {
         return Button(action: preparerDestinations) {
             LabelActionCourses(libelle: titre, symbole: symbole)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(StyleBoutonPersillade())
         .accessibilityLabel(libelle)
         .accessibilityValue(titre)
         .accessibilityShowsLargeContentViewer { Label(titre, systemImage: symbole) }
@@ -314,7 +322,7 @@ struct OngletCourses: View {
                             .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
                             .contentShape(.rect)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(StyleBoutonPersillade())
                         .listRowBackground(CouleurPersillade.page.couleur)
                         .accessibilityIdentifier("destination-rappels-\(destination.id)")
                         .disabled(!destination.modifiable || session.occupee)
@@ -334,7 +342,7 @@ struct OngletCourses: View {
             .scrollContentBackground(.hidden)
             .erreurCourses(session)
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents(detentesFeuille)
     }
 
     private func preparerDestinations() {

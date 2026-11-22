@@ -52,7 +52,7 @@ struct BoutonActionPersillade: View {
                             .padding(.horizontal, GrillePersillade.pas * 2)
                     }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, taille.isAccessibilitySize ? GrillePersillade.pas : GrillePersillade.marge)
                 .padding(.vertical, 6)
                 .frame(minHeight: 52)
                 .frame(maxWidth: pleineLargeur || dansBarre ? .infinity : nil)
@@ -65,7 +65,7 @@ struct BoutonActionPersillade: View {
                 )
                 .contentShape(.capsule)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(StyleBoutonPersillade())
         .accessibilityLabel(progression == nil ? libelle : "Envoi vers Rappels")
         .accessibilityValue(progression?.formatted(.percent.precision(.fractionLength(0))) ?? "")
         .accessibilityShowsLargeContentViewer {
@@ -84,6 +84,12 @@ struct BoutonActionPersillade: View {
         }
         .typographie(.bouton)
         .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+struct StyleBoutonPersillade: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.opacity(configuration.isPressed ? 0.84 : 1)
     }
 }
 

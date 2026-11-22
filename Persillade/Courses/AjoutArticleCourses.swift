@@ -23,7 +23,7 @@ struct AjoutArticleCourses: View {
     private var rayon: Categorie { categorie ?? categorieParDefaut(normaliserNom(analyse.nom)) }
 
     var body: some View {
-        FeuilleCourses("Ajouter un article") {
+        FeuilleCourses("Ajouter un article", afficherFermer: !articleAjoute) {
             List {
                 if articleAjoute {
                     Label("Article ajouté", systemImage: "checkmark.circle")
@@ -69,17 +69,20 @@ struct AjoutArticleCourses: View {
                             VStack(alignment: .leading) { choix }
                         }
                     }
-                    TextField("Nom et quantité", text: $saisie, axis: .vertical)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($saisieActive)
-                        .accessibilityIdentifier("ajout-saisie-courses")
+                    TextField(
+                        taille.isAccessibilitySize ? "Article" : "Nom et quantité", text: $saisie, axis: .vertical
+                    )
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel("Nom et quantité")
+                    .focused($saisieActive)
+                    .accessibilityIdentifier("ajout-saisie-courses")
                     BoutonActionPersillade("Ajouter", symbole: "plus", pleineLargeur: true, action: ajouter)
                         .disabled(!nomValide)
                         .accessibilityIdentifier("ajout-valider-courses")
                 }
                 .padding(.horizontal, GrillePersillade.marge)
                 .padding(.vertical, 8)
-                .background(CouleurPersillade.page2.couleur)
+                .background(CouleurPersillade.page.couleur)
                 .disabled(session.occupee)
             }
             .task { saisieActive = true }
@@ -109,7 +112,7 @@ struct AjoutArticleCourses: View {
                     .erreurCourses(session)
                 }
                 .environment(\.dynamicTypeSize, taille)
-                .presentationDetents([.medium, .large])
+                .presentationDetents(taille.isAccessibilitySize ? [.large] : [.medium, .large])
             }
             .confirmationDialog(
                 "Remettre les articles exclus ?", isPresented: $confirmerRemise, titleVisibility: .visible

@@ -43,7 +43,7 @@ struct ColonnePesee: View {
         Group {
             if let quantite {
                 ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .firstTextBaseline, spacing: 2) {
+                    HStack(alignment: .firstTextBaseline, spacing: aligne ? 2 : GrillePersillade.pas * 2) {
                         nombre(quantite)
                         libelleUnite(enLigne: true)
                     }

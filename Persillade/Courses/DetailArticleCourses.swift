@@ -137,7 +137,7 @@ struct DetailArticleCourses: View {
                 }
                 .erreurCourses(session)
             }
-            .presentationDetents([.medium, .large])
+            .presentationDetents(taille.isAccessibilitySize ? [.large] : [.medium, .large])
         }
     }
 

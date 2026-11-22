@@ -83,7 +83,7 @@ struct ActionSecondaireCourses: View {
         Button(action: action) {
             LabelActionCourses(libelle: libelle, symbole: symbole, couleur: couleur)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(StyleBoutonPersillade())
         .accessibilityLabel(libelle)
         .accessibilityShowsLargeContentViewer { Label(libelle, systemImage: symbole) }
     }
@@ -121,13 +121,16 @@ struct FeuilleCourses<Contenu: View>: View {
     @Environment(\.dismiss) private var fermer
     let titre: String
     let fermetureInterdite: Bool
+    let afficherFermer: Bool
     @ViewBuilder var contenu: () -> Contenu
 
     init(
-        _ titre: String, fermetureInterdite: Bool = false, @ViewBuilder contenu: @escaping () -> Contenu
+        _ titre: String, fermetureInterdite: Bool = false, afficherFermer: Bool = true,
+        @ViewBuilder contenu: @escaping () -> Contenu
     ) {
         self.titre = titre
         self.fermetureInterdite = fermetureInterdite
+        self.afficherFermer = afficherFermer
         self.contenu = contenu
     }
 
@@ -139,9 +142,11 @@ struct FeuilleCourses<Contenu: View>: View {
                 .navigationTitle(titre)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Fermer") { fermer() }
-                            .disabled(fermetureInterdite)
+                    if afficherFermer {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Fermer") { fermer() }
+                                .disabled(fermetureInterdite)
+                        }
                     }
                 }
         }
