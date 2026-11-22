@@ -16,14 +16,19 @@ import Testing
         let file = FileEntree(dossier: dossier)
         try await file.deposer(premier)
         try await file.deposer(second)
+        try await file.garderTexteDeRepli("Potage\n1 carotte", pour: premier.id)
         try await file.deposer(premier)
     }
 
     let relance = FileEntree(dossier: dossier)
-    #expect(try await relance.lire().contenus == [premier, second])
+    let lecture = try await relance.lire()
+    #expect(lecture.contenus == [premier, second])
+    #expect(lecture.textesDeRepli == [premier.id: "Potage\n1 carotte"])
     #expect(try await FileEntree(dossier: dossier).lire().contenus == [premier, second])
     try await relance.retirer(id: premier.id)
-    #expect(try await FileEntree(dossier: dossier).lire().contenus == [second])
+    let restante = try await FileEntree(dossier: dossier).lire()
+    #expect(restante.contenus == [second])
+    #expect(restante.textesDeRepli.isEmpty)
 }
 
 @Test func contenuIllisibleIsoleSansPerte() async throws {

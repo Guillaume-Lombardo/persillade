@@ -57,11 +57,12 @@ private func preparer(_ recettes: [Recette], portions: Int) throws -> SelectionS
     }
 
     @Test func prorataExactEtOeufEtDemiAfficheDeuxPourUneRecetteSeule() throws {
-        let entree = try recette([article("œufs", "2", .piece), article("farine", "1/3", .kg)])
+        let entree = try recette([article("œufs", "2", .piece), article("huile", "1/2"), article("farine", "1/3", .kg)])
         let preparation = try preparer([entree], portions: 3)
         let oeufs = try #require(preparation.contributions.first)
         #expect(oeufs.article.quantite == (try q("3/2")))
         #expect(try oeufs.quantitePourRecette == Quantite(2))
+        #expect(try preparation.contributions[1].quantitePourRecette == q("3/8"))
         #expect(try preparation.contributions.last?.quantitePourRecette == q("1/4"))
     }
 

@@ -5,7 +5,7 @@ final class ConsentementFournisseurUITests: XCTestCase {
     func testConsentementFournisseurEtSuppression() {
         let app = XCUIApplication()
         app.launch()
-        app.navigationBars["Recettes"].buttons["Réglages"].tap()
+        ouvrirReglages(app)
         let reglages = app.navigationBars["Réglages"]
         XCTAssertTrue(reglages.waitForExistence(timeout: 5))
 
@@ -85,12 +85,18 @@ final class ConsentementFournisseurUITests: XCTestCase {
         XCTAssertTrue(supprimer.waitForExistence(timeout: 5))
         regler(actif, sur: false)
         reglages.buttons["Fermer"].tap()
-        app.navigationBars["Recettes"].buttons["Réglages"].tap()
+        ouvrirReglages(app)
         XCTAssertTrue(reglages.waitForExistence(timeout: 5))
         XCTAssertEqual(actif.value as? String, "0")
         supprimerCle(app)
         XCTAssertEqual(actif.value as? String, "0")
         XCTAssertFalse(supprimer.exists)
+    }
+
+    @MainActor
+    private func ouvrirReglages(_ app: XCUIApplication) {
+        app.navigationBars["Recettes"].buttons["Plus d’options"].tap()
+        app.buttons["Réglages"].tap()
     }
 
     @MainActor

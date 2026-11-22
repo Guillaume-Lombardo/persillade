@@ -38,7 +38,7 @@ public struct Planche: Hashable, Sendable {
     public let rangees: [Rangee]
     public let pluches: Pluches
     public let angle: Double
-    private let empreinteIngredients: Int
+    public let empreinteIngredients: UInt64
 
     public init(recette: Recette) {
         self.init(id: recette.id, ingredients: recette.ingredients)
@@ -46,7 +46,7 @@ public struct Planche: Hashable, Sendable {
 
     public init(id: UUID, ingredients: [Ingredient]) {
         self.id = id
-        empreinteIngredients = ingredients.hashValue
+        empreinteIngredients = Self.empreinte(ingredients)
         let analyse = Self.analyser(ingredients)
         let cle = id.uuidString
         fond = Self.choisirFond(cle: cle, pieces: analyse.pieces)
@@ -77,6 +77,23 @@ public struct Planche: Hashable, Sendable {
             break
         }
         self.rangees = rangees
+    }
+
+    private static func empreinte(_ ingredients: [Ingredient]) -> UInt64 {
+        var valeur: UInt64 = 0xCBF2_9CE4_8422_2325
+        for ingredient in ingredients {
+            for champ in [
+                ingredient.nom, ingredient.quantite?.texteFrancais ?? "",
+                String(describing: ingredient.unite), ingredient.texteOrigine,
+            ] {
+                for octet in champ.utf8 {
+                    valeur = (valeur ^ UInt64(octet)) &* 0x100_0000_01B3
+                }
+                // 0xFF n’est jamais un octet UTF-8.
+                valeur = (valeur ^ 0xFF) &* 0x100_0000_01B3
+            }
+        }
+        return valeur
     }
 
     static func graine(_ texte: String) -> UInt64 {

@@ -1,55 +1,110 @@
 import PersilladeCore
 import SwiftUI
 
-struct EditeurQuantite: View {
-    private enum Choix: Hashable {
-        case unite(Unite)
-        case personnalisee, sansUnite
+struct SaisieQuantite: Equatable {
+    static let standards: [Unite] = [.g, .kg, .ml, .cl, .l, .piece, .cas, .cac]
+
+    var texte: String
+    var unite: Unite?
+    var autre: String
+
+    init(quantite: Quantite?, unite: Unite?) {
+        texte = quantite?.texteFrancais ?? ""
+        self.unite = unite
+        if case .autre(let libelle) = unite {
+            autre = libelle
+        } else {
+            autre = ""
+        }
     }
 
-    private static let standards: [Unite] = [.g, .kg, .ml, .cl, .l, .piece, .cas, .cac]
+    enum Erreur: LocalizedError {
+        case nombre, unite
 
+        var errorDescription: String? {
+            switch self {
+            case .nombre: "Saisissez une quantité supérieure à zéro."
+            case .unite: "Indiquez le nom de l’unité."
+            }
+        }
+    }
+
+    func valider() throws -> (Quantite?, Unite?) {
+        guard !texte.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return (nil, nil) }
+        guard let nombre = try? Quantite(texte: texte), nombre > Quantite(0) else { throw Erreur.nombre }
+        if case .autre = unite {
+            let libelle = autre.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !normaliserNom(libelle).isEmpty else { throw Erreur.unite }
+            return (nombre, .autre(libelle))
+        }
+        return (nombre, unite)
+    }
+}
+
+struct ChampQuantite: View {
+    @Binding var texte: String
+
+    var body: some View {
+        TextField("Quantité", text: $texte)
+            .typographie(.quantite)
+            .keyboardType(.decimalPad)
+            .accessibilityIdentifier("editeur-quantite")
+            .padding(GrillePersillade.pas * 3)
+            .background(CouleurPersillade.page2.couleur, in: .rect(cornerRadius: 8))
+    }
+}
+
+struct ChoixUnite: View {
+    @Binding var saisie: SaisieQuantite
+    var uniteLue: Unite?
+
+    private var unites: [Unite] {
+        if let uniteLue { return [uniteLue] + SaisieQuantite.standards.filter { $0 != uniteLue } }
+        return SaisieQuantite.standards
+    }
+
+    var body: some View {
+        Picker("Unité", selection: $saisie.unite) {
+            Text("Sans unité").tag(nil as Unite?)
+            ForEach(unites, id: \.self) { unite in
+                Text(unite.libellePersillade).tag(unite as Unite?)
+            }
+            Text("Autre…").tag(Unite.autre("") as Unite?)
+        }
+        .pickerStyle(.menu)
+    }
+}
+
+struct ChampNomUnite: View {
+    @Binding var nom: String
+
+    var body: some View {
+        TextField("Nom de l’unité", text: $nom)
+            .textFieldStyle(.roundedBorder)
+            .frame(minHeight: GrillePersillade.cible)
+    }
+}
+
+struct EditeurQuantite: View {
     let enregistrer: (Quantite?, Unite?) -> Void
 
-    @State private var texte: String
-    @State private var choix: Choix
-    @State private var autre: String
+    @State private var saisie: SaisieQuantite
     @State private var erreur: String?
     @FocusState private var saisieQuantite: Bool
+    @FocusState private var saisieUnite: Bool
+    private let uniteLue: Unite?
 
     init(quantite: Quantite?, unite: Unite?, enregistrer: @escaping (Quantite?, Unite?) -> Void) {
         self.enregistrer = enregistrer
-        _texte = State(initialValue: quantite?.texteFrancais ?? "")
-        if case .autre(let libelle) = unite {
-            _choix = State(initialValue: .personnalisee)
-            _autre = State(initialValue: libelle)
-        } else {
-            _choix = State(initialValue: unite.map(Choix.unite) ?? .sansUnite)
-            _autre = State(initialValue: "")
-        }
+        uniteLue = unite
+        _saisie = State(initialValue: SaisieQuantite(quantite: quantite, unite: unite))
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: GrillePersillade.pas * 3) {
-            TextField("Quantité", text: $texte)
-                .typographie(.quantite)
-                .keyboardType(.decimalPad)
-                .focused($saisieQuantite)
-                .accessibilityIdentifier("editeur-quantite")
-                .padding(GrillePersillade.pas * 3)
-                .background(CouleurPersillade.page2.couleur, in: .rect(cornerRadius: 8))
-            Picker("Unité", selection: $choix) {
-                Text("Sans unité").tag(Choix.sansUnite)
-                ForEach(Self.standards, id: \.self) { unite in
-                    Text(unite.libellePersillade).tag(Choix.unite(unite))
-                }
-                Text("Autre…").tag(Choix.personnalisee)
-            }
-            .pickerStyle(.menu)
-            if choix == .personnalisee {
-                TextField("Nom de l’unité", text: $autre)
-                    .textFieldStyle(.roundedBorder)
-            }
+            ChampQuantite(texte: $saisie.texte).focused($saisieQuantite)
+            ChoixUnite(saisie: $saisie, uniteLue: uniteLue)
+            if case .autre = saisie.unite { ChampNomUnite(nom: $saisie.autre).focused($saisieUnite) }
             if let erreur {
                 Text(erreur).typographie(.alerte)
                     .foregroundStyle(CouleurPersillade.tomate.couleur)
@@ -67,9 +122,10 @@ struct EditeurQuantite: View {
     @ViewBuilder private var actions: some View {
         BoutonActionPersillade("Valider", action: valider)
         Button("Effacer la quantité") {
-            texte = ""
+            saisie.texte = ""
             erreur = nil
             saisieQuantite = false
+            saisieUnite = false
             enregistrer(nil, nil)
         }
         .typographie(.bouton)
@@ -78,28 +134,21 @@ struct EditeurQuantite: View {
     }
 
     private func valider() {
-        guard let nombre = try? Quantite(texte: texte), nombre > Quantite(0) else {
-            erreur = "Saisissez une quantité supérieure à zéro."
-            saisieQuantite = true
-            return
-        }
-        let unite: Unite?
-        switch choix {
-        case .sansUnite:
-            unite = nil
-        case .unite(let valeur):
-            unite = valeur
-        case .personnalisee:
-            let nom = autre.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !normaliserNom(nom).isEmpty else {
-                erreur = "Indiquez le nom de l’unité."
-                return
+        do {
+            let (nombre, unite) = try saisie.valider()
+            guard let nombre else { throw SaisieQuantite.Erreur.nombre }
+            erreur = nil
+            saisieQuantite = false
+            saisieUnite = false
+            saisie.texte = nombre.texteFrancais
+            enregistrer(nombre, unite)
+        } catch {
+            self.erreur = error.localizedDescription
+            if case SaisieQuantite.Erreur.unite = error {
+                saisieUnite = true
+            } else {
+                saisieQuantite = true
             }
-            unite = .autre(nom)
         }
-        erreur = nil
-        saisieQuantite = false
-        texte = nombre.texteFrancais
-        enregistrer(nombre, unite)
     }
 }
