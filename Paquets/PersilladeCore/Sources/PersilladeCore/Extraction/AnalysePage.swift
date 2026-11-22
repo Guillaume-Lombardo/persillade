@@ -5,11 +5,12 @@ struct AnalysePage {
     let texte: String
     let recette: BrouillonRecette?
 
-    init(html: String) {
+    init(html: String) throws {
+        try Task.checkCancellation()
         let sansCommentaires = html.remplacer(#"(?is)<!--(?!\s*(?:\{|\[)).*?-->"#, par: "")
-        let recettes = Self.recettesStructurees(sansCommentaires)
+        let recettes = try Self.recettesStructurees(sansCommentaires)
         recette = recettes.max { Self.score($0) < Self.score($1) }
-        corps = HTML.texte(html)
+        corps = try HTML.texte(html)
         // Certaines pages ne dupliquent pas dans le DOM les données du bloc Recipe.
         let fiche = recette.map(Self.texteStructure) ?? ""
         let morceaux = fiche.split(whereSeparator: \.isNewline).map(String.init)
@@ -31,9 +32,10 @@ struct AnalysePage {
         return lignes.joined(separator: "\n")
     }
 
-    private static func recettesStructurees(_ html: String) -> [BrouillonRecette] {
+    private static func recettesStructurees(_ html: String) throws -> [BrouillonRecette] {
         let scripts = html.ranges(of: #"(?is)<script\b(?:[^>"']|"[^"]*"|'[^']*')*>.*?</script\s*>"#)
-        return scripts.flatMap { plage -> [BrouillonRecette] in
+        return try scripts.flatMap { plage -> [BrouillonRecette] in
+            try Task.checkCancellation()
             let script = String(html[plage])
             guard
                 let balise = script.range(
@@ -52,28 +54,29 @@ struct AnalysePage {
                 }
             }
             guard let objet = try? JSONSerialization.jsonObject(with: Data(contenu.utf8)) else { return [] }
-            return parcourir(objet)
+            return try parcourir(objet)
         }
     }
 
-    private static func parcourir(_ objet: Any) -> [BrouillonRecette] {
-        if let tableau = objet as? [Any] { return tableau.flatMap(parcourir) }
+    private static func parcourir(_ objet: Any) throws -> [BrouillonRecette] {
+        try Task.checkCancellation()
+        if let tableau = objet as? [Any] { return try tableau.flatMap(parcourir) }
         guard let noeud = objet as? [String: Any] else { return [] }
         let types = (noeud["@type"] as? [String]) ?? (noeud["@type"] as? String).map { [$0] } ?? []
         if types.contains(where: { $0 == "Recipe" || $0.hasSuffix("schema.org/Recipe") || $0 == "schema:Recipe" }) {
-            let titre = (noeud["name"] as? String).map(HTML.texte) ?? ""
-            let ingredients = textes(noeud["recipeIngredient"] ?? noeud["ingredients"])
-                .flatMap { HTML.texte($0).split(whereSeparator: \.isNewline).map(String.init) }
+            let titre = try (noeud["name"] as? String).map(HTML.texte) ?? ""
+            let ingredients = try textes(noeud["recipeIngredient"] ?? noeud["ingredients"])
+                .flatMap { try HTML.texte($0).split(whereSeparator: \.isNewline).map(String.init) }
                 .map(AnalyseIngredient.analyser)
             return [
-                BrouillonRecette(
+                try BrouillonRecette(
                     titre: titre, portions: rendement(noeud["recipeYield"]), ingredients: ingredients,
                     etapes: instructions(noeud["recipeInstructions"]))
             ]
         }
-        return noeud.keys.sorted().flatMap { cle -> [BrouillonRecette] in
+        return try noeud.keys.sorted().flatMap { cle -> [BrouillonRecette] in
             guard cle != "@context", let valeur = noeud[cle] else { return [] }
-            return parcourir(valeur)
+            return try parcourir(valeur)
         }
     }
 
@@ -83,11 +86,16 @@ struct AnalysePage {
         return []
     }
 
-    private static func rendement(_ objet: Any?) -> Int? {
-        if let tableau = objet as? [Any] { return tableau.lazy.compactMap { rendement($0) }.first }
+    private static func rendement(_ objet: Any?) throws -> Int? {
+        if let tableau = objet as? [Any] {
+            for valeur in tableau {
+                if let portions = try rendement(valeur) { return portions }
+            }
+            return nil
+        }
         if let texte = objet as? String {
-            return AnalyseTexteRecette.portionsDansLigne(HTML.texte(texte))
-                ?? AnalyseTexteRecette.nombrePortions(HTML.texte(texte))
+            let propre = try HTML.texte(texte)
+            return AnalyseTexteRecette.portionsDansLigne(propre) ?? AnalyseTexteRecette.nombrePortions(propre)
         }
         if let nombre = objet as? NSNumber, String(cString: nombre.objCType) != "c",
             let entier = Int(exactly: nombre.doubleValue), entier > 0
@@ -97,14 +105,15 @@ struct AnalysePage {
         return nil
     }
 
-    private static func instructions(_ objet: Any?) -> [String] {
+    private static func instructions(_ objet: Any?) throws -> [String] {
+        try Task.checkCancellation()
         if let chaine = objet as? String {
-            return HTML.texte(chaine).split(whereSeparator: \.isNewline).map(String.init)
+            return try HTML.texte(chaine).split(whereSeparator: \.isNewline).map(String.init)
         }
-        if let tableau = objet as? [Any] { return tableau.flatMap { instructions($0) } }
+        if let tableau = objet as? [Any] { return try tableau.flatMap { try instructions($0) } }
         if let noeud = objet as? [String: Any] {
             for cle in ["itemListElement", "steps", "text", "name"] {
-                let etapes = instructions(noeud[cle])
+                let etapes = try instructions(noeud[cle])
                 if !etapes.isEmpty { return etapes }
             }
         }
@@ -128,9 +137,12 @@ enum HTML {
         "oelig": "œ", "OElig": "Œ", "aelig": "æ", "AElig": "Æ", "copy": "©",
     ]
 
-    static func texte(_ html: String) -> String {
+    static func texte(_ html: String) throws -> String {
+        try Task.checkCancellation()
+        if !html.contains("<"), !html.contains("&") { return html.epure }
         var texte = html.remplacer(#"(?s)<!--.*?-->"#, par: "")
         for tag in ["script", "style", "noscript", "template", "head", "nav", "footer", "aside", "svg"] {
+            try Task.checkCancellation()
             texte = texte.remplacer("(?is)<\(tag)\\b[^>]*>.*?</\(tag)\\s*>", par: "\n")
         }
         texte =
@@ -140,16 +152,18 @@ enum HTML {
                 par: "\n"
             )
             .remplacer(#"(?s)</?[a-zA-Z](?:[^>"']|"[^"]*"|'[^']*')*>|(?i:<!DOCTYPE[^>]*>)"#, par: "")
-        texte = decoder(texte)
+        texte = try decoder(texte)
         return texte.components(separatedBy: .newlines)
             .map { $0.remplacer(#"\h+"#, par: " ").epure }
             .filter { !$0.isEmpty }.joined(separator: "\n")
     }
 
-    private static func decoder(_ texte: String) -> String {
+    private static func decoder(_ texte: String) throws -> String {
         var resultat = ""
         var debut = texte.startIndex
-        for plage in texte.ranges(of: #"&(?:#[xX][0-9a-fA-F]{1,8}|#[0-9]{1,10}|[A-Za-z][A-Za-z0-9]{1,30});"#) {
+        let plages = texte.ranges(of: #"&(?:#[xX][0-9a-fA-F]{1,8}|#[0-9]{1,10}|[A-Za-z][A-Za-z0-9]{1,30});"#)
+        for (index, plage) in plages.enumerated() {
+            if index.isMultiple(of: 64) { try Task.checkCancellation() }
             resultat += texte[debut..<plage.lowerBound]
             let code = texte[plage].dropFirst().dropLast()
             if code.first == "#" {

@@ -22,14 +22,16 @@ struct AnalyseTexteRecette {
     private static let bruit =
         #"(?i)^(?:https?://|www\.|copyright\b|©|publicit[ée]\b|accueil\b|partager\b|imprimer\b|abonne[sz]\b|ouvrir le menu\b|[ée]crit par\b|par\h+[^\d]+$|(?:temps|dur[ée]e|cuisson|repos|difficult[ée]|calories|publi[ée])\b\h*[:\d]|pr[ée]paration\h*:\h*[0-9]+\h*(?:min|h)\b|(?:bonjour|salut|coucou|merci|bisous)\b)"#
 
-    init(_ texte: String) {
+    init(_ texte: String) throws {
         let lignes = texte.components(separatedBy: .newlines)
         var section = Section.introduction
+        var ingredientsExplicites = false
         var titrePossible: (index: Int, texte: String)?
         var premierIndice: Int?
         var dernierIndice: Int?
 
         for (index, origine) in lignes.enumerated() {
+            if index.isMultiple(of: 64) { try Task.checkCancellation() }
             var ligne = retirerPuce(origine).remplacer(#"^#{1,6}\h+"#, par: "")
             guard !ligne.isEmpty, !ligne.correspond(Self.bruit),
                 ligne.contains(where: \.isLetter)
@@ -44,6 +46,7 @@ struct AnalyseTexteRecette {
             var enteteTrouvee = false
             if let entete = ligne.range(of: Self.enteteIngredients, options: .regularExpression) {
                 section = .ingredients
+                ingredientsExplicites = true
                 ligne = String(ligne[entete.upperBound...]).epure
                 enteteTrouvee = true
             } else if let entete = ligne.range(of: Self.enteteEtapes, options: .regularExpression) {
@@ -101,7 +104,10 @@ struct AnalyseTexteRecette {
                     nom: analyse.nom, quantite: analyse.quantite, unite: analyse.unite,
                     texteOrigine: origine, ligneNonComprise: analyse.ligneNonComprise)
             }
-            if section == .ingredients || ingredient.quantite != nil || ingredient.ligneNonComprise {
+            let ligneIngredient = ingredient.quantite != nil || ingredient.ligneNonComprise
+            let nomSeul = section == .ingredients && (ingredientsExplicites || Self.titrePlausible(ligne))
+            if ligneIngredient || nomSeul {
+                section = .ingredients
                 recette.ingredients.append(ingredient)
                 premierIndice = premierIndice ?? index
                 dernierIndice = index
@@ -116,7 +122,9 @@ struct AnalyseTexteRecette {
             recette.titre = titrePossible.texte
             premierIndice = min(premierIndice ?? titrePossible.index, titrePossible.index)
         }
-        if let premierIndice, let dernierIndice, premierIndice <= dernierIndice {
+        if let premierIndice, let dernierIndice, premierIndice <= dernierIndice,
+            !recette.ingredients.isEmpty || !recette.etapes.isEmpty
+        {
             bloc = lignes[premierIndice...dernierIndice].joined(separator: "\n")
         }
     }

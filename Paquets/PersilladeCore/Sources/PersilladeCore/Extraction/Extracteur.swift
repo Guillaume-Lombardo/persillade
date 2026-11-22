@@ -82,7 +82,9 @@ public struct Extracteur: Sendable {
             case .url:
                 url = URL(string: brut.epure)
                 guard let url, let telechargeur else { throw CauseExtraction.pageInaccessible }
-                let page = AnalysePage(html: try await telechargeur.telecharger(url))
+                let html = try await telechargeur.telecharger(url)
+                try Task.checkCancellation()
+                let page = try AnalysePage(html: html)
                 texte = page.texte
                 corpsPage = page.corps
                 structure = page.recette
@@ -98,7 +100,7 @@ public struct Extracteur: Sendable {
         }
         try Task.checkCancellation()
 
-        let analyse = cible == .recette ? AnalyseTexteRecette(corpsPage ?? texte) : nil
+        let analyse = cible == .recette ? try AnalyseTexteRecette(corpsPage ?? texte) : nil
         var proposition = EtatExtraction(cible: cible, messageID: contenu.id, texte: texte, url: url)
         if let analyse {
             proposition.recette = structure ?? analyse.recette
@@ -144,7 +146,8 @@ public struct Extracteur: Sendable {
         do {
             let champs = etat.champsManquants
             let budget = try await moteurIA.budgetContexte(cible: etat.cible, champs: champs)
-            let morceaux = try await decouper(etat.texte, bloc: bloc, budget: budget, moteur: moteurIA)
+            let (morceaux, tronque) = try await decouper(etat.texte, bloc: bloc, budget: budget, moteur: moteurIA)
+            if tronque { etat.cause = .contenuTropLong }
             for morceau in morceaux {
                 try Task.checkCancellation()
                 let reponse = try await moteurIA.extraire(morceau, cible: etat.cible, champs: champs)
@@ -154,6 +157,7 @@ public struct Extracteur: Sendable {
         } catch {
             try Task.checkCancellation()
             if error is CancellationError { throw error }
+            if etat.cause == .contenuTropLong { return }
             etat.cause =
                 switch error as? CauseExtraction {
                 case .iaIndisponible: .iaIndisponible
@@ -165,18 +169,18 @@ public struct Extracteur: Sendable {
 
     private func decouper(
         _ texte: String, bloc: String?, budget: Int, moteur: any MoteurIA
-    ) async throws -> [String] {
+    ) async throws -> (morceaux: [String], tronque: Bool) {
         guard budget > 0 else { throw CauseExtraction.contenuTropLong }
-        if try await moteur.compterJetons(texte) <= budget { return [texte] }
+        if try await moteur.compterJetons(texte) <= budget { return ([texte], false) }
         let source = (bloc?.isEmpty == false ? bloc : nil) ?? texte
-        if source != texte, try await moteur.compterJetons(source) <= budget { return [source] }
+        if source != texte, try await moteur.compterJetons(source) <= budget { return ([source], false) }
 
         var morceaux: [String] = []
-        var reste = source[...]
+        var reste = source.drop(while: \.isWhitespace)
         while !reste.isEmpty, morceaux.count < 3 {
             try Task.checkCancellation()
             if try await moteur.compterJetons(String(reste)) <= budget {
-                return morceaux + [String(reste)]
+                return (morceaux + [String(reste)], false)
             }
             let indices = Array(reste.indices.filter { reste[$0].isWhitespace })
             var bas = 0
@@ -189,23 +193,16 @@ public struct Extracteur: Sendable {
                     haut = milieu
                 }
             }
-            guard bas > 0 else { throw CauseExtraction.contenuTropLong }
+            guard bas > 0 else { return (morceaux, true) }
             let limite = indices[bas - 1]
             // Préserve les lignes quand un retour se trouve près de la limite.
             let longueur = reste.distance(from: reste.startIndex, to: limite)
             let seuil = reste.index(limite, offsetBy: -min(80, longueur / 4))
             let coupure = reste[seuil...limite].lastIndex(where: \.isNewline) ?? limite
-            let extrait = reste[..<coupure]
-            if extrait.allSatisfy(\.isWhitespace) {
-                morceaux.append(String(reste[..<limite]))
-                reste = reste[limite...].drop(while: \.isWhitespace)
-            } else {
-                morceaux.append(String(extrait))
-                reste = reste[coupure...].drop(while: \.isWhitespace)
-            }
+            morceaux.append(String(reste[..<coupure]))
+            reste = reste[coupure...].drop(while: \.isWhitespace)
         }
-        guard reste.isEmpty else { throw CauseExtraction.contenuTropLong }
-        return morceaux
+        return (morceaux, !reste.isEmpty)
     }
 }
 
@@ -237,7 +234,7 @@ private struct EtatExtraction {
     var statut: StatutExtraction {
         switch cible {
         case .recette:
-            return recette.statut
+            return recette.statut == .complet && cause == .contenuTropLong ? .partiel : recette.statut
         case .message:
             if articles.isEmpty { return .echec }
             return moteur == .manuel || articlesIncomplets || cause != nil ? .partiel : .complet
@@ -318,24 +315,22 @@ private struct EtatExtraction {
 
 private struct AncragesExtraction {
     private let source: String
+    private let mesures: [Range<String.Index>]
 
     init(_ source: String) {
         self.source = source
+        mesures = AnalyseIngredient.positionsMesures(dans: source)
     }
 
     func citation(_ proposition: String?) -> String? {
-        guard let motif = motifCitation(proposition),
-            let position = source.range(of: motif, options: .regularExpression)
-        else { return nil }
-        return String(source[position])
+        plagesDeCitation(proposition).first.map { String(source[$0]) }
     }
 
     func citations(_ propositions: [String]) -> [String] {
         var plages = Set<Range<String.Index>>()
         var resultat: [Range<String.Index>] = []
         for proposition in propositions {
-            guard let motif = motifCitation(proposition) else { continue }
-            if let plage = source.ranges(of: motif).first(where: { !plages.contains($0) }) {
+            if let plage = plagesDeCitation(proposition).first(where: { !plages.contains($0) }) {
                 plages.insert(plage)
                 resultat.append(plage)
             }
@@ -343,14 +338,20 @@ private struct AncragesExtraction {
         return resultat.sorted { $0.lowerBound < $1.lowerBound }.map { String(source[$0]) }
     }
 
-    private func motifCitation(_ proposition: String?) -> String? {
-        guard let texte = proposition?.epure, !texte.isEmpty, texte.count <= source.count else { return nil }
+    private func plagesDeCitation(_ proposition: String?) -> [Range<String.Index>] {
+        guard let texte = proposition?.epure, !texte.isEmpty, texte.count <= source.count else { return [] }
         // Interdit notamment de citer le « 5 » de « 1,5 » ou « g » dans « kg ».
         let mots = texte.split(whereSeparator: \.isWhitespace).map {
             NSRegularExpression.escapedPattern(for: String($0))
         }
-        return
+        let motif =
             #"(?i)(?<![\p{L}\p{N}])(?<![0-9][.,/⁄])\#(mots.joined(separator: #"\s+"#))(?![\p{L}\p{N}]|[.,/⁄][0-9])"#
+        return source.ranges(of: motif).filter { citation in
+            !mesures.contains { mesure in
+                mesure.overlaps(citation)
+                    && (mesure.lowerBound < citation.lowerBound || mesure.upperBound > citation.upperBound)
+            }
+        }
     }
 }
 

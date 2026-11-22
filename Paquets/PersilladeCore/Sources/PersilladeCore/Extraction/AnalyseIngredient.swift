@@ -19,8 +19,8 @@ public enum AnalyseIngredient {
     private static let plage = #"\#(nombre)(?:\h*(?:à|a|[-–—])\h*\#(nombre))?(?![0-9/⁄]|[.,][0-9])"#
 
     private static let unites: [(motif: String, unite: Unite, facteur: Int64)] = [
-        (#"cuill[èe]res?\h+(?:à|a)\h+soupe|c\.?\h*(?:à|a)\h*s\.?|cs"#, .cas, 1),
-        (#"cuill[èe]res?\h+(?:(?:à|a)\h+)?caf[ée]|c\.?\h*(?:à|a)\h*c\.?|cc"#, .cac, 1),
+        (#"cuill[èe]res?\h+(?:à|a)\h+soupe|c\.?\h*(?:à|a)\h*(?:soupe|s\.?)|cs"#, .cas, 1),
+        (#"cuill[èe]res?\h+(?:(?:à|a)\h+)?caf[ée]|c\.?\h*(?:à|a)\h*(?:caf[ée]|c\.?)|cc"#, .cac, 1),
         (#"kilogrammes?|kilos?|kg"#, .kg, 1),
         (#"grammes?|gr\.?|g"#, .g, 1),
         (#"millilitres?|ml"#, .ml, 1),
@@ -47,6 +47,10 @@ public enum AnalyseIngredient {
         (#"feuilles?"#, .autre("feuille"), 1),
     ]
     private static let uniteEnFin = unites.map { "(?:\($0.motif))" }.joined(separator: "|")
+
+    static func positionsMesures(dans texte: String) -> [Range<String.Index>] {
+        texte.ranges(of: #"(?i)(?<![\p{L}\p{N}.,/⁄])[-−+]?\#(plage)"#)
+    }
 
     public static func analyser(_ ligne: String) -> BrouillonIngredient {
         let texte = retirerPuce(ligne)

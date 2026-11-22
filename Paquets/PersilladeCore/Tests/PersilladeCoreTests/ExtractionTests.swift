@@ -37,7 +37,9 @@ struct CasIngredient: Sendable {
     CasIngredient("1 1/2 càs d’huile", "huile", "3/2", .cas),
     CasIngredient("1½ CS de miel", "miel", "3/2", .cas),
     CasIngredient("2 cuillères à soupe de vinaigre", "vinaigre", "2", .cas),
+    CasIngredient("2 c. à soupe de vinaigre", "vinaigre", "2", .cas),
     CasIngredient("2 cuillères à café de sucre", "sucre", "2", .cac),
+    CasIngredient("2 c. à café de sucre", "sucre", "2", .cac),
     CasIngredient("¼cc de muscade", "muscade", "1/4", .cac),
     CasIngredient("1 c. à c. de poivre", "poivre", "1", .cac),
     CasIngredient("demi-gousse d’ail", "ail", "1/2", .autre("gousse")),
@@ -190,6 +192,15 @@ func corpusPages(nom: String, titre: String, portions: Int, ingredients: Int, et
     #expect(recette.etapes.first == "Coupez la courge et les carottes.")
 }
 
+@Test func listeSansEnteteConserveTitreEtIngredientsNonDoses() async throws {
+    let contenu = texteRecu("Cake\n2 œufs\nfarine\n100 g de beurre\nMélanger.")
+    let resultat = try await Extracteur().extraire(contenu, cible: .recette)
+    #expect(resultat.statut == .complet)
+    #expect(resultat.recette?.titre == "Cake")
+    #expect(resultat.recette?.ingredients.map(\.nom) == ["œufs", "farine", "beurre"])
+    #expect(resultat.recette?.etapes == ["Mélanger."])
+}
+
 @Test func brouillonOCRConserveLaLigneIncomprise() async throws {
     let original = try fixture("11-ocr", "txt")
     let resultat = try await Extracteur().extraire(texteRecu(original), cible: .recette)
@@ -291,6 +302,15 @@ func corpusPages(nom: String, titre: String, portions: Int, ingredients: Int, et
     #expect(resultat.articles.map(\.nom) == ["pain", "œufs"])
 }
 
+@Test(arguments: [("1 1/2 kg", "1/2 kg"), ("1 ½ kg", "½ kg"), ("2 à 3 kg", "3 kg")])
+func citationNeCoupePasUneMesureComposee(mesure: String, tronquee: String) async throws {
+    let moteur = MoteurBouchon(.reponse { _ in .init(articles: ["\(tronquee) de pommes", "pain"]) })
+    let resultat = try await Extracteur(moteurIA: moteur).extraire(
+        texteRecu("Achète \(mesure) de pommes et du pain"), cible: .message)
+    #expect(resultat.statut == .partiel)
+    #expect(resultat.articles.map(\.nom) == ["pain"])
+}
+
 @Test func echecsNettoyesEtRepliManuel() async throws {
     let moteur = MoteurBouchon(.erreur)
     let extracteur = Extracteur(moteurIA: moteur)
@@ -359,7 +379,38 @@ func causePageEtLienConserve(_ cause: CauseExtraction) async throws {
     #expect(resultat.statut == .partiel)
     #expect(resultat.cause == .contenuTropLong)
     #expect(resultat.articles.count == 4)
-    #expect(await moteur.morceaux.isEmpty)
+    #expect(await moteur.morceaux == ["tomates"])
+}
+
+@Test func contenuTropLongPreserveLesTroisResultatsGeneres() async throws {
+    let morceaux = ["tomates", "citrons", "chocolat", "farine"]
+    let texte = morceaux.joined(separator: "\n")
+    let moteur = MoteurBouchon(.reponse { .init(articles: [$0]) }, budget: 8)
+    let resultat = try await Extracteur(moteurIA: moteur).extraire(texteRecu(texte), cible: .message)
+    #expect(resultat.statut == .partiel)
+    #expect(resultat.cause == .contenuTropLong)
+    #expect(resultat.texteSource == texte)
+    #expect(resultat.articles.map(\.nom) == Array(morceaux.prefix(3)))
+    #expect(await moteur.morceaux == Array(morceaux.prefix(3)))
+}
+
+@Test func recetteTronqueeRestePartielleAvecTousLesChamps() async throws {
+    let texte = """
+        On prépare un cake à la cannelle.
+        Il faut 2 œufs et de la patience.
+        On mélange et on enfourne.
+        Puis on attend encore une bonne demi-heure.
+        """
+    let moteur = MoteurBouchon(
+        .reponse { _ in
+            .init(titre: "cake à la cannelle", ingredients: ["2 œufs"], etapes: ["On mélange et on enfourne."])
+        }, budget: 35)
+    let resultat = try await Extracteur(moteurIA: moteur).extraire(texteRecu(texte), cible: .recette)
+    #expect(resultat.recette?.titre == "cake à la cannelle")
+    #expect(resultat.recette?.ingredients.map(\.nom) == ["œufs"])
+    #expect(resultat.recette?.etapes == ["On mélange et on enfourne."])
+    #expect(resultat.statut == .partiel)
+    #expect(resultat.cause == .contenuTropLong)
 }
 
 @Test func repliConsentiSuitLeMoteurEmbarque() async throws {
@@ -403,6 +454,18 @@ func causePageEtLienConserve(_ cause: CauseExtraction) async throws {
     }
     await moteur.attendrePremierMorceau()
     tache.cancel()
+    await #expect(throws: CancellationError.self) { try await tache.value }
+}
+
+@Test func annulationALaReceptionDeLaPage() async {
+    let client = PageBouchon { _ in
+        withUnsafeCurrentTask { $0?.cancel() }
+        return "<h1>Crêpes</h1>"
+    }
+    let tache = Task {
+        try await Extracteur(telechargeur: client).extraire(
+            texteRecu("https://recettes.example/", type: .url), cible: .recette)
+    }
     await #expect(throws: CancellationError.self) { try await tache.value }
 }
 
