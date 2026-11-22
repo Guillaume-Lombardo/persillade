@@ -353,7 +353,7 @@
             fermer.tap()
             let portrait = NSPredicate { _, _ in app.frame.width < app.frame.height }
             wait(for: [XCTNSPredicateExpectation(predicate: portrait, object: app)], timeout: 5)
-            XCTAssertTrue(cuisiner.isHittable)
+            XCTAssertTrue(cuisiner.wait(for: \.isHittable, toEqual: true, timeout: 5))
         }
 
         @MainActor
