@@ -1,0 +1,4 @@
+PRODUCT_NAME = PersilladeUITests
+PRODUCT_BUNDLE_IDENTIFIER = xyz.g1lom.persillade.uitests
+GENERATE_INFOPLIST_FILE = YES
+TEST_TARGET_NAME = Persillade

@@ -1,0 +1,292 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		100000000000000000000001 /* PersilladePartage.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 200000000000000000000002 /* PersilladePartage.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		100000000000000000000002 /* PersilladeCore in Frameworks */ = {isa = PBXBuildFile; productRef = 900000000000000000000002 /* PersilladeCore */; };
+		100000000000000000000003 /* PersilladePlateforme in Frameworks */ = {isa = PBXBuildFile; productRef = 900000000000000000000003 /* PersilladePlateforme */; };
+		100000000000000000000004 /* PersilladeCore in Frameworks */ = {isa = PBXBuildFile; productRef = 900000000000000000000004 /* PersilladeCore */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		300000000000000000000001 = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 800000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 700000000000000000000002;
+			remoteInfo = PersilladePartage;
+		};
+		300000000000000000000002 = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 800000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 700000000000000000000001;
+			remoteInfo = Persillade;
+		};
+		300000000000000000000003 = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 800000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 700000000000000000000001;
+			remoteInfo = Persillade;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		400000000000000000000001 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (100000000000000000000001 /* PersilladePartage.appex in Embed App Extensions */);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		200000000000000000000001 /* Persillade.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Persillade.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		200000000000000000000002 /* PersilladePartage.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PersilladePartage.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		200000000000000000000003 /* PersilladeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PersilladeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		200000000000000000000004 /* PersilladeUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PersilladeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		200000000000000000000005 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
+		200000000000000000000006 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
+		200000000000000000000007 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		200000000000000000000008 /* App.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = App.xcconfig; sourceTree = "<group>"; };
+		200000000000000000000009 /* Partage.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Partage.xcconfig; sourceTree = "<group>"; };
+		20000000000000000000000A /* Tests.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Tests.xcconfig; sourceTree = "<group>"; };
+		20000000000000000000000B /* UITests.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = UITests.xcconfig; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		500000000000000000000001 /* Exceptions for Persillade */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (Persillade.entitlements);
+			target = 700000000000000000000001 /* Persillade */;
+		};
+		500000000000000000000002 /* Exceptions for PersilladePartage */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (Info.plist, PersilladePartage.entitlements);
+			target = 700000000000000000000002 /* PersilladePartage */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		510000000000000000000001 /* Persillade */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (500000000000000000000001); path = Persillade; sourceTree = "<group>"; };
+		510000000000000000000002 /* PersilladePartage */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (500000000000000000000002); path = PersilladePartage; sourceTree = "<group>"; };
+		510000000000000000000003 /* PersilladeTests */ = {isa = PBXFileSystemSynchronizedRootGroup; path = PersilladeTests; sourceTree = "<group>"; };
+		510000000000000000000004 /* PersilladeUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; path = PersilladeUITests; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		600000000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000002, 100000000000000000000003); runOnlyForDeploymentPostprocessing = 0; };
+		600000000000000000000002 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000004); runOnlyForDeploymentPostprocessing = 0; };
+		600000000000000000000003 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		600000000000000000000004 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		520000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				510000000000000000000001 /* Persillade */,
+				510000000000000000000002 /* PersilladePartage */,
+				510000000000000000000003 /* PersilladeTests */,
+				510000000000000000000004 /* PersilladeUITests */,
+				520000000000000000000002 /* Config */,
+				520000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		520000000000000000000002 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000005 /* Base.xcconfig */,
+				200000000000000000000006 /* Debug.xcconfig */,
+				200000000000000000000007 /* Release.xcconfig */,
+				200000000000000000000008 /* App.xcconfig */,
+				200000000000000000000009 /* Partage.xcconfig */,
+				20000000000000000000000A /* Tests.xcconfig */,
+				20000000000000000000000B /* UITests.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		520000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000001 /* Persillade.app */,
+				200000000000000000000002 /* PersilladePartage.appex */,
+				200000000000000000000003 /* PersilladeTests.xctest */,
+				200000000000000000000004 /* PersilladeUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		700000000000000000000001 /* Persillade */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00000000000000000000001 /* Build configurations for Persillade */;
+			buildPhases = (
+				610000000000000000000001 /* Sources */,
+				600000000000000000000001 /* Frameworks */,
+				620000000000000000000001 /* Resources */,
+				400000000000000000000001 /* Embed App Extensions */,
+			);
+			buildRules = ();
+			dependencies = (730000000000000000000001 /* PersilladePartage */);
+			fileSystemSynchronizedGroups = (510000000000000000000001 /* Persillade */);
+			name = Persillade;
+			packageProductDependencies = (900000000000000000000002 /* PersilladeCore */, 900000000000000000000003 /* PersilladePlateforme */);
+			productName = Persillade;
+			productReference = 200000000000000000000001 /* Persillade.app */;
+			productType = "com.apple.product-type.application";
+		};
+		700000000000000000000002 /* PersilladePartage */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00000000000000000000002 /* Build configurations for PersilladePartage */;
+			buildPhases = (
+				610000000000000000000002 /* Sources */,
+				600000000000000000000002 /* Frameworks */,
+				620000000000000000000002 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = ();
+			fileSystemSynchronizedGroups = (510000000000000000000002 /* PersilladePartage */);
+			name = PersilladePartage;
+			packageProductDependencies = (900000000000000000000004 /* PersilladeCore */);
+			productName = PersilladePartage;
+			productReference = 200000000000000000000002 /* PersilladePartage.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		700000000000000000000003 /* PersilladeTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00000000000000000000003 /* Build configurations for PersilladeTests */;
+			buildPhases = (
+				610000000000000000000003 /* Sources */,
+				600000000000000000000003 /* Frameworks */,
+				620000000000000000000003 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = (730000000000000000000002 /* Persillade */);
+			fileSystemSynchronizedGroups = (510000000000000000000003 /* PersilladeTests */);
+			name = PersilladeTests;
+			productName = PersilladeTests;
+			productReference = 200000000000000000000003 /* PersilladeTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		700000000000000000000004 /* PersilladeUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00000000000000000000004 /* Build configurations for PersilladeUITests */;
+			buildPhases = (
+				610000000000000000000004 /* Sources */,
+				600000000000000000000004 /* Frameworks */,
+				620000000000000000000004 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = (730000000000000000000003 /* Persillade */);
+			fileSystemSynchronizedGroups = (510000000000000000000004 /* PersilladeUITests */);
+			name = PersilladeUITests;
+			productName = PersilladeUITests;
+			productReference = 200000000000000000000004 /* PersilladeUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		800000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					700000000000000000000001 = {CreatedOnToolsVersion = 27.0; SystemCapabilities = {com.apple.ApplicationGroups.iOS = {enabled = 1; }; }; };
+					700000000000000000000002 = {CreatedOnToolsVersion = 27.0; SystemCapabilities = {com.apple.ApplicationGroups.iOS = {enabled = 1; }; }; };
+					700000000000000000000003 = {CreatedOnToolsVersion = 27.0; TestTargetID = 700000000000000000000001; };
+					700000000000000000000004 = {CreatedOnToolsVersion = 27.0; TestTargetID = 700000000000000000000001; };
+				};
+			};
+			buildConfigurationList = A00000000000000000000000 /* Project build configurations */;
+			developmentRegion = fr;
+			hasScannedForEncodings = 0;
+			knownRegions = (fr, Base);
+			mainGroup = 520000000000000000000001;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (900000000000000000000001 /* Paquets/PersilladeCore */);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 520000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				700000000000000000000001 /* Persillade */,
+				700000000000000000000002 /* PersilladePartage */,
+				700000000000000000000003 /* PersilladeTests */,
+				700000000000000000000004 /* PersilladeUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		620000000000000000000001 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		620000000000000000000002 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		620000000000000000000003 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		620000000000000000000004 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		610000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		610000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		610000000000000000000003 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		610000000000000000000004 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		730000000000000000000001 /* PersilladePartage */ = {isa = PBXTargetDependency; target = 700000000000000000000002 /* PersilladePartage */; targetProxy = 300000000000000000000001; };
+		730000000000000000000002 /* Persillade */ = {isa = PBXTargetDependency; target = 700000000000000000000001 /* Persillade */; targetProxy = 300000000000000000000002; };
+		730000000000000000000003 /* Persillade */ = {isa = PBXTargetDependency; target = 700000000000000000000001 /* Persillade */; targetProxy = 300000000000000000000003; };
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		A10000000000000000000000 /* Project Debug */ = {isa = XCBuildConfiguration; baseConfigurationReference = 200000000000000000000006 /* Debug.xcconfig */; buildSettings = {}; name = Debug; };
+		A20000000000000000000000 /* Project Release */ = {isa = XCBuildConfiguration; baseConfigurationReference = 200000000000000000000007 /* Release.xcconfig */; buildSettings = {}; name = Release; };
+		A10000000000000000000001 /* App Debug */ = {isa = XCBuildConfiguration; baseConfigurationReference = 200000000000000000000008 /* App.xcconfig */; buildSettings = {}; name = Debug; };
+		A20000000000000000000001 /* App Release */ = {isa = XCBuildConfiguration; baseConfigurationReference = 200000000000000000000008 /* App.xcconfig */; buildSettings = {}; name = Release; };
+		A10000000000000000000002 /* Partage Debug */ = {isa = XCBuildConfiguration; baseConfigurationReference = 200000000000000000000009 /* Partage.xcconfig */; buildSettings = {}; name = Debug; };
+		A20000000000000000000002 /* Partage Release */ = {isa = XCBuildConfiguration; baseConfigurationReference = 200000000000000000000009 /* Partage.xcconfig */; buildSettings = {}; name = Release; };
+		A10000000000000000000003 /* Tests Debug */ = {isa = XCBuildConfiguration; baseConfigurationReference = 20000000000000000000000A /* Tests.xcconfig */; buildSettings = {}; name = Debug; };
+		A20000000000000000000003 /* Tests Release */ = {isa = XCBuildConfiguration; baseConfigurationReference = 20000000000000000000000A /* Tests.xcconfig */; buildSettings = {}; name = Release; };
+		A10000000000000000000004 /* UI Tests Debug */ = {isa = XCBuildConfiguration; baseConfigurationReference = 20000000000000000000000B /* UITests.xcconfig */; buildSettings = {}; name = Debug; };
+		A20000000000000000000004 /* UI Tests Release */ = {isa = XCBuildConfiguration; baseConfigurationReference = 20000000000000000000000B /* UITests.xcconfig */; buildSettings = {}; name = Release; };
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A00000000000000000000000 /* Project build configurations */ = {isa = XCConfigurationList; buildConfigurations = (A10000000000000000000000, A20000000000000000000000); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A00000000000000000000001 /* Build configurations for Persillade */ = {isa = XCConfigurationList; buildConfigurations = (A10000000000000000000001, A20000000000000000000001); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A00000000000000000000002 /* Build configurations for PersilladePartage */ = {isa = XCConfigurationList; buildConfigurations = (A10000000000000000000002, A20000000000000000000002); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A00000000000000000000003 /* Build configurations for PersilladeTests */ = {isa = XCConfigurationList; buildConfigurations = (A10000000000000000000003, A20000000000000000000003); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A00000000000000000000004 /* Build configurations for PersilladeUITests */ = {isa = XCConfigurationList; buildConfigurations = (A10000000000000000000004, A20000000000000000000004); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		900000000000000000000001 /* Paquets/PersilladeCore */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Paquets/PersilladeCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		900000000000000000000002 /* PersilladeCore */ = {isa = XCSwiftPackageProductDependency; package = 900000000000000000000001; productName = PersilladeCore; };
+		900000000000000000000003 /* PersilladePlateforme */ = {isa = XCSwiftPackageProductDependency; package = 900000000000000000000001; productName = PersilladePlateforme; };
+		900000000000000000000004 /* PersilladeCore */ = {isa = XCSwiftPackageProductDependency; package = 900000000000000000000001; productName = PersilladeCore; };
+/* End XCSwiftPackageProductDependency section */
+
+	};
+	rootObject = 800000000000000000000001 /* Project object */;
+}

@@ -1,0 +1,8 @@
+PRODUCT_NAME = PersilladePartage
+PRODUCT_BUNDLE_IDENTIFIER = xyz.g1lom.persillade.partage
+INFOPLIST_FILE = PersilladePartage/Info.plist
+GENERATE_INFOPLIST_FILE = YES
+CODE_SIGN_ENTITLEMENTS = PersilladePartage/PersilladePartage.entitlements
+APPLICATION_EXTENSION_API_ONLY = YES
+SKIP_INSTALL = YES
+LD_RUNPATH_SEARCH_PATHS = $(inherited) @executable_path/Frameworks @executable_path/../../Frameworks

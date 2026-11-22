@@ -1,0 +1,2 @@
+// Copier ce fichier vers Local.xcconfig pour signer les builds sur iPhone.
+DEVELOPMENT_TEAM =

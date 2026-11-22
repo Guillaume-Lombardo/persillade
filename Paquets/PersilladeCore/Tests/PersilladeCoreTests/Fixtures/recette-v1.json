@@ -1,0 +1,17 @@
+{
+  "etapes": ["Battre les œufs.", "Ajouter le lait et assaisonner.", "Cuire séparément les carottes."],
+  "id": "12345678-1234-1234-1234-123456789ABC",
+  "ingredients": [
+    {"nom": "Œufs", "quantite": {"denominateur": 1, "numerateur": 3}, "texte_origine": "3 œufs", "unite": "piece"},
+    {"nom": "Carottes", "quantite": {"denominateur": 1, "numerateur": 3}, "texte_origine": "2 à 3 carottes", "unite": "piece"},
+    {"nom": "Lait", "quantite": {"denominateur": 2, "numerateur": 1}, "texte_origine": "½ l de lait", "unite": "l"},
+    {"nom": "Sel", "texte_origine": "une pincée de sel"},
+    {"nom": "Poivre", "texte_origine": "poivre, au goût"},
+    {"nom": "Persil", "quantite": {"denominateur": 1, "numerateur": 1}, "texte_origine": "un bouquet de persil", "unite": "autre:bouquet"}
+  ],
+  "portions": 4,
+  "texte_source": "3 œufs, 2 à 3 carottes, ½ l de lait, sel, poivre et persil.",
+  "titre": "Omelette aux fines herbes",
+  "url_source": "https://example.org/omelette",
+  "version_schema": 1
+}
