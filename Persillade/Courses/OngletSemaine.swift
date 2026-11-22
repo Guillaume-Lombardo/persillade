@@ -65,6 +65,9 @@ struct OngletSemaine: View {
 
     @ViewBuilder
     private func contenu(_ etat: EtatCourses) -> some View {
+        let bandes = etat.selection.choix.compactMap { choix in
+            session.recettes[choix.recetteId].map { (choix: choix, recette: $0, planche: Planche(recette: $0)) }
+        }
         List {
             if session.recettesAbsentes > 0 {
                 Text("Des recettes supprimées ont été retirées de la semaine.")
@@ -88,19 +91,24 @@ struct OngletSemaine: View {
                 .listRowInsets(EdgeInsets())
                 .listRowSeparator(.hidden)
             }
-            ForEach(etat.selection.choix, id: \.recetteId) { choix in
-                if let recette = session.recettes[choix.recetteId] {
-                    bande(recette, choix: choix)
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
-                        .swipeActions {
-                            Button("Retirer de la semaine", systemImage: "trash", role: .destructive) {
-                                choisir(nil, choix: choix)
-                            }
-                            .disabled(session.occupee)
+            ForEach(Array(bandes.enumerated()), id: \.element.choix.recetteId) { index, element in
+                bande(element.recette, choix: element.choix, planche: element.planche)
+                    .overlay(alignment: .top) {
+                        if index > 0, bandes[index - 1].planche.fond == element.planche.fond {
+                            CouleurPersillade.page.couleur.frame(height: 2)
+                                .allowsHitTesting(false)
+                                .accessibilityHidden(true)
                         }
-                        .accessibilityAction(named: "Retirer de la semaine") { choisir(nil, choix: choix) }
-                }
+                    }
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .swipeActions {
+                        Button("Retirer de la semaine", systemImage: "trash", role: .destructive) {
+                            choisir(nil, choix: element.choix)
+                        }
+                        .disabled(session.occupee)
+                    }
+                    .accessibilityAction(named: "Retirer de la semaine") { choisir(nil, choix: element.choix) }
             }
         }
         .listStyle(.plain)
@@ -128,9 +136,8 @@ struct OngletSemaine: View {
         return "Les recettes de la semaine ont changé."
     }
 
-    private func bande(_ recette: Recette, choix: SelectionSemaine.Choix) -> some View {
-        let planche = Planche(recette: recette)
-        return HStack(spacing: 0) {
+    private func bande(_ recette: Recette, choix: SelectionSemaine.Choix, planche: Planche) -> some View {
+        HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 4) {
                 Button {
                     ouvrirFiche(recette.id)
