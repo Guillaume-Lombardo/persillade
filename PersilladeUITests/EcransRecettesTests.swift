@@ -143,6 +143,9 @@
             for (nom, arguments) in [("Standard", []), ("AX3", ["-recettes-ax3"])] {
                 let app = lancer(arguments: arguments, texte: texte)
                 coller(app)
+                let apercu = app.staticTexts["apercu-destination"]
+                XCTAssertTrue(apercu.exists, nom)
+                XCTAssertLessThan(apercu.frame.height, nom == "AX3" ? 145 : 115, nom)
                 XCTAssertTrue(app.buttons["import-destination-recette"].isHittable, nom)
                 XCTAssertTrue(app.buttons["Articles de courses"].isHittable, nom)
                 joindre("Destination-longue-\(nom)")

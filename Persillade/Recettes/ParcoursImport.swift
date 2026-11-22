@@ -147,9 +147,10 @@ struct ParcoursImport: View {
                     Text("\(position + 1) sur \(reception.contenus.count)").typographie(.precision)
                 }
                 Text(contenu.texteRecu)
-                    .typographie(.section)
                     .lineLimit(taille.isAccessibilitySize ? 2 : 3)
+                    .typographie(.section)
                     .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("apercu-destination")
                 if texteDeRepli != nil {
                     Label("Texte collé disponible", systemImage: "doc.text")
                         .typographie(.precision)
