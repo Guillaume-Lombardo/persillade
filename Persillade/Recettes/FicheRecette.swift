@@ -8,13 +8,23 @@ struct FicheRecette: View {
 
     @Environment(\.dismiss) private var fermer
     @Environment(\.colorScheme) private var apparence
+    @Environment(\.dynamicTypeSize) private var taille
     @Environment(\.accessibilityReduceMotion) private var mouvementReduit
+    @AppStorage private var positionCuisine: Int
     @State private var recette: Recette?
     @State private var planche: Planche?
     @State private var portionsLocales: Int?
     @State private var enteteVisible = true
     @State private var erreur = false
     @State private var confirmerSuppression = false
+    @State private var cuisiner = false
+
+    init(id: UUID, bibliotheque: BibliothequeRecettes, modifier: @escaping (Recette) -> Void) {
+        self.id = id
+        self.bibliotheque = bibliotheque
+        self.modifier = modifier
+        _positionCuisine = AppStorage(wrappedValue: 0, "cuisine.position.\(id.uuidString)")
+    }
 
     private var choisie: Int? { bibliotheque.portionsChoisies(id) }
 
@@ -37,6 +47,9 @@ struct FicheRecette: View {
                 recette = lue
                 planche = lue.map { Planche(recette: $0) }
                 erreur = lue == nil
+                if let lue, positionCuisine > lue.etapes.count {
+                    positionCuisine = lue.etapes.count
+                }
             } catch is CancellationError {
             } catch {
                 if !Task.isCancelled { erreur = true }
@@ -66,7 +79,7 @@ struct FicheRecette: View {
                 blocPortions(portions)
                 if !recette.ingredients.isEmpty {
                     titreSection("Ingrédients")
-                    ingredients(recette, portions: portions)
+                    IngredientsRecette(recette: recette, portions: portions)
                 }
                 if !recette.etapes.isEmpty {
                     titreSection("Étapes")
@@ -100,19 +113,43 @@ struct FicheRecette: View {
         .confirmationDialog("Supprimer cette recette ?", isPresented: $confirmerSuppression, titleVisibility: .visible)
         {
             Button("Supprimer", role: .destructive) {
-                Task { if await bibliotheque.supprimer(id) { fermer() } }
+                Task {
+                    if await bibliotheque.supprimer(id) {
+                        positionCuisine = 0
+                        fermer()
+                    }
+                }
             }
         } message: {
             Text("Retirée aussi de la semaine.")
         }
         .barreAction {
-            BoutonActionPersillade(choisie == nil ? "Ajouter à la semaine" : "Retirer de la semaine") {
-                Task {
-                    if choisie != nil { portionsLocales = portions }
-                    await bibliotheque.choisir(id, portions: choisie == nil ? portions : nil)
+            VStack(spacing: GrillePersillade.pas) {
+                if !recette.etapes.isEmpty {
+                    BoutonActionPersillade(
+                        positionCuisine > 0 ? "Reprendre à l’étape \(positionCuisine)" : "Cuisiner"
+                    ) {
+                        if positionCuisine == 0 { positionCuisine = 1 }
+                        cuisiner = true
+                    }
+                    .accessibilityIdentifier("ouvrir-cuisine")
                 }
+                BoutonActionPersillade(choisie == nil ? "Ajouter à la semaine" : "Retirer de la semaine") {
+                    Task {
+                        if choisie != nil { portionsLocales = portions }
+                        await bibliotheque.choisir(id, portions: choisie == nil ? portions : nil)
+                    }
+                }
+                .disabled(!bibliotheque.selectionDisponible || bibliotheque.operationSemaine)
             }
-            .disabled(!bibliotheque.selectionDisponible || bibliotheque.operationSemaine)
+        }
+        .fullScreenCover(isPresented: $cuisiner) {
+            if let session = SessionCuisine(recette: recette, position: positionCuisine) {
+                PasAPas(recette: recette, portions: portions, fond: planche.fond, session: session) { position in
+                    positionCuisine = position
+                }
+                .environment(\.dynamicTypeSize, taille)
+            }
         }
         .sensoryFeedback(.selection, trigger: portions)
         .sensoryFeedback(.selection, trigger: choisie != nil)
@@ -166,10 +203,23 @@ struct FicheRecette: View {
         .disabled(valeur == nil || bibliotheque.operationSemaine)
     }
 
-    @ViewBuilder private func ingredients(_ recette: Recette, portions: Int) -> some View {
+    private func titreSection(_ titre: String) -> some View {
+        Text(titre)
+            .typographie(.section)
+            .accessibilityAddTraits(.isHeader)
+            .padding(GrillePersillade.marge)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct IngredientsRecette: View {
+    let recette: Recette
+    let portions: Int
+
+    var body: some View {
         let miseAEchelle = Result {
             var selection = SelectionSemaine()
-            selection.selectionner(try .init(recetteId: id, portions: portions))
+            selection.selectionner(try .init(recetteId: recette.id, portions: portions))
             return try selection.preparer(recettes: [recette]).contributions.map { try $0.quantitePourRecette }
         }
         switch miseAEchelle {
@@ -190,11 +240,4 @@ struct FicheRecette: View {
         }
     }
 
-    private func titreSection(_ titre: String) -> some View {
-        Text(titre)
-            .typographie(.section)
-            .accessibilityAddTraits(.isHeader)
-            .padding(GrillePersillade.marge)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
 }
