@@ -46,9 +46,9 @@ public protocol MoteurIA: Sendable {
 }
 
 public struct Extracteur: Sendable {
-    /// À fournir seulement quand le repli externe est activé et que l'envoi de ce contenu a été consenti.
+    /// Le repli vérifie le consentement courant. Il renvoie nil quand aucun envoi n'est autorisé.
     public typealias RepliConsenti =
-        @Sendable (ContenuRecu, CibleExtraction, ResultatExtraction) async throws -> PropositionExtraction
+        @Sendable (ContenuRecu, CibleExtraction, ResultatExtraction) async throws -> PropositionExtraction?
 
     private let telechargeur: (any TelechargeurPage)?
     private let moteurIA: (any MoteurIA)?
@@ -120,12 +120,23 @@ public struct Extracteur: Sendable {
             }
         }
 
-        if let repliConsenti, proposition.statut != .complet, !texte.epure.isEmpty || contenu.type == .image {
+        if let repliConsenti, proposition.statut != .complet, !texte.epure.isEmpty {
             do {
-                let reponse = try await repliConsenti(contenu, cible, proposition.resultat)
-                try Task.checkCancellation()
-                if proposition.appliquer(reponse, depuis: texte, moteur: .cleExterne) {
-                    proposition.cause = nil
+                if let reponse = try await repliConsenti(contenu, cible, proposition.resultat) {
+                    try Task.checkCancellation()
+                    let ancrages = AncragesExtraction(texte, echeance: .now + .seconds(2))
+                    let citationsVerifiees = try ancrages.verifie(reponse)
+                    guard citationsVerifiees || contenu.type == .image else {
+                        throw CauseExtraction.fournisseurEnErreur
+                    }
+                    var candidat = proposition
+                    if try candidat.appliquer(reponse, ancrages: ancrages, moteur: .cleExterne) {
+                        try ancrages.verifierEcheance()
+                        candidat.cause = nil
+                        proposition = candidat
+                    } else if !citationsVerifiees {
+                        proposition.cause = .fournisseurEnErreur
+                    }
                 }
             } catch {
                 try Task.checkCancellation()
@@ -152,7 +163,7 @@ public struct Extracteur: Sendable {
                 try Task.checkCancellation()
                 let reponse = try await moteurIA.extraire(morceau, cible: etat.cible, champs: champs)
                 try Task.checkCancellation()
-                _ = etat.appliquer(reponse, depuis: morceau, moteur: .embarque)
+                try etat.appliquer(reponse, ancrages: AncragesExtraction(morceau), moteur: .embarque)
             }
         } catch {
             try Task.checkCancellation()
@@ -263,30 +274,32 @@ private struct EtatExtraction {
     }
 
     @discardableResult
-    mutating func appliquer(_ proposition: PropositionExtraction, depuis source: String, moteur: ProvenanceExtraction)
-        -> Bool
-    {
+    mutating func appliquer(
+        _ proposition: PropositionExtraction, ancrages: AncragesExtraction, moteur: ProvenanceExtraction
+    ) throws -> Bool {
         let avant = recette
         let nombreArticles = articles.count
-        let ancrages = AncragesExtraction(source)
 
         if cible == .recette {
-            if recette.titre.isEmpty, let titre = ancrages.citation(proposition.titre),
+            if recette.titre.isEmpty, let titre = try ancrages.citation(proposition.titre),
                 AnalyseTexteRecette.titrePlausible(titre)
             {
                 recette.titre = titre
             }
-            if recette.portions == nil, let citation = ancrages.citation(proposition.portions) {
+            if recette.portions == nil, let citation = try ancrages.citation(proposition.portions) {
                 recette.portions = AnalyseTexteRecette.portionsDansLigne(citation)
             }
             if recette.ingredients.isEmpty || ingredientsGeneres
                 || recette.ingredients.contains(where: { $0.nom.isEmpty })
             {
-                for citation in ancrages.citations(proposition.ingredients) {
+                for citation in try ancrages.citations(proposition.ingredients) {
+                    try ancrages.verifierEcheance()
                     let ingredient = AnalyseIngredient.analyser(citation)
                     guard !ingredient.ligneNonComprise, !recette.ingredients.contains(ingredient) else { continue }
-                    if let index = recette.ingredients.firstIndex(where: {
-                        $0.nom.isEmpty && AncragesExtraction($0.texteOrigine).citation(citation) != nil
+                    if let index = try recette.ingredients.firstIndex(where: {
+                        guard $0.nom.isEmpty else { return false }
+                        let ligne = AncragesExtraction($0.texteOrigine, echeance: ancrages.echeance)
+                        return try ligne.citation(citation) != nil
                     }) {
                         recette.ingredients[index].nom = ingredient.nom
                         recette.ingredients[index].quantite = ingredient.quantite
@@ -299,12 +312,16 @@ private struct EtatExtraction {
                 }
             }
             if recette.etapes.isEmpty || etapesGenerees {
-                let etapes = ancrages.citations(proposition.etapes)
-                recette.etapes += etapes
-                etapesGenerees = etapesGenerees || !etapes.isEmpty
+                if moteur == .cleExterne, etapesGenerees {
+                    recette.etapes = try ancrages.fusionner(recette.etapes, avec: proposition.etapes)
+                } else {
+                    let etapes = try ancrages.citations(proposition.etapes)
+                    recette.etapes += etapes
+                    etapesGenerees = etapesGenerees || !etapes.isEmpty
+                }
             }
         } else {
-            let extraits = ancrages.citations(proposition.articles).compactMap { article($0, id: messageID) }
+            let extraits = try ancrages.citations(proposition.articles).compactMap { article($0, id: messageID) }
             if moteur == .cleExterne, !extraits.isEmpty {
                 articles = extraits
                 articlesIncomplets = extraits.count != proposition.articles.count
@@ -323,43 +340,98 @@ private struct EtatExtraction {
 
 private struct AncragesExtraction {
     private let source: String
+    private let plageSource: NSRange
     private let mesures: [Range<String.Index>]
+    let echeance: ContinuousClock.Instant?
 
-    init(_ source: String) {
+    init(_ source: String, echeance: ContinuousClock.Instant? = nil) {
         self.source = source
+        self.echeance = echeance
+        plageSource = NSRange(source.startIndex..., in: source)
         mesures = AnalyseIngredient.positionsMesures(dans: source)
     }
 
-    func citation(_ proposition: String?) -> String? {
-        plagesDeCitation(proposition).first.map { String(source[$0]) }
+    func verifierEcheance() throws {
+        try Task.checkCancellation()
+        if let echeance, ContinuousClock.now >= echeance { throw CauseExtraction.fournisseurEnErreur }
     }
 
-    func citations(_ propositions: [String]) -> [String] {
-        var plages = Set<Range<String.Index>>()
-        var resultat: [Range<String.Index>] = []
-        for proposition in propositions {
-            if let plage = plagesDeCitation(proposition).first(where: { !plages.contains($0) }) {
-                plages.insert(plage)
-                resultat.append(plage)
-            }
+    func citation(_ proposition: String?) throws -> String? {
+        try plageDeCitation(proposition, sauf: []).map { String(source[$0]) }
+    }
+
+    func verifie(_ proposition: PropositionExtraction) throws -> Bool {
+        let valeurs = [proposition.titre, proposition.portions].compactMap { $0 }
+        let listes = [proposition.ingredients, proposition.etapes, proposition.articles]
+        let tailleMax = max(4096, source.utf8.count)
+        guard listes.allSatisfy({ $0.reduce(0) { $0 + $1.utf8.count } <= tailleMax }) else {
+            throw CauseExtraction.fournisseurEnErreur
         }
-        return resultat.sorted { $0.lowerBound < $1.lowerBound }.map { String(source[$0]) }
+        return try valeurs.allSatisfy { try citation($0) != nil }
+            && listes.allSatisfy { try plagesDeCitations($0).count == $0.count }
     }
 
-    private func plagesDeCitation(_ proposition: String?) -> [Range<String.Index>] {
-        guard let texte = proposition?.epure, !texte.isEmpty, texte.count <= source.count else { return [] }
+    func citations(_ propositions: [String]) throws -> [String] {
+        try texteDesCitations(plagesDeCitations(propositions))
+    }
+
+    func fusionner(_ existantes: [String], avec nouvelles: [String]) throws -> [String] {
+        var plages = try plagesDeCitations(existantes)
+        let candidates = try plagesDeCitations(nouvelles).sorted {
+            if $0.lowerBound == $1.lowerBound { return $0.upperBound > $1.upperBound }
+            return $0.lowerBound < $1.lowerBound
+        }
+        for candidate in candidates {
+            if !plages.contains(where: { $0.overlaps(candidate) }) { plages.insert(candidate) }
+        }
+        return texteDesCitations(plages)
+    }
+
+    private func texteDesCitations(_ plages: Set<Range<String.Index>>) -> [String] {
+        plages.sorted { $0.lowerBound < $1.lowerBound }.map { String(source[$0]) }
+    }
+
+    private func plagesDeCitations(_ propositions: [String]) throws -> Set<Range<String.Index>> {
+        var plages = Set<Range<String.Index>>()
+        for proposition in propositions {
+            if let plage = try plageDeCitation(proposition, sauf: plages) { plages.insert(plage) }
+        }
+        return plages
+    }
+
+    private func plageDeCitation(_ proposition: String?, sauf utilisees: Set<Range<String.Index>>) throws
+        -> Range<String.Index>?
+    {
+        try verifierEcheance()
+        guard let texte = proposition?.epure, !texte.isEmpty, texte.utf16.count <= plageSource.length else {
+            return nil
+        }
         // Interdit notamment de citer le « 5 » de « 1,5 » ou « g » dans « kg ».
         let mots = texte.split(whereSeparator: \.isWhitespace).map {
             NSRegularExpression.escapedPattern(for: String($0))
         }
         let motif =
             #"(?i)(?<![\p{L}\p{N}])(?<![0-9][.,/⁄])\#(mots.joined(separator: #"\s+"#))(?![\p{L}\p{N}]|[.,/⁄][0-9])"#
-        return source.ranges(of: motif).filter { citation in
-            !mesures.contains { mesure in
+        let regex = try NSRegularExpression(pattern: motif)
+        var retenue: Range<String.Index>?
+        regex.enumerateMatches(in: source, options: .reportProgress, range: plageSource) { resultat, _, stop in
+            if Task.isCancelled || echeance.map({ ContinuousClock.now >= $0 }) == true {
+                stop.pointee = true
+                return
+            }
+            guard let resultat, let citation = Range(resultat.range, in: source), !utilisees.contains(citation)
+            else { return }
+            let coupeUneMesure = mesures.contains { mesure in
                 mesure.overlaps(citation)
                     && (mesure.lowerBound < citation.lowerBound || mesure.upperBound > citation.upperBound)
             }
+            if !coupeUneMesure {
+                retenue = citation
+                stop.pointee = true
+            }
         }
+        try verifierEcheance()
+        return retenue
     }
 }
 

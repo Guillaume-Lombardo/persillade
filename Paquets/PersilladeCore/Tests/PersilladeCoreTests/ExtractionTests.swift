@@ -463,6 +463,23 @@ func causePageEtLienConserve(_ cause: CauseExtraction) async throws {
     #expect(resultat.moteur == .embarque)
 }
 
+@Test func repliFusionneLesEtapesSansRepeterUneMemeOccurrence() async throws {
+    let originale = try fixture("10-prose", "txt")
+    let premiere = "J’ai pesé 350 g de farine"
+    let suivante = "on laisse lever la pâte près du four pendant deux heures."
+    let moteur = MoteurBouchon(.reponse { _ in .init(ingredients: ["350 g de farine"], etapes: [suivante]) })
+    let resultat = try await Extracteur(moteurIA: moteur).extraire(texteRecu(originale), cible: .recette) {
+        _, _, local in
+        #expect(local.recette?.etapes == [suivante])
+        return .init(
+            titre: "brioche à la fleur d’oranger",
+            etapes: [premiere, "laisse lever la pâte près du four"])
+    }
+    #expect(resultat.statut == .complet)
+    #expect(resultat.moteur == .cleExterne)
+    #expect(resultat.recette?.etapes == [premiere, suivante])
+}
+
 @Test(.timeLimit(.minutes(1))) func annulationPendantLaGeneration() async {
     let moteur = MoteurBouchon(.lent)
     let tache = Task {
@@ -501,4 +518,19 @@ private struct LecteurBouchon: LecteurImage {
     #expect(lu.statut == .partiel)
     #expect(lu.recette?.ingredients.first?.nom == "œufs")
     #expect(lu.texteSource == "3 œufs")
+}
+
+@Test func repliPhotoConserveSeulementLesCitationsDuTexteLu() async throws {
+    let image = ContenuRecu(type: .image, contenu: Data([42]), origine: .phototheque)
+    let sansLecteur = try await Extracteur().extraire(image, cible: .message) { _, _, _ in
+        Issue.record("Une photo sans texte vérifiable a déclenché le repli.")
+        return .init(articles: ["3 œufs"])
+    }
+    #expect(sansLecteur.cause == .rienTrouve)
+    let resultat = try await Extracteur(lecteurImage: LecteurBouchon()).extraire(image, cible: .message) {
+        _, _, _ in .init(articles: ["3 œufs", "du sucre"])
+    }
+    #expect(resultat.moteur == .cleExterne)
+    #expect(resultat.statut == .partiel)
+    #expect(resultat.articles.map(\.nom) == ["œufs"])
 }
