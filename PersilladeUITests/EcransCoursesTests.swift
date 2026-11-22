@@ -63,13 +63,18 @@ import XCTest
             saisie.typeText("2 bananes")
             bouton("ajout-valider-courses", dans: app).tap()
             XCTAssertTrue(app.staticTexts["Article ajouté"].waitForExistence(timeout: 10))
-            XCTAssertTrue(app.staticTexts["Envoyé"].waitForExistence(timeout: 10))
+            let bananesEnvoyees = app.buttons.matching(
+                NSPredicate(format: "label == %@ AND value CONTAINS %@", "bananes", "Envoyé")
+            ).firstMatch
+            XCTAssertTrue(bananesEnvoyees.waitForExistence(timeout: 10))
             bouton("Terminé", dans: app).tap()
 
             bouton("courses-renvoyer", dans: app).tap()
             XCTAssertTrue(app.staticTexts["Rien à ajouter"].waitForExistence(timeout: 10))
-            XCTAssertTrue(app.buttons["Déjà là · 3"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.descendants(matching: .any)["Déjà là · 3"].firstMatch.waitForExistence(timeout: 10))
             bouton("Terminé", dans: app).tap()
+
+            XCTAssertEqual(farine.value as? String, "1,5 kg, Rien à ajouter")
 
             ouvrirOnglet("Semaine", dans: app)
             bouton("Augmenter les portions de Crêpes", dans: app).tap()
@@ -118,8 +123,11 @@ import XCTest
             XCTAssertEqual(bouton("Augmenter les portions de Crêpes", dans: app).value as? String, "4 portions")
             let recette = bouton("Crêpes", dans: app)
             recette.coordinate(withNormalizedOffset: CGVector(dx: 0.90, dy: 0.5)).tap()
-            XCTAssertTrue(app.navigationBars["Crêpes"].waitForExistence(timeout: 5))
-            app.navigationBars["Crêpes"].buttons.firstMatch.tap()
+            let titre = app.staticTexts["titre-fiche"]
+            XCTAssertTrue(titre.waitForExistence(timeout: 5))
+            XCTAssertEqual(titre.label, "Crêpes")
+            app.navigationBars.firstMatch.buttons.firstMatch.tap()
+            ouvrirOnglet("Semaine", dans: app)
             XCTAssertTrue(app.buttons["Faire la liste"].waitForExistence(timeout: 5))
             let audits: XCUIAccessibilityAuditType = [
                 .contrast, .elementDetection, .hitRegion, .sufficientElementDescription,

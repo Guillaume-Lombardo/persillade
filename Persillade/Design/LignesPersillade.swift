@@ -45,12 +45,12 @@ struct ColonnePesee: View {
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .firstTextBaseline, spacing: 2) {
                         nombre(quantite)
-                        libelleUnite
+                        libelleUnite(enLigne: true)
                     }
                     .fixedSize()
                     VStack(alignment: aligne ? .trailing : .leading, spacing: 0) {
                         nombre(quantite)
-                        libelleUnite
+                        libelleUnite(enLigne: false)
                     }
                 }
                 .accessibilityElement(children: .combine)
@@ -66,12 +66,12 @@ struct ColonnePesee: View {
         Text(texte).typographie(.quantite)
     }
 
-    @ViewBuilder private var libelleUnite: some View {
+    @ViewBuilder private func libelleUnite(enLigne: Bool) -> some View {
         if let unite {
             Text(unite)
                 .typographie(.unite)
                 .fontWidth(taille.isAccessibilitySize ? .standard : alignee ? .compressed : .condensed)
-                .fixedSize(horizontal: true, vertical: false)
+                .fixedSize(horizontal: enLigne, vertical: !enLigne)
         }
     }
 }

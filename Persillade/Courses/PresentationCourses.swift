@@ -44,8 +44,7 @@ struct PresentationEnvoi {
         if case .echec = etatLigne { return true }
         return false
     }
-    var envoyee: Bool { etatLigne == .envoyee }
-    var traitee: Bool { envoyee || etatLigne == .rienAAjouter }
+    var traitee: Bool { etatLigne == .envoyee || etatLigne == .rienAAjouter }
 
     init(etat: EtatCourses, ligne: LigneCourses) {
         do {

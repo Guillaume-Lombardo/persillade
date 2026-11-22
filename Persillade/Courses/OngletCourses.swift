@@ -162,8 +162,8 @@ struct OngletCourses: View {
                     ForEach(rayon.lignes) { ligne in
                         let statut = statuts[ligne.id]
                         ligneCourses(
-                            ligne, statut: etat.liste.envoyee || statut?.echec == true ? statut : nil,
-                            afficherMarque: !toutTraite || statut?.envoyee != true
+                            ligne, statut: statut,
+                            afficherMarque: !toutTraite && (etat.liste.envoyee || statut?.echec == true)
                         )
                         .listRowInsets(EdgeInsets())
                         .listRowSeparator(.hidden)

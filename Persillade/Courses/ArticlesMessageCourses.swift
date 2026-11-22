@@ -149,12 +149,12 @@ struct ArticlesMessageCourses: View {
             }
         }
         .listStyle(.plain)
-        .barreAction {
-            BoutonActionPersillade(articles.count == 1 ? "Ajouter 1 article" : "Ajouter \(articles.count) articles") {
-                integrer()
-            }
+        .barreAction(tailleMax: .accessibility5) {
+            BoutonActionPersillade(
+                articles.count == 1 ? "Ajouter 1 article" : "Ajouter \(articles.count) articles",
+                symbole: "plus", action: { integrer() }
+            )
             .disabled(articles.isEmpty || session.occupee)
-            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         }
         .sheet(
             isPresented: Binding(get: { edition != nil }, set: { if !$0 { edition = nil } })
