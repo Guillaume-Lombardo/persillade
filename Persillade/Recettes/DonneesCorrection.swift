@@ -7,6 +7,8 @@ struct DonneesCorrection {
     let source: String
     let url: URL?
     let cause: CauseExtraction?
+    let photo: Data?
+    let photoSansTexte: Bool
     let modification: Bool
 
     init() {
@@ -15,15 +17,19 @@ struct DonneesCorrection {
         source = ""
         url = nil
         cause = nil
+        photo = nil
+        photoSansTexte = false
         modification = false
     }
 
-    init(id: UUID, resultat: ResultatExtraction, url: URL?) {
+    init(id: UUID, resultat: ResultatExtraction, url: URL?, photo: Data? = nil) {
         self.id = id
         brouillon = resultat.recette ?? BrouillonRecette()
         source = resultat.texteSource
         self.url = resultat.urlSource ?? url
         cause = resultat.statut == .echec ? nil : resultat.cause
+        self.photo = photo
+        photoSansTexte = photo != nil && resultat.cause == .rienTrouve && resultat.texteSource.isEmpty
         modification = false
     }
 
@@ -38,6 +44,8 @@ struct DonneesCorrection {
         source = recette.texteSource
         url = recette.urlSource
         cause = nil
+        photo = nil
+        photoSansTexte = false
         modification = true
     }
 }

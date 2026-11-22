@@ -1,5 +1,6 @@
 import PersilladeCore
 import SwiftUI
+import UIKit
 
 struct CorrectionRecette: View {
     private enum Champ: Hashable {
@@ -90,6 +91,30 @@ struct CorrectionRecette: View {
                             .foregroundStyle(CouleurPersillade.tomate.couleur)
                     }
                 }
+                if donnees.photoSansTexte {
+                    Section {
+                        Label(
+                            "Aucun texte n’a été lu sur cette photo. Vous pouvez saisir la recette.",
+                            systemImage: "text.viewfinder"
+                        )
+                        .typographie(.alerte)
+                        .foregroundStyle(CouleurPersillade.tomate.couleur)
+                        .accessibilityIdentifier("photo-sans-texte")
+                    }
+                    .listRowBackground(CouleurPersillade.page2.couleur)
+                }
+                if let photo = donnees.photo, let image = UIImage(data: photo) {
+                    Section {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 136)
+                            .accessibilityLabel("Photo de la recette")
+                            .accessibilityIdentifier("photo-correction")
+                    }
+                    .listRowBackground(CouleurPersillade.page2.couleur)
+                }
                 if donnees.cause != nil || !alertes.isEmpty {
                     Section { bandeau(defilement) }
                 }
@@ -146,10 +171,12 @@ struct CorrectionRecette: View {
                         }
                     }
                     .disabled(enregistrant)
+                    .accessibilityIdentifier("fermer-correction")
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(enregistree ? "Réessayer" : "Enregistrer") { sauvegarder(defilement) }
                         .disabled(enregistrant)
+                        .accessibilityIdentifier("enregistrer-correction")
                 }
                 ToolbarItemGroup(placement: .keyboard) {
                     commandesClavier(defilement)
@@ -252,7 +279,9 @@ struct CorrectionRecette: View {
     private func panneauSource(_ defilement: ScrollViewProxy) -> some View {
         VoletTexteRecu(
             source: donnees.source, ingredients: formulaire.ingredients,
-            ouvert: Binding(get: { sourceOuverte ?? !taille.isAccessibilitySize }, set: { sourceOuverte = $0 })
+            ouvert: Binding(
+                get: { sourceOuverte ?? (donnees.photo == nil && !taille.isAccessibilitySize) },
+                set: { sourceOuverte = $0 })
         ) { id in
             montrer(.ingredient(id), dans: defilement)
         }

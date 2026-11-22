@@ -45,6 +45,7 @@ private struct Racine: View {
 
     private enum Feuille: Identifiable {
         case importation(ContenuRecu?)
+        case photo(SourcePhoto)
         case ecriture
         case modification(Recette)
         case reglages
@@ -52,6 +53,7 @@ private struct Racine: View {
         var id: String {
             switch self {
             case .importation: "importation"
+            case .photo: "photo"
             case .ecriture: "ecriture"
             case .modification: "modification"
             case .reglages: "reglages"
@@ -84,7 +86,8 @@ private struct Racine: View {
         #endif
         _reception = State(initialValue: ReceptionEntree(dossier: dossier))
         _bibliotheque = State(initialValue: BibliothequeRecettes(dossier: dossier))
-        extracteur = Extracteur(telechargeur: TelechargeurURLSession(), moteurIA: moteur)
+        extracteur = Extracteur(
+            telechargeur: TelechargeurURLSession(), moteurIA: moteur, lecteurImage: LecteurImageVision())
         repliConsenti = dossier == nil ? ReglagesFournisseur.partage.repliConsenti : nil
     }
 
@@ -147,6 +150,10 @@ private struct Racine: View {
             ParcoursImport(
                 initial: recu, reception: reception, bibliotheque: bibliotheque, extracteur: extracteur,
                 repliConsenti: repliConsenti, fermer: { feuille = nil }, terminer: finImport)
+        case .photo(let source):
+            ParcoursImport(
+                initial: nil, reception: reception, bibliotheque: bibliotheque, extracteur: extracteur,
+                repliConsenti: repliConsenti, fermer: { feuille = nil }, terminer: finImport, sourcePhoto: source)
         case .ecriture:
             NavigationStack {
                 CorrectionRecette(
@@ -177,6 +184,8 @@ private struct Racine: View {
         OngletRecettes(
             chemin: chemin, bibliotheque: bibliotheque, rechercheActive: recherche, messageReception: reception.message,
             coller: { feuille = .importation(nil) }, ecrire: { feuille = .ecriture },
+            prendrePhoto: { feuille = .photo(.appareilPhoto) },
+            choisirPhoto: { feuille = .photo(.phototheque) },
             reglages: { feuille = .reglages }, modifier: { feuille = .modification($0) })
     }
 

@@ -8,6 +8,8 @@ struct OngletRecettes: View {
     let messageReception: String?
     let coller: () -> Void
     let ecrire: () -> Void
+    let prendrePhoto: () -> Void
+    let choisirPhoto: () -> Void
     let reglages: () -> Void
     let modifier: (Recette) -> Void
 
@@ -44,9 +46,13 @@ struct OngletRecettes: View {
                     Menu {
                         Button("Coller un lien ou un texte", systemImage: "document.on.clipboard", action: coller)
                         Button("Écrire", systemImage: "pencil", action: ecrire)
+                        Button("Prendre une photo", systemImage: "camera", action: prendrePhoto)
+                        Button("Choisir une photo", systemImage: "photo", action: choisirPhoto)
+                            .accessibilityIdentifier("import-choisir-photo")
                     } label: {
                         Label("Ajouter une recette", systemImage: "plus")
                     }
+                    .accessibilityIdentifier("import-ajouter-recette")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
@@ -112,7 +118,14 @@ struct OngletRecettes: View {
                         } actions: {
                         }
                     }
-                    .barreAction { BoutonActionPersillade("Coller un lien ou un texte", action: coller) }
+                    .barreAction {
+                        VStack(spacing: GrillePersillade.pas) {
+                            BoutonActionPersillade("Coller un lien ou un texte", action: coller)
+                            Button("Prendre une photo", systemImage: "camera", action: prendrePhoto)
+                                .buttonStyle(.glass)
+                                .controlSize(.large)
+                        }
+                    }
                 }
             } else {
                 ProgressView("Lecture des recettes").frame(maxHeight: .infinity)
