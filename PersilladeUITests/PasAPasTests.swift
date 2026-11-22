@@ -42,7 +42,9 @@
             XCTAssertEqual(position.label, "Étape 1 sur 5")
             XCTAssertFalse(precedente.isEnabled)
             toucher(suivante)
+            XCTAssertTrue(position.wait(for: \.label, toEqual: "Étape 2 sur 5", timeout: 12))
             suivante.tap()
+            XCTAssertTrue(position.wait(for: \.label, toEqual: "Étape 3 sur 5", timeout: 12))
             toucher(precedente)
             XCTAssertTrue(position.wait(for: \.label, toEqual: "Étape 2 sur 5", timeout: 12))
             let consigne = app.staticTexts["consigne-cuisine"]

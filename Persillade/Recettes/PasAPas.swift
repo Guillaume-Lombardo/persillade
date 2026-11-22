@@ -14,8 +14,10 @@ struct PasAPas: View {
     @Environment(\.scenePhase) private var phase
     @Environment(\.accessibilityReduceTransparency) private var transparenceReduite
     @AppStorage("cuisine.ensuite") private var ensuite = false
+    @State private var ensuiteAccessible = false
     @State private var session: SessionCuisine
     @State private var ingredientsVisibles = false
+    @State private var visible = false
     @State private var minuteurInitial: Bool?
 
     init(
@@ -33,6 +35,7 @@ struct PasAPas: View {
     private var couleurFond: Color { Color(motif: fond.couleur(sombre: sombre)) }
     private var encre: Color { Color(motif: fond.encre(sombre: sombre)) }
     private var derniereEtape: Bool { session.etapeSuivante == nil }
+    private var positionAnnoncee: String { "Étape \(session.position) sur \(session.etapes.count)" }
 
     var body: some View {
         NavigationStack {
@@ -53,8 +56,15 @@ struct PasAPas: View {
                     }
                 }
         }
-        .onChange(of: phase, initial: true) { _, phase in garderEcranAllume(phase == .active) }
-        .onDisappear { garderEcranAllume(false) }
+        .onAppear {
+            visible = true
+            garderEcranAllume(phase == .active)
+        }
+        .onChange(of: phase) { _, phase in garderEcranAllume(visible && phase == .active) }
+        .onDisappear {
+            visible = false
+            garderEcranAllume(false)
+        }
         .sensoryFeedback(.impact(weight: .medium), trigger: session.position)
         .sheet(isPresented: $ingredientsVisibles) {
             IngredientsCuisine(recette: recette, portions: portions)
@@ -71,7 +81,7 @@ struct PasAPas: View {
                         .typographie(.etape)
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
-                        .accessibilityLabel("Étape \(session.position) sur \(session.etapes.count)")
+                        .accessibilityLabel(positionAnnoncee)
                         .accessibilityAddTraits(.isHeader)
                         .accessibilityIdentifier("position-cuisine")
                         .id("debut")
@@ -84,7 +94,9 @@ struct PasAPas: View {
 
                     if let suivante = session.etapeSuivante {
                         Rectangle().frame(height: GrillePersillade.filet).accessibilityHidden(true)
-                        DisclosureGroup("Ensuite", isExpanded: $ensuite) {
+                        DisclosureGroup(
+                            "Ensuite", isExpanded: taille.isAccessibilitySize ? $ensuiteAccessible : $ensuite
+                        ) {
                             Text(suivante).typographie(.texte)
                         }
                         .font(.headline)
@@ -182,10 +194,15 @@ struct PasAPas: View {
         withAnimation(.easeInOut(duration: 0.2)) {
             if versSuivante { session.suivante() } else { session.precedente() }
         }
-        if session.position != position { memoriserPosition(session.position) }
+        guard session.position != position else { return }
+        memoriserPosition(session.position)
+        if UIAccessibility.isVoiceOverRunning {
+            UIAccessibility.post(notification: .announcement, argument: "\(positionAnnoncee). \(session.etapeCourante)")
+        }
     }
 
     private func quitter() {
+        visible = false
         garderEcranAllume(false)
         fermer()
     }
