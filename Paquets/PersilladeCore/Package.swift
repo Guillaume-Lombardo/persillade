@@ -14,7 +14,9 @@ let package = Package(
         .testTarget(
             name: "PersilladeCoreTests", dependencies: ["PersilladeCore"],
             resources: [.copy("Fixtures")]),
-        .testTarget(name: "PersilladePlateformeTests", dependencies: ["PersilladePlateforme"]),
+        .testTarget(
+            name: "PersilladePlateformeTests", dependencies: ["PersilladeCore", "PersilladePlateforme"],
+            resources: [.copy("CorpusExtraction")]),
     ],
     swiftLanguageModes: [.v6]
 )

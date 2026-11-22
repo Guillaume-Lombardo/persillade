@@ -33,18 +33,40 @@ Dans la CI, le job `app` attend la fin du démarrage d’un iPhone 17 sous iOS 2
 avant de lancer les tests. En cas d’échec, le rapport `.xcresult` est conservé
 trois jours si Xcode a pu le produire.
 
+Le [banc d’extraction](docs/mesures/extraction.md) se lance séparément et produit un rapport Markdown.
+
 ## Installation sur iPhone
 
 1. Préparer un iPhone 15 Pro ou plus récent sous iOS 27. Dans Xcode, ajouter le compte de l’équipe
    Apple Developer Program qui a accès aux identifiants du projet.
 2. Copier `Config/Local.xcconfig.example` vers `Config/Local.xcconfig` et renseigner `DEVELOPMENT_TEAM`
    dans la copie locale, ignorée par Git.
-3. Vérifier que les identifiants `xyz.g1lom.persillade` et `xyz.g1lom.persillade.partage` sont associés
-   à l’App Group `group.xyz.g1lom.persillade` dans cette équipe.
-4. Connecter l’iPhone, activer le mode développeur si iOS le demande, puis choisir l’iPhone comme
-   destination dans Xcode et lancer le schéma **Persillade**.
+3. Dans le compte Apple Developer, associer les identifiants explicites `xyz.g1lom.persillade` et
+   `xyz.g1lom.persillade.partage` à l’App Group `group.xyz.g1lom.persillade`. Les deux cibles
+   utilisent ce groupe pour transmettre les recettes de la feuille de partage à l’app.
+4. Connecter et déverrouiller l’iPhone, accepter « Faire confiance à cet ordinateur » si iOS le
+   demande, puis l’appairer dans Xcode et l’inscrire dans l’équipe de développement. Si nécessaire,
+   activer le mode développeur dans **Réglages → Confidentialité et sécurité → Mode développeur**,
+   redémarrer et confirmer l’activation.
+5. Lancer le schéma **Persillade** sur l’iPhone depuis Xcode, ou utiliser les commandes suivantes
+   depuis la racine du dépôt. Renseigner l’identifiant de destination affiché par Xcode dans
+   `PERSILLADE_IPHONE`. La commande de build autorise Xcode à créer ou à actualiser les profils,
+   les identifiants et les certificats nécessaires à la signature automatique.
 
-[Configuration des App Groups](https://developer.apple.com/help/account/identifiers/enable-app-capabilities/)
+   ```sh
+   xcodebuild -scheme Persillade -destination "platform=iOS,id=$PERSILLADE_IPHONE" \
+     -derivedDataPath .build/DerivedData -allowProvisioningUpdates build
+   xcrun devicectl device install app --device "$PERSILLADE_IPHONE" \
+     .build/DerivedData/Build/Products/Debug-iphoneos/Persillade.app
+   xcrun devicectl device process launch --device "$PERSILLADE_IPHONE" xyz.g1lom.persillade
+   ```
+
+6. Si iOS affiche « Développeur non approuvé », ouvrir **Réglages → Général → VPN et gestion de
+   l’appareil**, sélectionner l’identité de développement si elle y figure et suivre l’invite de
+   confiance avant de relancer l’app.
+
+[Configuration des App Groups](https://developer.apple.com/help/account/identifiers/enable-app-capabilities/) ·
+[Mode développeur](https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device)
 
 ## Structure
 

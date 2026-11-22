@@ -69,7 +69,7 @@ struct AnalyseTexteRecette {
                 dernierIndice = index
                 // Conserve un titre qui précède « pour 4 personnes » sur la même ligne.
                 if let plage = ligne.range(of: Self.portions, options: .regularExpression) {
-                    ligne = String(ligne[..<plage.lowerBound]).remplacer(#"\h*[(:–-]\h*$"#, par: "").epure
+                    ligne = String(ligne[..<plage.lowerBound]).remplacer(#"\h*[(:–—-]\h*$"#, par: "").epure
                     if ligne.isEmpty || ligne.correspond(#"(?i)^(?:pour|rendement|(?:le tout\h+)?donne|recette)$"#) {
                         continue
                     }
