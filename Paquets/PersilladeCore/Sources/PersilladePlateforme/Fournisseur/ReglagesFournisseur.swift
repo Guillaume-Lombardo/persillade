@@ -59,10 +59,12 @@ public final class ReglagesFournisseur {
         let donnees = try encoder(brouillon)
         if let cle, let hote {
             try trousseau.ecrire(cle, pour: hote)
+        } else if hoteChange {
+            try desactiver()
+            try trousseau.supprimer()
         }
         annulerTraitements()
         preferences.set(donnees, forKey: Self.clePreferences)
-        if cle == nil, hoteChange { try trousseau.supprimer() }
     }
 
     public func desactiver() throws {

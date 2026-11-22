@@ -463,7 +463,7 @@ func causePageEtLienConserve(_ cause: CauseExtraction) async throws {
     #expect(resultat.moteur == .embarque)
 }
 
-@Test func repliFusionneLesEtapesSansRepeterUneMemeOccurrence() async throws {
+@Test func repliConserveLesEtapesDejaLues() async throws {
     let originale = try fixture("10-prose", "txt")
     let premiere = "J’ai pesé 350 g de farine"
     let suivante = "on laisse lever la pâte près du four pendant deux heures."
@@ -477,7 +477,7 @@ func causePageEtLienConserve(_ cause: CauseExtraction) async throws {
     }
     #expect(resultat.statut == .complet)
     #expect(resultat.moteur == .cleExterne)
-    #expect(resultat.recette?.etapes == [premiere, suivante])
+    #expect(resultat.recette?.etapes == [suivante])
 }
 
 @Test(.timeLimit(.minutes(1))) func annulationPendantLaGeneration() async {
@@ -503,9 +503,11 @@ func causePageEtLienConserve(_ cause: CauseExtraction) async throws {
 }
 
 private struct LecteurBouchon: LecteurImage {
+    var texte = "3 œufs"
+
     func lireTexte(_ image: Data) async throws -> String {
         #expect(image == Data([42]))
-        return "3 œufs"
+        return texte
     }
 }
 
@@ -532,5 +534,21 @@ private struct LecteurBouchon: LecteurImage {
     }
     #expect(resultat.moteur == .cleExterne)
     #expect(resultat.statut == .partiel)
+    #expect(resultat.cause == .fournisseurEnErreur)
     #expect(resultat.articles.map(\.nom) == ["œufs"])
+}
+
+@Test func recettePhotoRestePartielleSiUneEtapeNestPasAncree() async throws {
+    let image = ContenuRecu(type: .image, contenu: Data([42]), origine: .phototheque)
+    let lecteur = LecteurBouchon(texte: try fixture("10-prose", "txt"))
+    let extrait = "on laisse lever la pâte près du four pendant deux heures."
+    let resultat = try await Extracteur(lecteurImage: lecteur).extraire(image, cible: .recette) { _, _, _ in
+        .init(
+            titre: "brioche à la fleur d’oranger", ingredients: ["350 g de farine"],
+            etapes: [extrait, "Ajouter le sucre."])
+    }
+    #expect(resultat.recette?.etapes == [extrait])
+    #expect(resultat.moteur == .cleExterne)
+    #expect(resultat.statut == .partiel)
+    #expect(resultat.cause == .fournisseurEnErreur)
 }

@@ -95,6 +95,7 @@ struct Reglages: View {
                         try stockage.supprimerCle()
                         recharger()
                     } catch {
+                        brouillon.active = stockage.configuration.active
                         signaler(error)
                     }
                 }

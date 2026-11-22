@@ -132,7 +132,7 @@ public struct Extracteur: Sendable {
                     var candidat = proposition
                     if try candidat.appliquer(reponse, ancrages: ancrages, moteur: .cleExterne) {
                         try ancrages.verifierEcheance()
-                        candidat.cause = nil
+                        candidat.cause = citationsVerifiees ? nil : .fournisseurEnErreur
                         proposition = candidat
                     } else if !citationsVerifiees {
                         proposition.cause = .fournisseurEnErreur
@@ -253,7 +253,10 @@ private struct EtatExtraction {
     var statut: StatutExtraction {
         switch cible {
         case .recette:
-            return recette.statut == .complet && cause == .contenuTropLong ? .partiel : recette.statut
+            if recette.statut == .complet, cause == .contenuTropLong || cause == .fournisseurEnErreur {
+                return .partiel
+            }
+            return recette.statut
         case .message:
             if articles.isEmpty { return .echec }
             return moteur == .manuel || articlesIncomplets || cause != nil ? .partiel : .complet
@@ -311,14 +314,10 @@ private struct EtatExtraction {
                     ingredientsGeneres = true
                 }
             }
-            if recette.etapes.isEmpty || etapesGenerees {
-                if moteur == .cleExterne, etapesGenerees {
-                    recette.etapes = try ancrages.fusionner(recette.etapes, avec: proposition.etapes)
-                } else {
-                    let etapes = try ancrages.citations(proposition.etapes)
-                    recette.etapes += etapes
-                    etapesGenerees = etapesGenerees || !etapes.isEmpty
-                }
+            if recette.etapes.isEmpty || (moteur == .embarque && etapesGenerees) {
+                let etapes = try ancrages.citations(proposition.etapes)
+                recette.etapes += etapes
+                etapesGenerees = etapesGenerees || !etapes.isEmpty
             }
         } else {
             let extraits = try ancrages.citations(proposition.articles).compactMap { article($0, id: messageID) }
@@ -373,18 +372,6 @@ private struct AncragesExtraction {
 
     func citations(_ propositions: [String]) throws -> [String] {
         try texteDesCitations(plagesDeCitations(propositions))
-    }
-
-    func fusionner(_ existantes: [String], avec nouvelles: [String]) throws -> [String] {
-        var plages = try plagesDeCitations(existantes)
-        let candidates = try plagesDeCitations(nouvelles).sorted {
-            if $0.lowerBound == $1.lowerBound { return $0.upperBound > $1.upperBound }
-            return $0.lowerBound < $1.lowerBound
-        }
-        for candidate in candidates {
-            if !plages.contains(where: { $0.overlaps(candidate) }) { plages.insert(candidate) }
-        }
-        return texteDesCitations(plages)
     }
 
     private func texteDesCitations(_ plages: Set<Range<String.Index>>) -> [String] {
