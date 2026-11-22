@@ -68,7 +68,7 @@ public actor EnvoiCourses {
             etat.enAttente.contains(where: { $0.listeId == etat.liste.id })
         {
             let anciensRappels = try await rappels.lire(destinationId: precedente)
-            _ = reprendre(&etat, rappelsLus: anciensRappels, destinationId: precedente)
+            reprendre(&etat, rappelsLus: anciensRappels, destinationId: precedente)
             try await persister(etat)
             guard !etat.destinationVerrouillee else { throw Erreur.destinationVerrouillee }
             guard !etat.enAttente.contains(where: { $0.listeId == etat.liste.id }) else {
@@ -115,7 +115,7 @@ public actor EnvoiCourses {
             return rapport
         }
 
-        var reprises = reprendre(&etat, rappelsLus: rappelsLus, destinationId: destination)
+        reprendre(&etat, rappelsLus: rappelsLus, destinationId: destination)
         let seuil = etat.liste.premierEnvoiLe ?? avantLecture
         if etat.liste.premierEnvoiLe == nil {
             etat.liste.premierEnvoiLe = seuil
@@ -135,18 +135,12 @@ public actor EnvoiCourses {
                 return rapport
             }
             if index > 0 {
-                reprises = reprendre(&etat, rappelsLus: rappelsActuels, destinationId: destination)
+                reprendre(&etat, rappelsLus: rappelsActuels, destinationId: destination)
             }
             let journal = etat.journal
-            let rapprochements = reprises.filter { _, ecriture in
-                ecriture.listeId == etat.liste.id
-                    && (ecriture.resultat.ligneId == ligne.id || ligne.idsFusionnes.contains(ecriture.resultat.ligneId))
-            }
             let plan = try PlanEnvoi(
                 ligne: ligne, rappels: rappelsActuels,
-                lireArticle: { rappel in
-                    rapprochements[rappel.id]?.article ?? journal.article(du: rappel, destinationId: destination)
-                },
+                lireArticle: { journal.article(du: $0, destinationId: destination) },
                 cocheDepuisPremierEnvoi: { rappel in
                     guard let date = rappel.cocheLe else { return false }
                     return date >= seuil
@@ -175,10 +169,10 @@ public actor EnvoiCourses {
 
             if etat.enAttente.contains(where: { enAttente in
                 enAttente.destinationId == destination
-                    && enAttente.article.nomNormalise == ligne.nomNormalise
-                    && (ligne.unite == nil
-                        || enAttente.resultat.correspond(nom: ligne.nomNormalise, unite: ligne.unite))
-                    && !rapprochements.values.contains { $0.id == enAttente.id }
+                    && (enAttente.titre == ecriture.titre
+                        || (enAttente.article.nomNormalise == ligne.nomNormalise
+                            && (ligne.unite == nil
+                                || enAttente.resultat.correspond(nom: ligne.nomNormalise, unite: ligne.unite))))
             }) {
                 signaler(.ecriture, ligne: ligne, etat: &etat, rapport: &rapport)
                 try await persister(etat)
@@ -189,8 +183,7 @@ public actor EnvoiCourses {
             try await persister(etat)
             let rappel: RappelCourses
             do {
-                rappel = try await rappels.ajouter(
-                    titre: ecriture.titre, destinationId: destination, identifiantEcriture: ecriture.id)
+                rappel = try await rappels.ajouter(titre: ecriture.titre, destinationId: destination)
             } catch let cause as CauseEchecEnvoi {
                 etat.retirerEcriture(ecriture.id)
                 signaler(cause, ligne: ligne, etat: &etat, rapport: &rapport)
@@ -218,30 +211,27 @@ public actor EnvoiCourses {
         try await documents.ecrire(etat, cle: "courses", version: EtatCourses.versionSchemaCourante)
     }
 
-    private func reprendre(
-        _ etat: inout EtatCourses, rappelsLus: [RappelCourses], destinationId: String
-    ) -> [String: EtatCourses.Ecriture] {
-        var rapprochements: [String: EtatCourses.Ecriture] = [:]
-        for ecriture in etat.enAttente where ecriture.destinationId == destinationId {
-            let marques = rappelsLus.filter { $0.identifiantEcriture == ecriture.id }
-            if marques.count == 1, let rappel = marques.first {
-                etat.confirmer(ecriture, rappel: rappel)
-                continue
-            }
+    private func reprendre(_ etat: inout EtatCourses, rappelsLus: [RappelCourses], destinationId: String) {
+        let journal = etat.journal
+        let aRapprocher = etat.enAttente.filter { $0.destinationId == destinationId }.map { ecriture in
             let candidats = rappelsLus.filter { rappel in
-                rappel.identifiantEcriture == nil && rappel.titre == ecriture.titre
-                    && rappel.creeLe.map { $0 >= ecriture.date.debutSeconde } == true
+                rappel.titre == ecriture.titre
                     && !ecriture.rappelsAvant.contains { $0.correspondent(au: rappel) }
-                    && !etat.journal.entrees.contains { $0.rappelId == rappel.id }
+                    && journal.entree(du: rappel, destinationId: destinationId) == nil
+                    && (rappel.creeLe.map { $0 >= ecriture.date || $0 == ecriture.date.debutSeconde } ?? true)
             }
-            if candidats.isEmpty && marques.isEmpty {
+            return (ecriture: ecriture, candidats: candidats)
+        }
+
+        for (ecriture, candidats) in aRapprocher {
+            if candidats.isEmpty {
                 etat.retirerEcriture(ecriture.id)
-            } else if candidats.count == 1, let rappel = candidats.first {
-                // Un titre permet de calculer la couverture. Seul le marqueur prouve l'écriture.
-                rapprochements[rappel.id] = ecriture
+            } else if candidats.count == 1, let rappel = candidats.first, rappel.creeLe != nil,
+                aRapprocher.filter({ $0.candidats.contains(where: { $0.id == rappel.id }) }).count == 1
+            {
+                etat.confirmer(ecriture, rappel: rappel)
             }
         }
-        return rapprochements
     }
 
     private func preparer(

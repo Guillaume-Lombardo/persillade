@@ -45,11 +45,11 @@ public actor MagasinRappelsMemoire: MagasinRappels {
         return contenu[destinationId, default: []]
     }
 
-    public func ajouter(titre: String, destinationId: String, identifiantEcriture: UUID) throws -> RappelCourses {
+    public func ajouter(titre: String, destinationId: String) throws -> RappelCourses {
         try verifierDestination(destinationId)
         guard !ecrituresEnEchec.contains(titre) else { throw CauseEchecEnvoi.ecriture }
         let rappel = RappelCourses(
-            id: UUID().uuidString, titre: titre, creeLe: maintenant(), identifiantEcriture: identifiantEcriture)
+            id: UUID().uuidString, titre: titre, creeLe: maintenant())
         contenu[destinationId, default: []].append(rappel)
         return rappel
     }

@@ -28,11 +28,10 @@ public struct RappelCourses: Equatable, Identifiable, Sendable {
     public let creeLe: Date?
     public let coche: Bool
     public let cocheLe: Date?
-    public let identifiantEcriture: UUID?
 
     public init(
         id: String, idExterne: String? = nil, titre: String, creeLe: Date? = nil,
-        coche: Bool = false, cocheLe: Date? = nil, identifiantEcriture: UUID? = nil
+        coche: Bool = false, cocheLe: Date? = nil
     ) {
         self.id = id
         self.idExterne = idExterne
@@ -40,7 +39,6 @@ public struct RappelCourses: Equatable, Identifiable, Sendable {
         self.creeLe = creeLe
         self.coche = coche
         self.cocheLe = cocheLe
-        self.identifiantEcriture = identifiantEcriture
     }
 }
 
@@ -49,8 +47,7 @@ public protocol MagasinRappels: Sendable {
     func destinations() async throws -> [DestinationRappels]
     func lire(destinationId: String) async throws -> [RappelCourses]
     /// Une erreur typée indique que l'écriture a été rejetée.
-    /// L'identifiant d'écriture est enregistré avec le titre dans la même opération.
-    func ajouter(titre: String, destinationId: String, identifiantEcriture: UUID) async throws -> RappelCourses
+    func ajouter(titre: String, destinationId: String) async throws -> RappelCourses
 }
 
 extension MagasinRappels {

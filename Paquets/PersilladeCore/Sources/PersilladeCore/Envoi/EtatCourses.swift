@@ -111,7 +111,7 @@ public struct EtatCourses: Codable, Equatable, Sendable {
     mutating func confirmer(_ ecriture: Ecriture, rappel: RappelCourses) {
         journal.entrees.append(
             .init(
-                rappelId: rappel.id, rappelIdExterne: rappel.idExterne, identifiantEcriture: ecriture.id,
+                rappelId: rappel.id, rappelIdExterne: rappel.idExterne,
                 destinationId: ecriture.destinationId, listeId: ecriture.listeId, ligneId: ecriture.resultat.ligneId,
                 article: ecriture.article,
                 titreEcrit: ecriture.titre, date: rappel.creeLe ?? ecriture.date))

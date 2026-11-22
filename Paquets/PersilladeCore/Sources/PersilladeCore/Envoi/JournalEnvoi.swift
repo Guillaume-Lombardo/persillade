@@ -73,7 +73,6 @@ public struct JournalEnvoi: Codable, Equatable, Sendable {
     public struct Entree: Codable, Equatable, Sendable {
         public let rappelId: String
         public let rappelIdExterne: String?
-        public let identifiantEcriture: UUID
         public let destinationId: String
         public let listeId: UUID
         public let ligneId: UUID
@@ -84,7 +83,6 @@ public struct JournalEnvoi: Codable, Equatable, Sendable {
         private enum CodingKeys: String, CodingKey {
             case rappelId = "rappel_id"
             case rappelIdExterne = "rappel_id_externe"
-            case identifiantEcriture = "identifiant_ecriture"
             case destinationId = "destination_id"
             case listeId = "liste_id"
             case ligneId = "ligne_id"
@@ -100,19 +98,21 @@ public struct JournalEnvoi: Codable, Equatable, Sendable {
     public init() {}
 
     public func article(du rappel: RappelCourses, destinationId: String? = nil) -> ArticleRappel {
-        let entree =
-            entrees.last { $0.rappelId == rappel.id }
-            ?? rappel.identifiantEcriture.flatMap { identifiant in
-                entrees.last { $0.identifiantEcriture == identifiant }
-            }
+        if let entree = entree(du: rappel, destinationId: destinationId), entree.titreEcrit == rappel.titre {
+            return entree.article
+        }
+        return ArticleRappel(titre: rappel.titre)
+    }
+
+    func entree(du rappel: RappelCourses, destinationId: String?) -> Entree? {
+        entrees.last { $0.rappelId == rappel.id }
             ?? rappel.idExterne.flatMap { identifiant in
+                guard !identifiant.isEmpty else { return nil }
                 let correspondances = entrees.filter {
                     $0.rappelIdExterne == identifiant && (destinationId == nil || $0.destinationId == destinationId)
                 }
                 return correspondances.count == 1 ? correspondances.first : nil
             }
-        if let entree, entree.titreEcrit == rappel.titre { return entree.article }
-        return ArticleRappel(titre: rappel.titre)
     }
 
     private enum CodingKeys: String, CodingKey {

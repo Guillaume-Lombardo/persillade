@@ -270,43 +270,30 @@ struct EnvoiCoursesTests {
         try nettoyer()
     }
 
-    @Test(arguments: [false, true])
-    func coupureApresEventKitRetrouveLEcritureMemeAvecTitreAmbigu(effacerNotes: Bool) async throws {
+    @Test func coupureApresEventKitRetrouveLeRappelUniqueMemeAvecTitreAmbigu() async throws {
         let (_, rappels) = scenario()
         let disque = MagasinDocumentFichiers(dossier: dossier)
-        let interrompu = DocumentsAvecCoupure(disque)
-        let envoi = EnvoiCourses(documents: interrompu, rappels: rappels, maintenant: { Self.seuil })
+        let envoi = EnvoiCourses(documents: DocumentsAvecCoupure(disque), rappels: rappels, maintenant: { Self.seuil })
 
         try await envoi.choisirDestination("courses")
         try await envoi.modifier { liste, _ in try liste.ajouter(ArticleCourses(nom: "5 épices")) }
         await #expect(throws: DocumentsAvecCoupure.Erreur.coupure) { try await envoi.renvoyer() }
-        let rappelsEcrits = try await rappels.lire(destinationId: "courses")
-        #expect(rappelsEcrits.count == 1)
+        let original = try #require(try await rappels.lire(destinationId: "courses").first)
         #expect(try await envoi.lire().journal.entrees.isEmpty)
-        if effacerNotes {
-            let original = try #require(rappelsEcrits.first)
-            await rappels.remplacerRappels(
-                [RappelCourses(id: original.id, titre: original.titre, creeLe: original.creeLe)],
-                destinationId: "courses")
-        }
 
         let relance = service(rappels)
-        if effacerNotes {
-            await #expect(throws: EnvoiCourses.Erreur.ecritureIncertaine) {
-                try await relance.choisirDestination("autre")
-            }
-            #expect(try await relance.renvoyer().ignores.count == 1)
-            #expect(try await rappels.lire(destinationId: "courses").count == 1)
-            #expect(try await relance.lire().journal.entrees.isEmpty)
-            #expect(try await !relance.lire().destinationVerrouillee)
-            await rappels.remplacerRappels(rappelsEcrits, destinationId: "courses")
-        }
         await #expect(throws: EnvoiCourses.Erreur.destinationVerrouillee) {
             try await relance.choisirDestination("autre")
         }
-        #expect(try await relance.renvoyer().ignores.count == 1)
-        #expect(try await rappels.lire(destinationId: "courses").count == 1)
+        try await relance.modifier { liste, _ in
+            try liste.ajouter(ArticleCourses(nom: "épices", quantite: Quantite(5)))
+        }
+        let rapport = try await relance.renvoyer()
+        #expect(rapport.ignores.count == 1)
+        #expect(rapport.ajoutes.count == 1)
+        #expect(try await rappels.lire(destinationId: "courses").map(\.titre) == ["5 épices", "épices 5"])
         let entree = try #require(try await relance.lire().journal.entrees.first)
+        #expect(entree.rappelId == original.id)
         #expect(entree.article.nomNormalise == "5 epice")
         #expect(entree.article.quantite == nil)
 
@@ -314,35 +301,78 @@ struct EnvoiCoursesTests {
         #expect(try await relance.lire().journal.article(du: renomme).nomNormalise == "lait")
         try nettoyer()
     }
-    @Test func unTitreAjouteManuellementApresCoupureNeProuvePasUneEcriture() async throws {
+
+    @Test func coupureAvantEventKitSansCandidatReprendLEcritureUneFois() async throws {
         let (_, rappels) = scenario()
-        let disque = MagasinDocumentFichiers(dossier: dossier)
         let envoi = EnvoiCourses(
-            documents: DocumentsAvecCoupure(disque, avantEventKit: true),
+            documents: DocumentsAvecCoupure(MagasinDocumentFichiers(dossier: dossier), avantEventKit: true),
+            rappels: rappels, maintenant: { Self.seuil })
+        try await envoi.choisirDestination("courses")
+        try await envoi.modifier { liste, _ in try liste.ajouter(ArticleCourses(nom: "sel")) }
+        await #expect(throws: DocumentsAvecCoupure.Erreur.coupure) { try await envoi.renvoyer() }
+
+        let relance = service(rappels)
+        #expect(try await relance.renvoyer().ajoutes.count == 1)
+        #expect(try await relance.renvoyer().ignores.count == 1)
+        #expect(try await rappels.lire(destinationId: "courses").map(\.titre) == ["sel"])
+        try nettoyer()
+    }
+
+    @Test(arguments: [false, true])
+    func douteSurLeTitreNAlterePasLesAutresLignes(dateManquante: Bool) async throws {
+        let (_, rappels) = scenario()
+        let envoi = EnvoiCourses(
+            documents: DocumentsAvecCoupure(MagasinDocumentFichiers(dossier: dossier), avantEventKit: true),
             rappels: rappels, maintenant: { Self.seuil })
         try await envoi.choisirDestination("courses")
         try await envoi.modifier { liste, _ in try liste.ajouter(ArticleCourses(nom: "5 épices")) }
         await #expect(throws: DocumentsAvecCoupure.Erreur.coupure) { try await envoi.renvoyer() }
-        #expect(try await rappels.lire(destinationId: "courses").isEmpty)
-        await rappels.remplacerRappels(
-            [RappelCourses(id: "manuel", titre: "5 épices", creeLe: Self.seuil)], destinationId: "courses")
 
+        let candidat = RappelCourses(id: "manuel", titre: "5 épices", creeLe: dateManquante ? nil : Self.seuil)
+        let autre = RappelCourses(id: "autre", titre: "5 épices", creeLe: Self.seuil)
+        let rappelsManuels = dateManquante ? [candidat] : [candidat, autre]
+        await rappels.remplacerRappels(rappelsManuels, destinationId: "courses")
         let relance = service(rappels)
         try await relance.modifier { liste, _ in
             try liste.ajouter(ArticleCourses(nom: "épices", quantite: Quantite(5)))
         }
         let rapport = try await relance.renvoyer()
-        #expect(rapport.ignores.count == 2)
+        #expect(rapport.ignores.count == 1)
+        #expect(rapport.echecs.map(\.cause) == [.ecriture])
         #expect(rapport.ajoutes.isEmpty)
-        #expect(try await rappels.lire(destinationId: "courses").map(\.id) == ["manuel"])
+        #expect(try await rappels.lire(destinationId: "courses") == rappelsManuels)
         #expect(try await relance.lire().journal.entrees.isEmpty)
-        #expect(try await !relance.lire().destinationVerrouillee)
         await #expect(throws: EnvoiCourses.Erreur.ecritureIncertaine) {
             try await relance.choisirDestination("autre")
         }
-        await rappels.remplacerRappels([], destinationId: "courses")
-        try await relance.choisirDestination("autre")
-        #expect(try await relance.lire().destinationId == "autre")
+
+        await rappels.remplacerRappels([autre], destinationId: "courses")
+        await #expect(throws: EnvoiCourses.Erreur.destinationVerrouillee) {
+            try await relance.choisirDestination("autre")
+        }
+        #expect(try await rappels.lire(destinationId: "courses") == [autre])
+        #expect(try await relance.lire().journal.entrees.map(\.rappelId) == [autre.id])
+        try nettoyer()
+    }
+
+    @Test func unRappelAnterieurAuRecuNEstPasRapproche() async throws {
+        let (_, rappels) = scenario()
+        let envoi = EnvoiCourses(
+            documents: DocumentsAvecCoupure(MagasinDocumentFichiers(dossier: dossier), avantEventKit: true),
+            rappels: rappels, maintenant: { Self.seuil })
+        let dejaPresent = RappelCourses(id: "avant", titre: "5 épices", creeLe: Self.seuil)
+        let creeAvant = RappelCourses(id: "ancien", titre: "5 épices", creeLe: Self.seuil.addingTimeInterval(-1))
+        await rappels.remplacerRappels([dejaPresent], destinationId: "courses")
+        try await envoi.choisirDestination("courses")
+        try await envoi.modifier { liste, _ in try liste.ajouter(ArticleCourses(nom: "5 épices")) }
+        await #expect(throws: DocumentsAvecCoupure.Erreur.coupure) { try await envoi.renvoyer() }
+        await rappels.remplacerRappels([dejaPresent, creeAvant], destinationId: "courses")
+        let relance = service(rappels)
+        #expect(try await relance.renvoyer().ajoutes.count == 1)
+        let ids = try await relance.lire().journal.entrees.map(\.rappelId)
+        #expect(ids.count == 1)
+        #expect(!ids.contains(dejaPresent.id))
+        #expect(!ids.contains(creeAvant.id))
         try nettoyer()
     }
 

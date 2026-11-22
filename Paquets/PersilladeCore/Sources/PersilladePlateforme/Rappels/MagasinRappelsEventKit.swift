@@ -4,7 +4,6 @@ import PersilladeCore
 
 @MainActor
 public final class MagasinRappelsEventKit: MagasinRappels {
-    private nonisolated static let prefixeEcriture = "Persillade : "
     private let magasin = EKEventStore()
 
     public init() {}
@@ -35,12 +34,11 @@ public final class MagasinRappelsEventKit: MagasinRappels {
         return rappels
     }
 
-    public func ajouter(titre: String, destinationId: String, identifiantEcriture: UUID) async throws -> RappelCourses {
+    public func ajouter(titre: String, destinationId: String) async throws -> RappelCourses {
         try await autoriser()
         let rappel = EKReminder(eventStore: magasin)
         rappel.calendar = try calendrierModifiable(destinationId)
         rappel.title = titre
-        rappel.notes = Self.prefixeEcriture + identifiantEcriture.uuidString
         do {
             try magasin.save(rappel, commit: true)
         } catch {
@@ -95,13 +93,9 @@ public final class MagasinRappelsEventKit: MagasinRappels {
     }
 
     private nonisolated static func convertir(_ rappel: EKReminder) -> RappelCourses {
-        let identifiantEcriture = rappel.notes.flatMap { notes -> UUID? in
-            guard notes.hasPrefix(prefixeEcriture) else { return nil }
-            return UUID(uuidString: String(notes.dropFirst(prefixeEcriture.count)))
-        }
         return RappelCourses(
             id: rappel.calendarItemIdentifier, idExterne: rappel.calendarItemExternalIdentifier,
             titre: rappel.title ?? "", creeLe: rappel.creationDate, coche: rappel.isCompleted,
-            cocheLe: rappel.completionDate, identifiantEcriture: identifiantEcriture)
+            cocheLe: rappel.completionDate)
     }
 }
