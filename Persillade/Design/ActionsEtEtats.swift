@@ -78,10 +78,11 @@ struct BoutonActionPersillade: View {
             if let symbole, !taille.isAccessibilitySize {
                 Image(systemName: symbole).accessibilityHidden(true)
             }
-            Text(libelle).multilineTextAlignment(.center)
+            Text(libelle)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
         }
         .typographie(.bouton)
-        .lineLimit(2)
         .fixedSize(horizontal: false, vertical: true)
     }
 }
