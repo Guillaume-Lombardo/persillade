@@ -193,11 +193,12 @@ func corpusPages(nom: String, titre: String, portions: Int, ingredients: Int, et
 }
 
 @Test func listeSansEnteteConserveTitreEtIngredientsNonDoses() async throws {
-    let contenu = texteRecu("Cake\n2 œufs\nfarine\n100 g de beurre\n1. Fouetter les œufs.")
+    let contenu = texteRecu("Cake\n2 œufs\nfarine\n1. 100 g de beurre\n2. Fouetter les œufs.")
     let resultat = try await Extracteur().extraire(contenu, cible: .recette)
     #expect(resultat.statut == .complet)
     #expect(resultat.recette?.titre == "Cake")
     #expect(resultat.recette?.ingredients.map(\.nom) == ["œufs", "farine", "beurre"])
+    #expect(resultat.recette?.ingredients.last?.texteOrigine == "1. 100 g de beurre")
     #expect(resultat.recette?.etapes == ["Fouetter les œufs."])
 }
 

@@ -87,7 +87,10 @@ struct AnalyseTexteRecette {
 
             let sansNumero = ligne.remplacer(Self.numeroEtape, par: "").epure
             let etapeVerbale = sansNumero.correspond(Self.verbeEtape)
-            if section == .etapes || etapeVerbale || (!ingredientsExplicites && sansNumero != ligne) {
+            let numerotee = sansNumero != ligne
+            let ingredientNumerote = section == .ingredients && numerotee ? AnalyseIngredient.analyser(sansNumero) : nil
+            let ingredientDose = ingredientNumerote?.quantite != nil && ingredientNumerote?.ligneNonComprise == false
+            if section == .etapes || etapeVerbale || (numerotee && !ingredientsExplicites && !ingredientDose) {
                 section = .etapes
                 if !sansNumero.isEmpty {
                     recette.etapes.append(sansNumero)
@@ -97,12 +100,13 @@ struct AnalyseTexteRecette {
                 continue
             }
 
-            var ingredient = AnalyseIngredient.analyser(enteteTrouvee ? ligne : origine)
-            if section == .ingredients, sansNumero != ligne {
-                let analyse = AnalyseIngredient.analyser(sansNumero)
+            let ingredient: BrouillonIngredient
+            if let analyse = ingredientNumerote {
                 ingredient = BrouillonIngredient(
                     nom: analyse.nom, quantite: analyse.quantite, unite: analyse.unite,
                     texteOrigine: origine, ligneNonComprise: analyse.ligneNonComprise)
+            } else {
+                ingredient = AnalyseIngredient.analyser(enteteTrouvee ? ligne : origine)
             }
             let ligneIngredient = ingredient.quantite != nil || ingredient.ligneNonComprise
             let nomSeul = section == .ingredients && (ingredientsExplicites || Self.titrePlausible(ligne))
