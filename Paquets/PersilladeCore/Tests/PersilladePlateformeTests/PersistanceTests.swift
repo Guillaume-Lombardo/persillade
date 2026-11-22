@@ -59,7 +59,7 @@ import Testing
         try await magasin.lire([String].self, cle: "liste", version: 1)
     }
     try await magasin.ecrire(["Sel"], cle: "liste", version: 2)
-    try await magasin.ecrire(["Farine"], cle: "semaine", version: 1)
+    try await magasin.ecrire(["Farine"], cle: "LISTE", version: 1)
     await #expect(throws: ErreurMagasinDocument.versionInconnue(2)) {
         try await magasin.lire([String].self, cle: "liste", version: 1)
     }
@@ -69,7 +69,7 @@ import Testing
 
     let relance = MagasinDocumentFichiers(dossier: dossier)
     #expect(try await relance.lire([String].self, cle: "liste", version: 2) == ["Sel"])
-    #expect(try await relance.lire([String].self, cle: "semaine", version: 1) == ["Farine"])
+    #expect(try await relance.lire([String].self, cle: "LISTE", version: 1) == ["Farine"])
     try await relance.ecrire(["Poivre"], cle: "liste", version: 2)
     #expect(try await magasin.lire([String].self, cle: "liste", version: 2) == ["Poivre"])
 }
@@ -80,7 +80,7 @@ func sauvegardeUnDocumentCorrompuAvantRecuperation(ecriture: Bool) async throws 
     try FileManager.default.createDirectory(at: dossier, withIntermediateDirectories: true)
     defer { try! FileManager.default.removeItem(at: dossier) }
     let corrompu = Data(#"{"version_schema":1,"document":false}"#.utf8)
-    try corrompu.write(to: dossier.appending(path: "liste.json"))
+    try corrompu.write(to: dossier.appending(path: "6c69737465.json"))
     let magasin = MagasinDocumentFichiers(dossier: dossier)
 
     do {

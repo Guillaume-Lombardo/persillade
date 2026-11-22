@@ -43,20 +43,11 @@ public actor FileEntree {
         try avecDossier { dossier, fichiers in
             var contenus: [ContenuRecu] = []
             var illisibles: [URL] = []
-            let decodeur = JSONDecoder()
             // Le préfixe attribué sous coordination suit l'ordre de dépôt des deux processus.
             for fichier in fichiers.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
-                let donnees = try Data(contentsOf: fichier)
-                do {
-                    let contenu = try decodeur.decode(ContenuRecu.self, from: donnees)
-                    if Self.ordre(fichier) != nil,
-                        fichier.lastPathComponent.hasSuffix("-\(contenu.id.uuidString).json")
-                    {
-                        contenus.append(contenu)
-                        continue
-                    }
-                } catch is DecodingError {
-                    // Les octets d'origine restent disponibles dans le dossier des illisibles.
+                if let contenu = try Self.decoder(fichier) {
+                    contenus.append(contenu)
+                    continue
                 }
                 let quarantaine = dossier.appending(path: "Illisibles", directoryHint: .isDirectory)
                 try FileManager.default.createDirectory(at: quarantaine, withIntermediateDirectories: true)
@@ -88,6 +79,19 @@ public actor FileEntree {
             )
             .filter { $0.pathExtension == "json" }
             return try operation(dossier, fichiers)
+        }
+    }
+
+    private static func decoder(_ fichier: URL) throws -> ContenuRecu? {
+        guard ordre(fichier) != nil,
+            try fichier.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true
+        else { return nil }
+        let donnees = try Data(contentsOf: fichier)
+        do {
+            let contenu = try JSONDecoder().decode(ContenuRecu.self, from: donnees)
+            return fichier.lastPathComponent.hasSuffix("-\(contenu.id.uuidString).json") ? contenu : nil
+        } catch is DecodingError {
+            return nil
         }
     }
 

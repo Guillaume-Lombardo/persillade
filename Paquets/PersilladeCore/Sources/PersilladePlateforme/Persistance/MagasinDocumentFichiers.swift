@@ -55,7 +55,9 @@ public actor MagasinDocumentFichiers: MagasinDocument {
         guard !cle.isEmpty, cle.allSatisfy({ caracteres.contains($0) }) else {
             throw ErreurMagasinDocument.cleInvalide(cle)
         }
-        return dossier.appending(path: cle + ".json", directoryHint: .notDirectory)
+        // Le nom reste distinct même sur un volume insensible à la casse.
+        let nom = cle.utf8.map { String(format: "%02x", $0) }.joined()
+        return dossier.appending(path: nom + ".json", directoryHint: .notDirectory)
     }
 
     private func decoder<Document: Codable>(

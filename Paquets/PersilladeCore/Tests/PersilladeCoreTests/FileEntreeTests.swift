@@ -31,15 +31,21 @@ import Testing
     try FileManager.default.createDirectory(at: dossier, withIntermediateDirectories: true)
     defer { try! FileManager.default.removeItem(at: dossier) }
     let donnees = Data("{".utf8)
-    try donnees.write(to: dossier.appending(path: "interrompu.json"))
+    let suffixe = UUID().uuidString + ".json"
+    try donnees.write(to: dossier.appending(path: "00000000000000000001-" + suffixe))
+    try FileManager.default.createDirectory(
+        at: dossier.appending(path: "00000000000000000002-" + suffixe), withIntermediateDirectories: false)
     let valide = try #require(ContenuRecu(texte: "Sel", origine: .feuillePartage))
     let file = FileEntree(dossier: dossier)
     try await file.deposer(valide)
 
     let lecture = try await file.lire()
     #expect(lecture.contenus == [valide])
+    #expect(lecture.fichiersIllisibles.count == 2)
     let copie = try #require(lecture.fichiersIllisibles.first)
     #expect(try Data(contentsOf: copie) == donnees)
+    let repertoire = try #require(lecture.fichiersIllisibles.last)
+    #expect(try repertoire.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true)
     let suivante = try await file.lire()
     #expect(suivante.contenus == [valide])
     #expect(suivante.fichiersIllisibles.isEmpty)
