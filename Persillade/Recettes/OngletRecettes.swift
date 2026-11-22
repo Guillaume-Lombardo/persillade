@@ -152,8 +152,10 @@ struct OngletRecettes: View {
             VStack(spacing: GrillePersillade.pas * 2) {
                 CommandeRecettes(
                     titre: "Coller un lien ou un texte", symbole: "document.on.clipboard", principale: true,
-                    action: coller)
-                CommandeRecettes(titre: "Prendre une photo", symbole: "camera", action: prendrePhoto)
+                    hauteurLibelle: GrillePersillade.pas * 8, action: coller)
+                CommandeRecettes(
+                    titre: "Prendre une photo", symbole: "camera",
+                    hauteurLibelle: GrillePersillade.pas * 8, action: prendrePhoto)
             }
             .dynamicTypeSize(...DynamicTypeSize.accessibility1)
             .tint(CouleurPersillade.persil.couleur)

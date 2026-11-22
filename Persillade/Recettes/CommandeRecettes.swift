@@ -4,6 +4,7 @@ struct CommandeRecettes: View {
     let titre: String
     var symbole: String?
     var principale = false
+    var hauteurLibelle: CGFloat = GrillePersillade.cible
     let action: () -> Void
 
     @Environment(\.dynamicTypeSize) private var taille
@@ -34,7 +35,7 @@ struct CommandeRecettes: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .typographie(.bouton)
-            .frame(maxWidth: .infinity, minHeight: GrillePersillade.pas * 8)
+            .frame(maxWidth: .infinity, minHeight: hauteurLibelle)
         }
     }
 }
