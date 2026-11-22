@@ -285,6 +285,7 @@ struct BilanEnvoiCourses: View {
                 ActionSecondaireCourses(
                     libelle: "Ouvrir Rappels", symbole: "arrow.up.forward.app", action: ouvrirListeRappels
                 )
+                .layoutPriority(1)
                 BoutonActionPersillade(
                     "Terminé", symbole: "checkmark",
                     progression: envoiEnCours ? session.progressionEnvoi ?? 0 : nil, action: terminer)
