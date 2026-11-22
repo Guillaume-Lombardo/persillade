@@ -8,8 +8,8 @@
             let app = XCUIApplication()
             app.launchArguments = ["-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"]
             app.launchEnvironment["PERSILLADE_TEST_SESSION"] = UUID().uuidString
-            app.launch()
             app.resetAuthorizationStatus(for: .camera)
+            app.launch()
 
             toucher(app.buttons["Prendre une photo"])
             let erreur = app.descendants(matching: .any)["photo-erreur"].firstMatch
