@@ -52,12 +52,18 @@ public actor MagasinDocumentFichiers: MagasinDocument {
 
     private func fichier(cle: String) throws -> URL {
         let caracteres = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
-        guard !cle.isEmpty, cle.allSatisfy({ caracteres.contains($0) }) else {
+        guard (1...250).contains(cle.utf8.count), cle.allSatisfy({ caracteres.contains($0) }) else {
             throw ErreurMagasinDocument.cleInvalide(cle)
         }
-        // Le nom reste distinct même sur un volume insensible à la casse.
+        // L'encodage distingue les casses. Les segments laissent de la place au suffixe de quarantaine.
         let nom = cle.utf8.map { String(format: "%02x", $0) }.joined()
-        return dossier.appending(path: nom + ".json", directoryHint: .notDirectory)
+        var repertoire = dossier
+        var reste = nom[...]
+        while reste.count > 128 {
+            repertoire.append(path: String(reste.prefix(128)), directoryHint: .isDirectory)
+            reste = reste.dropFirst(128)
+        }
+        return repertoire.appending(path: reste + ".json", directoryHint: .notDirectory)
     }
 
     private func decoder<Document: Codable>(
