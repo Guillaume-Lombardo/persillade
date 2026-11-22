@@ -136,7 +136,10 @@
             let coller = app.buttons["coller-presse-papiers"]
             XCTAssertTrue(coller.waitForExistence(timeout: 5), app.debugDescription)
             coller.tap()
-            app.buttons["Continuer"].tap()
+            let continuer = app.buttons["Continuer"]
+            let prete = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: continuer)
+            XCTAssertEqual(XCTWaiter.wait(for: [prete], timeout: 5), .completed, app.debugDescription)
+            continuer.tap()
             XCTAssertTrue(app.navigationBars["Destination"].waitForExistence(timeout: 5), app.debugDescription)
         }
 

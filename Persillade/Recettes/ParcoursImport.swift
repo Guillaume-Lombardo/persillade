@@ -14,6 +14,7 @@ struct ParcoursImport: View {
     let importerArticles: ((ContenuRecu) -> Void)?
 
     @Environment(\.displayScale) private var echelle
+    @Environment(\.dynamicTypeSize) private var taille
     @State private var etape: Etape
     @State private var recu: ContenuRecu?
     @State private var resultat: ResultatExtraction?
@@ -39,52 +40,10 @@ struct ParcoursImport: View {
 
     var body: some View {
         NavigationStack {
-            switch etape {
-            case .coller:
-                FeuilleCollage(
-                    texteSeulement: recu != nil, texteInitial: texteDeRepli ?? "", valider: accepterCollage
-                )
-                .navigationTitle(recu == nil ? "Coller" : "Coller le texte")
-                .toolbar { boutonFermer }
-            case .destination:
-                if let recu {
-                    destination(recu)
-                        .navigationTitle("Destination")
-                        .toolbar { boutonFermer }
-                }
-            case .lecture:
-                ProgressView("Lecture de la recette")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .navigationTitle("Import de la recette")
-                    .barreAction { BoutonActionPersillade("Annuler") { etape = .destination } }
-                    .task { await lire() }
-            case .echec:
-                ecranEchec
-                    .navigationTitle("Import de la recette")
-                    .toolbar { boutonFermer }
-            case .correction:
-                if let recu, let resultat {
-                    CorrectionRecette(
-                        donnees: .init(id: recu.id, resultat: resultat, url: lienRecu),
-                        fermer: fermer
-                    ) { recette in
-                        if recetteEnregistree == nil {
-                            try await bibliotheque.enregistrer(recette, modification: false, echelle: echelle)
-                            recetteEnregistree = recette.id
-                        }
-                        do {
-                            try await reception.retirer(recu)
-                        } catch {
-                            throw ErreurClotureImport.retrait
-                        }
-                        terminer(recette.id)
-                    }
-                }
-            }
+            contenuEtape.navigationBarTitleDisplayMode(.inline)
         }
-        .navigationBarTitleDisplayMode(.inline)
         .tint(CouleurPersillade.persil.couleur)
-        .presentationDetents(etape == .correction ? [.large] : [.medium, .large])
+        .presentationDetents(etape == .correction || taille >= .accessibility3 ? [.large] : [.medium, .large])
         .interactiveDismissDisabled(occupation || etape == .lecture || etape == .correction)
         .alert(
             "Import de la recette",
@@ -96,6 +55,50 @@ struct ParcoursImport: View {
         }
     }
 
+    @ViewBuilder private var contenuEtape: some View {
+        switch etape {
+        case .coller:
+            FeuilleCollage(
+                texteSeulement: recu != nil, texteInitial: texteDeRepli ?? "", valider: accepterCollage
+            )
+            .navigationTitle(recu == nil ? "Coller" : "Coller le texte")
+            .toolbar { boutonFermer }
+        case .destination:
+            if let recu {
+                destination(recu)
+                    .navigationTitle("Destination")
+                    .toolbar { boutonFermer }
+            }
+        case .lecture:
+            ProgressView("Lecture de la recette")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .navigationTitle("Import de la recette")
+                .barreAction { BoutonActionPersillade("Annuler") { etape = .destination } }
+                .task { await lire() }
+        case .echec:
+            ecranEchec
+                .navigationTitle("Import de la recette")
+                .toolbar { boutonFermer }
+        case .correction:
+            if let recu, let resultat {
+                CorrectionRecette(
+                    donnees: .init(id: recu.id, resultat: resultat, url: lienRecu),
+                    fermer: fermer
+                ) { recette in
+                    if recetteEnregistree == nil {
+                        try await bibliotheque.enregistrer(recette, modification: false, echelle: echelle)
+                        recetteEnregistree = recette.id
+                    }
+                    do {
+                        try await reception.retirer(recu)
+                    } catch {
+                        throw ErreurClotureImport.retrait
+                    }
+                    terminer(recette.id)
+                }
+            }
+        }
+    }
     private var texteDeRepli: String? {
         recu.flatMap { reception.textesDeRepli[$0.id] }
     }
