@@ -1,0 +1,624 @@
+{
+  "backlog": {
+    "mvp_user_stories": [
+      {
+        "id": "s6_us1",
+        "statement": "En tant qu'utilisateur principal, j'importe une recette depuis un lien web pour l'enregistrer au format standard.",
+        "objective": "Importer une recette web, de la saisie du lien jusqu'à l'enregistrement, en moins de 1 minute, correction comprise.",
+        "definition_of_done": "Un lien web, partagé ou collé, est téléchargé par l'app (pas par l'extension). Si la page contient des données structurées de recette (JSON-LD schema.org/Recipe), elles sont utilisées d'abord ; sinon le texte nettoyé de la page passe par la chaîne d'extraction (ct-extraction). L'écran de correction pré-rempli s'affiche toujours avant l'enregistrement. Page inaccessible, hors ligne ou délai de 15 s dépassé : message clair et collage du texte proposé, lien conservé. Le temps est inférieur à 1 minute, correction comprise, sur des recettes web réelles du foyer ; les échecs complets sont chronométrés et rapportés à part (jalon J1).",
+        "link": "stage_4_impact_mapping:value_hypotheses:1",
+        "capability": "Import de recette par lien web",
+        "ears_criteria": [
+          "WHEN l'utilisateur partage ou colle un lien web de recette THE SYSTEM SHALL lancer l'extraction et afficher l'écran de correction pré-rempli avec le texte source visible",
+          "WHEN la page contient des données structurées de recette THE SYSTEM SHALL les utiliser avant tout appel à l'IA",
+          "WHEN la page est inaccessible ou l'iPhone hors ligne THE SYSTEM SHALL afficher la cause, conserver le lien et proposer de coller le texte"
+        ]
+      },
+      {
+        "id": "s6_us2",
+        "statement": "En tant qu'utilisateur principal, j'importe une recette depuis un texte collé ou partagé via l'extension de partage iOS.",
+        "objective": "Importer une recette texte en moins de 1 minute, correction comprise.",
+        "definition_of_done": "Un texte collé, ou partagé via l'extension de partage iOS, est extrait, corrigeable et enregistré. Le temps est inférieur à 1 minute, correction comprise, sur des recettes texte réelles ; les échecs complets sont chronométrés et rapportés à part (jalon J1).",
+        "link": "stage_4_impact_mapping:value_hypotheses:1",
+        "capability": "Import de recette par texte collé ou partagé (extension de partage iOS)",
+        "ears_criteria": [
+          "WHEN l'utilisateur partage un texte vers l'app via l'extension de partage iOS THE SYSTEM SHALL lancer l'extraction de la recette"
+        ]
+      },
+      {
+        "id": "s6_us3",
+        "statement": "En tant qu'utilisateur principal, j'importe une recette par photo (page de livre, magazine, fiche manuscrite).",
+        "objective": "Importer une recette photo en moins de 2 minutes, correction comprise.",
+        "definition_of_done": "Une photo prise dans l'app ou choisie dans la photothèque est lue par reconnaissance de texte sur l'iPhone (Vision), puis suit ct-extraction. L'entrée image directe du modèle embarqué n'est utilisée que si s6_sp1 montre qu'elle fonctionne sur l'iPhone 15 Pro et fait mieux. Accès photo refusé ou aucun texte lu : message clair et correction manuelle. Le temps est inférieur à 2 minutes, correction comprise, sur des pages de livre, de magazine et des fiches manuscrites réelles ; les échecs complets sont rapportés à part.",
+        "link": "stage_1_problem_framing:measurable_objectives:2",
+        "capability": "Import de recette par photo (page de livre, magazine, fiche manuscrite)",
+        "ears_criteria": [
+          "WHEN l'utilisateur prend ou choisit une photo de recette THE SYSTEM SHALL en extraire le texte sur l'iPhone et afficher l'écran de correction pré-rempli",
+          "WHEN aucun texte n'est lu sur la photo THE SYSTEM SHALL l'indiquer et ouvrir l'écran de correction vide avec la photo visible"
+        ]
+      },
+      {
+        "id": "s6_us4",
+        "statement": "En tant qu'utilisateur principal, j'ajoute des articles ou des recettes depuis des messages partagés ou copiés (SMS, WhatsApp, Messenger).",
+        "objective": "Intégrer les messages reçus comme sources de la liste de la semaine.",
+        "definition_of_done": "Un message partagé par la feuille de partage quand l'app source le permet, sinon collé, est traité selon le choix de l'utilisateur : articles (extraits et intégrés à la liste en cours selon ct-liste-courses) ou recette (import texte, s6_us2). Sans IA disponible, chaque ligne du message devient un article à corriger. Les articles extraits sont affichés pour validation avant intégration. Testé avec des messages réels de SMS, WhatsApp et Messenger ; le mode disponible (partage ou collage) est noté pour chaque app.",
+        "link": "stage_4_impact_mapping:value_hypotheses:0",
+        "capability": "Import d'articles ou de recettes depuis des messages partagés ou copiés (SMS, WhatsApp, Messenger)",
+        "ears_criteria": [
+          "WHEN l'utilisateur partage ou colle un message THE SYSTEM SHALL en extraire les articles et les proposer comme source de la liste fusionnée",
+          "WHEN l'IA embarquée est indisponible THE SYSTEM SHALL proposer un article par ligne du message"
+        ]
+      },
+      {
+        "id": "s6_us5",
+        "statement": "En tant qu'utilisateur principal, je fais extraire et standardiser les ingrédients et les étapes par l'IA embarquée Apple, avec repli par clé utilisateur, sinon correction manuelle.",
+        "objective": "Produire automatiquement une recette standardisée (ingrédients, quantités, unités, étapes, portions) sans appel externe payé par le porteur.",
+        "definition_of_done": "L'extraction locale suit ct-extraction : analyse déterministe d'abord, IA embarquée ensuite, sans envoi hors de l'iPhone. Les statuts complet, partiel et échec suivent les critères écrits du contrat et chacun a un test. IA indisponible (désactivée, modèle non téléchargé, appareil non compatible) et contenu trop long sont testés. Aucun appel externe n'existe dans cette tranche ; le repli par clé est ajouté par s6_us15.",
+        "link": "stage_4_impact_mapping:value_hypotheses:1",
+        "capability": "Extraction et standardisation des ingrédients et des étapes par l'IA embarquée Apple (repli par clé utilisateur, sinon correction manuelle)",
+        "ears_criteria": [
+          "WHEN l'extraction par l'IA embarquée échoue ou est partielle et qu'aucune clé n'est activée THE SYSTEM SHALL afficher l'écran de correction pré-rempli avec le texte source visible",
+          "WHEN l'IA embarquée est indisponible THE SYSTEM SHALL l'indiquer et poursuivre avec l'analyse déterministe puis la correction manuelle"
+        ]
+      },
+      {
+        "id": "s6_us6",
+        "statement": "En tant qu'utilisateur principal, je corrige la recette standardisée à l'import, et je modifie plus tard une recette enregistrée, sur le même écran, champ par champ.",
+        "objective": "Rendre la correction assez rapide pour tenir les cibles de 1 minute (texte ou web) et de 2 minutes (photo), et permettre de modifier facilement une recette enregistrée.",
+        "definition_of_done": "L'écran affiche le texte source à côté des champs pré-remplis : titre, portions, ingrédients avec quantité et unité, étapes. Chaque champ est modifiable ; ingrédients et étapes peuvent être ajoutés, supprimés et réordonnés. Une valeur supposée (portions absentes) est signalée. L'enregistrement produit une recette au format standard. Depuis la bibliothèque, le même écran rouvre une recette enregistrée et l'enregistre sans changer son identifiant. Quitter avec des changements non enregistrés demande confirmation. Modifier une recette ne change pas une liste déjà générée.",
+        "link": "stage_4_impact_mapping:value_hypotheses:1",
+        "capability": "Correction manuelle de la recette standardisée, avec écran pré-rempli, texte source visible et édition champ par champ",
+        "ears_criteria": [
+          "WHEN l'utilisateur enregistre l'écran de correction THE SYSTEM SHALL enregistrer une recette conforme à ct-recette-standard",
+          "WHEN l'utilisateur modifie une recette de la bibliothèque THE SYSTEM SHALL la mettre à jour sans créer de doublon"
+        ]
+      },
+      {
+        "id": "s6_us7",
+        "statement": "En tant qu'utilisateur principal, je consulte, recherche par titre, supprime et sélectionne plusieurs recettes avec leurs portions pour la liste.",
+        "objective": "Choisir rapidement les recettes de la semaine (environ 5) et leurs portions.",
+        "definition_of_done": "La bibliothèque liste les recettes enregistrées. Elle permet la recherche par titre (sans tenir compte des accents ni de la casse), l'ouverture, la suppression avec confirmation et la sélection multiple avec un nombre de portions par recette. La sélection alimente la génération de la liste. Les recettes survivent à la fermeture et à la mise à jour de l'app.",
+        "link": "stage_4_impact_mapping:value_hypotheses:0",
+        "capability": "Bibliothèque de recettes minimale : liste, recherche par titre, suppression, sélection multiple avec portions pour la liste",
+        "ears_criteria": [
+          "WHEN l'utilisateur sélectionne des recettes et leurs portions THE SYSTEM SHALL fournir la sélection de la semaine à la génération de la liste",
+          "WHEN l'app est relancée THE SYSTEM SHALL restituer toutes les recettes enregistrées"
+        ]
+      },
+      {
+        "id": "s6_us8",
+        "statement": "En tant qu'utilisateur principal, j'adapte les quantités d'une recette au nombre de portions choisi.",
+        "objective": "Obtenir des quantités justes dans la liste sans calcul manuel.",
+        "definition_of_done": "Les quantités sont recalculées au prorata des portions, en fractions exactes et sans arrondi. L'arrondi se fait après la fusion (s6_us10). Dans l'affichage d'une recette seule, un article à la pièce est arrondi au supérieur. Des tests couvrent 1,5 œuf affiché 2 dans la recette, deux recettes à 1,5 œuf qui donnent 3 dans la liste, trois contributions de 1/3 œuf qui donnent 1, et un ajout à une ligne déjà affichée arrondie.",
+        "link": "stage_4_impact_mapping:value_hypotheses:0",
+        "capability": "Mise à l'échelle simple selon le nombre de portions",
+        "ears_criteria": [
+          "WHEN la mise à l'échelle produit une fraction pour un article à l'unité THE SYSTEM SHALL conserver la fraction jusqu'à la fusion puis arrondir la ligne fusionnée au supérieur"
+        ]
+      },
+      {
+        "id": "s6_us9",
+        "statement": "En tant qu'utilisateur principal, je cuisine une recette en suivi pas à pas.",
+        "objective": "Cuisiner plus confortablement (hypothèse de confort, sans objectif chiffré).",
+        "definition_of_done": "Une recette enregistrée s'affiche étape par étape, avec un passage à l'étape suivante et à l'étape précédente. L'écran reste allumé pendant le suivi. Tranche reportable selon le plan de coupe (s5_d1), ou en premier selon l'exception s5_d3.",
+        "link": "stage_4_impact_mapping:value_hypotheses:4",
+        "capability": "Suivi pas à pas de la recette",
+        "ears_criteria": [
+          "WHEN l'utilisateur passe à l'étape suivante ou précédente THE SYSTEM SHALL afficher cette étape et sa position dans la recette"
+        ]
+      },
+      {
+        "id": "s6_us10",
+        "statement": "En tant qu'utilisateur principal, j'obtiens une liste de courses unique et cochable, fusionnée depuis les recettes sélectionnées, et prête à recevoir d'autres sources (messages, ajouts manuels).",
+        "objective": "Générer automatiquement la liste d'une semaine type et la rendre prête en moins de 2 minutes.",
+        "definition_of_done": "La liste fusionne les recettes après mise à l'échelle selon ct-liste-courses : unités comparables converties puis additionnées, variantes de nom sur des lignes distinctes, arrondi après fusion. Les messages sont intégrés par s6_us4. Cocher une ligne dans l'app signifie « à ne pas envoyer » (par exemple déjà à la maison). Les messages et ajouts intégrés avant les recettes sont conservés à la génération si la liste n'est pas envoyée. L'écran de la liste propose « Nouvelle liste ». Une génération qui remplace des lignes de recettes ou une liste envoyée demande confirmation (ct-liste-courses). Des tests couvrent chaque ligne de la table de fusion.",
+        "link": "stage_4_impact_mapping:value_hypotheses:0",
+        "capability": "Liste de courses unique, fusionnée depuis plusieurs recettes et messages, cochable",
+        "ears_criteria": [
+          "WHEN deux lignes portent le même nom normalisé avec des unités comparables THE SYSTEM SHALL convertir puis additionner les quantités sur une seule ligne",
+          "WHEN deux articles sont des variantes de nom THE SYSTEM SHALL les conserver sur des lignes distinctes",
+          "WHEN une ligne est cochée dans l'app THE SYSTEM SHALL l'exclure des envois vers Rappels"
+        ]
+      },
+      {
+        "id": "s6_us11",
+        "statement": "En tant qu'utilisateur principal, je vois les articles regroupés par catégorie selon une liste fixe, et je peux changer la catégorie d'un article.",
+        "objective": "Rendre la liste lisible dans l'app.",
+        "definition_of_done": "Chaque article reçoit une catégorie de la liste fixe (ct-categories), « Autres » par défaut. L'utilisateur peut la changer. Le regroupement est affiché dans l'app. Aucun regroupement n'est exigé dans Rappels : le tri automatique d'une liste Rappels de type Courses est un bonus, constaté ou non par s6_sp2.",
+        "link": "stage_4_impact_mapping:value_hypotheses:2",
+        "capability": "Regroupement des articles par catégorie (liste fixe prédéfinie), avec changement de catégorie d'un article",
+        "ears_criteria": [
+          "WHEN un article est inconnu du dictionnaire THE SYSTEM SHALL le classer dans « Autres »",
+          "WHEN l'utilisateur change la catégorie d'un article THE SYSTEM SHALL l'afficher dans la nouvelle catégorie"
+        ]
+      },
+      {
+        "id": "s6_us12",
+        "statement": "En tant qu'utilisateur principal, je retouche la liste avant l'envoi en retirant des articles ou en modifiant des quantités.",
+        "objective": "Ajuster la liste en quelques secondes sans la reconstruire.",
+        "definition_of_done": "Chaque ligne peut être retirée ou voir sa quantité modifiée. Les modifications sont conservées après relance de l'app et reflétées dans le prochain envoi. Après un premier envoi, retirer une ligne ou baisser une quantité ne change rien dans Rappels, et l'app le signale ; augmenter une quantité est couvert par le renvoi (s6_us16), qui ajoute le complément. Les ingrédients de base (sel, huile) se retirent ou se cochent à la main en V1.",
+        "link": "stage_4_impact_mapping:value_hypotheses:0",
+        "capability": "Retouche de la liste avant l'envoi vers Rappels : retrait d'articles et modification de quantité",
+        "ears_criteria": [
+          "WHEN l'utilisateur retire une ligne ou modifie une quantité avant l'envoi THE SYSTEM SHALL refléter ce changement dans la liste envoyée"
+        ]
+      },
+      {
+        "id": "s6_us13",
+        "statement": "En tant qu'utilisateur principal, j'ajoute un article oublié (nom, quantité facultative) par un champ simple, sans IA, avant ou après l'envoi.",
+        "objective": "Garder la liste partagée à jour sans la reconstruire ni la dupliquer.",
+        "definition_of_done": "Un ajout avec quantité d'un article déjà présent fusionne la quantité si les unités se comparent, sinon crée une ligne distincte ; si la ligne existante est sans quantité, elle prend celle de l'ajout ; une ligne cochée est décochée. Un ajout sans quantité d'un article déjà présent conserve la ou les lignes existantes telles quelles, y compris leur état coché, que l'app signale en proposant de décocher. Après un envoi, seule la ligne concernée est envoyée, si elle est décochée (envoyerLigne, ct-renvoi ; sans quantité, chaque ligne décochée de ce nom) : aucune autre ligne n'est réexaminée. Chaque cas est testé.",
+        "link": "stage_4_impact_mapping:value_hypotheses:3",
+        "capability": "Ajout manuel d'un article par champ de saisie simple (nom et quantité facultative), sans IA, avant ou après l'envoi vers Rappels",
+        "ears_criteria": [
+          "WHEN l'utilisateur ajoute sans quantité un article déjà présent THE SYSTEM SHALL conserver la ligne existante sans créer de nouvelle ligne",
+          "WHEN l'utilisateur ajoute un article après l'envoi THE SYSTEM SHALL envoyer uniquement cette ligne vers la liste Rappels selon la correspondance par nom normalisé"
+        ]
+      },
+      {
+        "id": "s6_us14",
+        "statement": "En tant qu'utilisateur principal, j'envoie pour la première fois la liste en cours, dans un seul sens, vers une liste Apple Rappels partagée avec le foyer.",
+        "objective": "Permettre au foyer de cocher la liste dans Rappels, sans installer l'app.",
+        "definition_of_done": "L'utilisateur choisit une liste Rappels modifiable ; l'app en garde le choix. En slice-1, le premier envoi n'est accepté que si la liste choisie n'a aucun article ouvert (les articles cochés sont ignorés) ; sinon l'app demande de la vider ou d'en choisir une autre. Ce contrôle s'applique tant que premier_envoi_le n'est pas fixé ; un nouvel essai après refus est contrôlé de nouveau. Testé : refus, second essai refusé, autre liste acceptée. Ensuite, si premier_envoi_le est fixé, envoyer (même après relance de l'app) n'écrit que les lignes non cochées absentes du journal, sans condition sur les articles ouverts. Avant d'écrire, l'app relit la liste : un rappel hors journal, créé depuis premier_envoi_le et portant exactement le titre à écrire, vaut écriture réussie et est inscrit au journal (interruption entre l'écriture et le journal). Testé : interruption à cet instant puis reprise sans doublon, échec partiel puis reprise, et second envoi quand tout est coché (rien n'est écrit). Cette limite est levée par s6_us16. Chaque article suit le format de titre de ct-envoi-rappels et est inscrit au journal d'envoi. Accès refusé, liste introuvable ou non modifiable, échec d'une ligne : signalés dans le rapport, sans perte de la liste. Les coches du foyer ne remontent pas dans l'app. À la fin de slice-1, une vraie liste est envoyée et vue sur l'iPhone 11.",
+        "link": "stage_4_impact_mapping:value_hypotheses:2",
+        "capability": "Envoi de la liste dans un seul sens vers une liste Apple Rappels partagée, avec la règle de correspondance par nom normalisé",
+        "ears_criteria": [
+          "WHEN l'utilisateur envoie la liste pour la première fois THE SYSTEM SHALL créer un rappel par ligne non cochée sans modifier ni supprimer d'élément existant",
+          "WHEN une ligne échoue à l'écriture THE SYSTEM SHALL continuer les autres lignes et signaler l'échec avec sa cause",
+          "WHEN l'accès complet à Rappels est refusé THE SYSTEM SHALL expliquer comment l'autoriser et conserver la liste"
+        ]
+      },
+      {
+        "id": "s6_us15",
+        "statement": "En tant qu'utilisateur principal, j'active, si je le souhaite, ma propre clé pour tout service d'IA compatible avec l'API OpenAI, avec une adresse d'API configurable, après un écran de consentement unique.",
+        "objective": "Offrir un repli d'extraction sans aucun coût pour le porteur.",
+        "definition_of_done": "L'option est désactivée par défaut. L'utilisateur saisit l'adresse d'API (https obligatoire), le nom du modèle et sa clé, conservée dans le trousseau iOS. Protocole pris en charge : POST {adresse}/chat/completions, seul protocole testé. Une photo n'est envoyée comme image que si l'utilisateur indique que le modèle accepte les images ; sinon seul le texte lu par Vision est envoyé. L'écran de consentement unique présente l'adresse saisie, les types de données envoyées et le coût à la charge de l'utilisateur ; il est redemandé si l'hôte change ou avant l'envoi d'un type de données non couvert (par exemple les images), pas à chaque envoi. Refus, délai de 30 s, erreur du service : retour au meilleur résultat local et à l'écran de correction. La clé n'apparaît dans aucun journal. Tranche reportable selon s5_d1, sauf exception s5_d3.",
+        "link": "stage_4_impact_mapping:value_hypotheses:1",
+        "capability": "Activation optionnelle d'une clé de fournisseur d'IA, avec écran de consentement unique",
+        "ears_criteria": [
+          "WHEN l'utilisateur active sa clé pour la première fois THE SYSTEM SHALL afficher l'écran de consentement unique présentant les données envoyées et le fournisseur choisi",
+          "WHEN l'utilisateur configure sa clé THE SYSTEM SHALL accepter l'adresse d'API de tout service compatible avec l'API OpenAI",
+          "WHEN l'extraction par l'IA embarquée échoue ou est partielle et que la clé de l'utilisateur est activée THE SYSTEM SHALL déléguer l'extraction au fournisseur choisi",
+          "WHEN l'hôte de l'adresse d'API change THE SYSTEM SHALL redemander le consentement avant tout envoi",
+          "WHEN le fournisseur est en erreur THE SYSTEM SHALL afficher l'écran de correction avec le meilleur résultat local"
+        ]
+      },
+      {
+        "id": "s6_us16",
+        "statement": "En tant qu'utilisateur principal, je renvoie la liste en cours vers la liste Rappels partagée sans doublon ni rachat.",
+        "objective": "Garder la liste partagée à jour pendant et après les courses, quels que soient les articles déjà présents.",
+        "definition_of_done": "Le renvoi suit la règle unique de ct-renvoi, y compris vers une liste contenant déjà des articles ouverts (la limite de s6_us14 disparaît). Chaque ligne de la table de décision a un test. Deux renvois successifs sans changement n'ajoutent rien. Un renvoi après un échec partiel n'ajoute que ce qui manque. Un article coché par le foyer depuis le premier envoi de la liste en cours n'est jamais remis à acheter au-delà de la quantité demandée.",
+        "link": "stage_4_impact_mapping:value_hypotheses:3",
+        "capability": "Envoi de la liste dans un seul sens vers une liste Apple Rappels partagée, avec la règle de correspondance par nom normalisé",
+        "ears_criteria": [
+          "WHEN l'utilisateur renvoie une liste vers une liste Rappels existante THE SYSTEM SHALL ajouter uniquement la quantité non couverte par les articles ouverts et par ceux cochés depuis le premier envoi de la liste en cours, sans supprimer ni modifier d'élément existant",
+          "WHEN l'utilisateur renvoie deux fois la même liste sans changement THE SYSTEM SHALL ne rien ajouter au second renvoi",
+          "WHEN un article a été coché avant le premier envoi de la liste en cours THE SYSTEM SHALL l'ignorer et ajouter la quantité non couverte par les articles ouverts"
+        ]
+      }
+    ],
+    "risk_spikes": [
+      {
+        "id": "s6_sp1",
+        "statement": "Tester tôt l'extraction locale sur l'iPhone 15 Pro sous iOS 27 avec des recettes réelles du foyer (texte, web, photo, manuscrit).",
+        "objective": "Savoir, avant de construire les écrans d'import, si l'extraction locale peut tenir les cibles de 1 et 2 minutes.",
+        "definition_of_done": "Au moins 5 recettes web, 5 textes, 5 photos imprimées et 3 fiches manuscrites sont passées dans un prototype sans interface finale. Sont notés pour chacune : statut, durée d'extraction, nombre de champs à corriger. Sont aussi mesurés : taille de contexte réelle du modèle, disponibilité de l'entrée image sur l'iPhone 15 Pro, gain du JSON-LD sur les recettes web, comportement modèle indisponible. Statuts : voir ct-extraction dans slice-1.md. La conclusion (photo via Vision ou image, découpage du texte, risque s5_r1) est consignée. La correction des photos est chronométrée sur le prototype avec un formulaire minimal ; celle des textes et du web en slice-1.",
+        "link": "s5_r1",
+        "capability": null,
+        "ears_criteria": []
+      },
+      {
+        "id": "s6_sp2",
+        "statement": "Vérifier sur les deux iPhone la lecture et l'écriture d'une liste Apple Rappels partagée, pour appliquer la règle de renvoi.",
+        "objective": "Lever tôt l'incertitude technique sur le renvoi sans doublons ni quantités surestimées.",
+        "definition_of_done": "Un prototype écrit dans une liste iCloud partagée depuis l'iPhone 15 Pro et la relit après coche depuis l'iPhone 11. Sont vérifiés et consignés : état coché et date de coche (completionDate) après synchronisation, stabilité des identifiants après synchronisation, relecture des titres (écrits par l'app, saisis à la main, modifiés), tri automatique ou non d'une liste de type Courses en français pour des articles ajoutés par l'app, accès refusé, liste supprimée ou en lecture seule. Chaque ligne de la table de décision de ct-renvoi (voir slice-2.md) est rejouée à la main. Si la date de coche n'est pas fiable, la règle de ct-renvoi est revue avant slice-2.",
+        "link": "s5_r2",
+        "capability": null,
+        "ears_criteria": []
+      },
+      {
+        "id": "s6_sp3",
+        "statement": "Chronométrer une semaine type réelle (environ 5 recettes et 2 messages), de la sélection jusqu'à Rappels.",
+        "objective": "Vérifier que la liste fusionnée tient l'objectif de moins de 2 minutes, retouche comprise.",
+        "definition_of_done": "À la fin de slice-2, au moins une semaine réelle est chronométrée, de la sélection des recettes et des messages jusqu'à la liste visible dans Rappels. Les retouches nécessaires (dont ingrédients de base) sont notées et le résultat est comparé à la cible de 2 minutes. Le temps d'import des nouvelles recettes de la semaine est noté à part.",
+        "link": "s5_r3",
+        "capability": null,
+        "ears_criteria": []
+      },
+      {
+        "id": "s6_sp4",
+        "statement": "Faire faire de vraies courses au foyer avec la liste Rappels partagée dès que le parcours B fonctionne.",
+        "objective": "Valider tôt l'hypothèse H3 et pouvoir corriger avant la fin de la V1.",
+        "definition_of_done": "Une liste réelle est envoyée vers la liste partagée, puis complétée pendant les courses par un ajout manuel. Il est vérifié que l'autre membre du foyer coche la liste pendant les courses, qu'aucun article coché ne revient, et un éventuel retour au papier ou aux messages est noté.",
+        "link": "s5_r6",
+        "capability": null,
+        "ears_criteria": []
+      },
+      {
+        "id": "s6_sp5",
+        "statement": "Obtenir l'avis juridique sur la distribution App Store sous double licence GPLv3 et licence commerciale.",
+        "objective": "Sécuriser la publication sur l'App Store avant la mise en ligne.",
+        "definition_of_done": "Jalon J2, hors tranche : sans effet sur la V1 du foyer. L'avis juridique est obtenu avant toute publication sur l'App Store. Il confirme la distribution du binaire sous licence commerciale ou avec une exception App Store, et les conclusions sont consignées.",
+        "link": "s5_r5",
+        "capability": null,
+        "ears_criteria": []
+      }
+    ],
+    "cross_cutting_work": [
+      {
+        "id": "s6_cc1",
+        "statement": "Définir le format de recette standardisé : titre, portions, ingrédients avec quantité et unité, étapes.",
+        "objective": "Fournir le socle commun à l'extraction, à la correction, à la mise à l'échelle et à la fusion.",
+        "definition_of_done": "Le modèle ct-recette-standard est implémenté, versionné et couvert par des tests d'encodage et de relecture. Il est utilisé ensuite par tous les imports, l'écran de correction et la génération de la liste.",
+        "link": "stage_4_impact_mapping:value_hypotheses:1",
+        "capability": null,
+        "ears_criteria": []
+      },
+      {
+        "id": "s6_cc2",
+        "statement": "Construire un module partagé de normalisation des noms et de conversion des unités comparables.",
+        "objective": "Appliquer les mêmes règles à la fusion, à l'ajout manuel et au renvoi vers Rappels.",
+        "definition_of_done": "Le module implémente ct-normalisation et passe le jeu de cas français du contrat. Il est utilisé ensuite par s6_us10, s6_us13, s6_us14 et s6_us16.",
+        "link": "s5_r3",
+        "capability": null,
+        "ears_criteria": []
+      },
+      {
+        "id": "s6_cc3",
+        "statement": "Arrêter la liste fixe prédéfinie des catégories de la V1.",
+        "objective": "Permettre le regroupement par catégorie décidé en s2_d8.",
+        "definition_of_done": "La liste des catégories (proposition dans ct-categories) est validée par le porteur, avec « Autres » obligatoire, et intégrée avec un dictionnaire d'articles courants. L'affichage arrive avec s6_us11.",
+        "link": "stage_4_impact_mapping:value_hypotheses:2",
+        "capability": null,
+        "ears_criteria": []
+      },
+      {
+        "id": "s6_cc4",
+        "statement": "Mettre en place l'extension de partage iOS et la lecture du presse-papiers comme points d'entrée communs.",
+        "objective": "Servir les imports de liens web, de textes et de messages par un même mécanisme.",
+        "definition_of_done": "L'app apparaît dans la feuille de partage iOS pour les liens et les textes, et accepte le collage. L'extension dépose le contenu dans un espace partagé (App Group) et se ferme ; l'app le reprend à son ouverture, dans l'ordre d'arrivée, sans perte si elle est fermée entre-temps. L'utilisateur choisit la destination : recette ou message. Le partage depuis Safari, Messages, WhatsApp et Messenger est essayé et le résultat consigné.",
+        "link": "stage_1_problem_framing:hypotheses:1",
+        "capability": null,
+        "ears_criteria": []
+      },
+      {
+        "id": "s6_cc5",
+        "statement": "Mettre en place la double licence GPLv3 et licence commerciale, avec CLA.",
+        "objective": "Préserver la double licence et la possibilité d'une distribution sur l'App Store.",
+        "definition_of_done": "Les fichiers de licence GPLv3 et la mention de la licence commerciale sont présents dans le dépôt. Le CLA est en place avant toute contribution externe.",
+        "link": "s5_r5",
+        "capability": null,
+        "ears_criteria": []
+      },
+      {
+        "id": "s6_cc6",
+        "statement": "Préparer le point de contrôle des 6 semaines et réserver des créneaux réguliers de plus de 10 heures par semaine (s5_r9).",
+        "objective": "Livrer une V1 utile dans environ 3 mois malgré un porteur seul sur son temps libre.",
+        "definition_of_done": "La date de démarrage et la date du point (démarrage + 6 semaines, jalon J1) sont fixées. La charge de chaque tranche est estimée en heures et comparée au temps disponible. La grille de décision est écrite (revision.md, jalon J1). La tenue du point est le jalon J1, hors tranche.",
+        "link": "s5_r7",
+        "capability": null,
+        "ears_criteria": []
+      }
+    ]
+  },
+  "slices": [
+    {
+      "id": "slice-0",
+      "goal": "Preuves et socle, sur iPhone 15 Pro sous iOS 27 (SwiftUI, SwiftData, sans dépendance tierce). Les deux risques majeurs sont testés avant tout écran définitif : extraction locale (s6_sp1) et liste Rappels partagée sur les deux iPhone (s6_sp2). Les contrats partagés sont posés et testés : recette, normalisation, catégories, entrée de partage. Squelette : un lien partagé depuis Safari arrive sur un écran d'import factice. Licence, CLA et date du point des 6 semaines en place.",
+      "backlog_item_ids": [
+        "s6_cc1",
+        "s6_cc2",
+        "s6_cc3",
+        "s6_cc4",
+        "s6_cc5",
+        "s6_cc6",
+        "s6_sp1",
+        "s6_sp2"
+      ],
+      "owned_domain": [
+        "Socle transverse (format de recette, normalisation, catégories, points d'entrée de partage, prototypes)"
+      ],
+      "provided_contracts": [
+        {
+          "id": "ct-recette-standard",
+          "specification": "Recette : version_schema (1) ; id (UUID) ; titre (non vide) ; portions (entier > 0 ; 4 si absent à l'import, valeur signalée à corriger) ; ingredients [{nom (non vide), quantite (décimal exact > 0, facultatif), unite (g | kg | ml | cl | l | cac | cas | piece | autre:<texte> ; absente si quantite absente), texte_origine}] ; etapes [texte, ordonné] ; texte_source ; url_source (facultative). « 3 œufs » → quantite 3, unite piece. « 2 à 3 carottes » → 3 (borne haute). « 1/2 » et « ½ » → 0,5. « une pincée de sel », « sel, au goût » → sans quantité. a_l_unite ⇔ unite = piece."
+        },
+        {
+          "id": "ct-normalisation",
+          "specification": "normaliserNom(nom) : casse, accents, ligatures (œ → oe), espaces, apostrophes, trait d'union → espace ; retrait des articles initiaux successifs (de, d', du, des, le, la, l', les), mots internes conservés ; singulier mot à mot (s ou x final retiré, « eaux » → « eau »), sauf exceptions (radis, noix, ananas, mais, anchois, pois, jus, riz, brebis, cassis, colis, couscous, houmous, os, frais, gros, bas). Aucun synonyme en V1. convertir(quantite, source, cible) → quantité ou « non comparable ». Comparables : g et kg ; ml, cl et l ; sinon seulement l'unité identique (piece avec piece, cas avec cas, autre avec le même texte normalisé). Calcul canonique en g et ml, décimal exact. Jeu de cas obligatoire : Tomates = tomate ; tomates cerises ≠ tomates ; Œufs = oeuf ; poireaux = poireau ; choux = chou ; choux-fleurs = chou fleur ; noix = noix ; radis = radis ; maïs = mais ; « de la farine » = farine ; pommes de terre = pomme de terre ; 1 kg + 500 g = 1 500 g ; 25 cl + 100 ml = 350 ml ; 2 cas et 10 ml non comparables ; 2 pièces et 300 g non comparables."
+        },
+        {
+          "id": "ct-categories",
+          "specification": "Liste fixe, proposition à valider par le porteur (s6_cc3) : Fruits et légumes ; Boulangerie ; Crèmerie et œufs ; Viandes et charcuterie ; Poissons ; Épicerie salée ; Épicerie sucrée ; Surgelés ; Boissons ; Hygiène et maison ; Autres (obligatoire). categorieParDefaut(nom normalisé) → dictionnaire embarqué, sinon Autres. Affichage dans l'app seulement."
+        },
+        {
+          "id": "ct-entree-partage",
+          "specification": "ContenuRecu {id, type (url | texte | image), contenu, origine (feuille_partage | presse_papiers | appareil_photo | phototheque), recu_le}. L'extension accepte url et texte, écrit dans l'App Group puis se ferme, sans réseau ni IA. L'app traite la file à l'ouverture, demande la destination (recette | message), et retire l'élément une fois enregistré ou abandonné explicitement. Les origines appareil_photo et phototheque sont branchées en slice-3."
+        }
+      ],
+      "consumed_contracts": [],
+      "dependencies": [],
+      "integration_scenarios": [
+        {
+          "given": "L'app est installée sur l'iPhone 15 Pro, fermée, et une page de recette est ouverte dans Safari",
+          "when": "L'utilisateur partage la page vers l'app puis ouvre l'app",
+          "then": "L'app reprend un ContenuRecu de type url, d'origine feuille_partage, demande la destination et l'affiche sur l'écran d'import factice",
+          "ears": "WHEN l'utilisateur partage un lien vers l'app THE SYSTEM SHALL produire un ContenuRecu de type url et le router vers la destination choisie à l'ouverture"
+        },
+        {
+          "given": "Une liste Rappels partagée de test contient « lait 1 l » ouvert et « œufs 6 », coché depuis l'iPhone 11",
+          "when": "Le prototype s6_sp2 relit la liste sur l'iPhone 15 Pro puis y écrit « pain »",
+          "then": "Les deux articles sont relus avec leur état et la date de coche, et « pain » apparaît sur l'iPhone 11 sans autre changement",
+          "ears": "WHEN le prototype accède à une liste Rappels partagée THE SYSTEM SHALL lire les articles, leur état et leur date de coche, et ajouter un article sans modifier les éléments existants"
+        }
+      ],
+      "stubs": [
+        "Écrans d'import de recette et de message factices",
+        "Liste Rappels partagée de test, visible sur l'iPhone 15 Pro et l'iPhone 11"
+      ],
+      "wave": 0
+    },
+    {
+      "id": "slice-1",
+      "goal": "Première vraie course : importer une recette par lien ou texte, la corriger ou la modifier plus tard, choisir des recettes et leurs portions, obtenir la liste fusionnée et l'envoyer une première fois vers la liste Rappels partagée.",
+      "backlog_item_ids": [
+        "s6_us1",
+        "s6_us2",
+        "s6_us5",
+        "s6_us6",
+        "s6_us7",
+        "s6_us8",
+        "s6_us10",
+        "s6_us14"
+      ],
+      "owned_domain": [
+        "Recette standardisée (ingrédients, quantités, unités, étapes, portions)",
+        "Extraction (IA embarquée puis correction manuelle ; repli par clé externe ajouté en slice-5)",
+        "Liste de courses (lignes : nom normalisé, quantité, unité, catégorie, origine)",
+        "Envoi vers Rappels (premier envoi et journal d'envoi)"
+      ],
+      "provided_contracts": [
+        {
+          "id": "ct-bibliotheque",
+          "specification": "enregistrer(Recette) → id ; lire(id) ; modifier(Recette) ; lister() ; rechercherParTitre(texte) ; supprimer(id). Stockage local persistant dans l'app (SwiftData), conservé entre lancements et mises à jour, sans copie réseau. Sauvegarde : celle de l'iPhone ; pas d'export propre en V1. Échec d'écriture : signalé, saisie conservée à l'écran."
+        },
+        {
+          "id": "ct-selection-semaine",
+          "specification": "SelectionSemaine [{recette_id, portions (entier > 0)}] → [{nom, quantite, unite, recette_id}] au prorata, en fractions exactes, sans arrondi. Une recette supprimée entre-temps est retirée de la sélection et signalée."
+        },
+        {
+          "id": "ct-extraction",
+          "specification": "extraire(ContenuRecu, cible : recette | message) → {statut, cause (facultative), moteur (structure | embarque | cle_externe | manuel), texte_source, recette partielle ou articles}. Statut recette — complet : titre, au moins un ingrédient, tous les ingrédients nommés, au moins une étape ; partiel : au moins un titre, un ingrédient ou une étape, sans être complet ; echec : rien d'exploitable. Portions absentes : n'affecte pas le statut. Statut message — complet : au moins un article, tous nommés, extraits par l'IA ; partiel : au moins un article, sans être complet, y compris par découpage par ligne (ia_indisponible, ia_en_erreur ou contenu_trop_long) ; echec : aucun article. Causes : ia_indisponible, ia_en_erreur, hors_ligne, page_inaccessible, delai, contenu_trop_long, rien_trouve, fournisseur_en_erreur. Ordre : 1) données structurées (JSON-LD) et analyse déterministe des lignes d'ingrédients ; 2) IA embarquée sur ce qui manque ; 3) clé externe (slice-5 seulement), si activée, consentie, et si le statut est partiel ou echec avec un texte ou une image à envoyer ; 4) écran de correction, toujours. Contexte : taille lue à l'exécution ; un texte trop long est réduit au bloc recette, puis découpé en 3 morceaux au plus, extraits dans l'ordre et concaténés ; au-delà, partiel avec contenu_trop_long. Annulable par l'utilisateur à tout moment."
+        },
+        {
+          "id": "ct-liste-courses",
+          "specification": "ListeCourses (une seule en cours, persistante) : id, premier_envoi_le (facultatif), lignes [{id, nom_normalise, libelle, quantite et unite (facultatives), categorie, origines [{type : recette | message | manuel, ref}], cochee}]. Opérations : nouvelleListe, generer(selection), integrer(articles), ajouter, retirer, modifierQuantite, changerCategorie, cocher. integrer et ajouter créent une liste vide si aucune n'existe. Envoyée ⇔ premier_envoi_le fixé. Sur une liste envoyée, integrer demande : compléter cette liste ou commencer une nouvelle liste (nouvelleListe). nouvelleListe : nouvel id, aucune ligne, aucun envoi ; confirmation si la liste contient des lignes. generer fusionne dans la liste en cours si elle n'est pas envoyée et n'a aucune origine recette ; sinon elle crée une nouvelle liste après confirmation, qui annonce la perte des lignes actuelles et que les articles déjà achetés seront redemandés. modifierQuantite (valeur, unité, ou effacement) réapplique la table de fusion : deux lignes de même nom n'ont jamais des unités comparables, et une ligne sans quantité n'existe jamais à côté d'une ligne avec quantité de même nom. Ajouter ou intégrer avec quantité sur une ligne cochée la décoche ; sans quantité, la ligne reste telle quelle et l'app propose de la décocher. Table de fusion, même nom normalisé — unités comparables : addition ; non comparables : lignes distinctes ; deux sans quantité : une ligne sans quantité ; une seule avec quantité : la ligne avec quantité. Les origines sont réunies ; le libellé est celui de la première source. Le total exact (fraction) est conservé et sert aux ajouts ultérieurs ; la valeur arrondie est celle qui est affichée, envoyée, journalisée et comparée par ct-renvoi. Arrondi : piece au supérieur ; g et ml à l'entier le plus proche, minimum 1 ; cas, cac et autre au quart supérieur. Affichage exact, sans nouvel arrondi : kg à partir de 1 000 g, l à partir de 1 000 ml, 3 décimales au plus (1 125 g → 1,125 kg) ; au-delà, la valeur reste en g ou en ml. Un complément de ct-renvoi est écrit exactement, sans réarrondi. cochee = à ne pas envoyer."
+        },
+        {
+          "id": "ct-envoi-rappels",
+          "specification": "envoyer(ListeCourses, liste_rappels) → RapportEnvoi {ajoutes, complements, ignores, echecs [{ligne_id, cause : acces_refuse | liste_introuvable | liste_non_modifiable | ecriture}]}. Accès complet à Rappels requis. Lignes cochées dans l'app exclues. Titre : « <libellé> <quantité> <unité> », sans unité pour piece, virgule décimale (« farine 1,5 kg », « œufs 6 », « sel »). Le journal d'envoi, persistant, garde pour chaque rappel créé : identifiants EventKit, liste_id, ligne_id, nom normalisé, quantité, unité, titre écrit, date. Lire un rappel : si son identifiant est au journal et son titre inchangé, données du journal ; sinon analyse du titre : en fin, un nombre > 0 puis au plus un mot (aucun mot → piece ; g, kg, ml, cl, l, cac, cas → cette unité ; autre mot → autre:<mot normalisé>) : « lait 1 l », « tomates pelées 2 boîtes » ; en tête, un nombre > 0 puis une unité connue facultative, sinon piece : « 2 laits », « 1 l de lait » ; sinon nom seul, sans quantité. premier_envoi_le = heure prise juste avant la première lecture réussie de la liste Rappels, enregistrée avant toute écriture ; conservée même si rien n'est à écrire ou si toutes les écritures échouent. Un envoi refusé par le contrôle de s6_us14 ne fixe ni premier_envoi_le ni la destination. Tant qu'aucune écriture n'a réussi, l'utilisateur peut changer de destination : premier_envoi_le est effacé puis repris à la première lecture de la nouvelle liste. Après une écriture réussie, la destination ne change plus pour cette liste de courses. Aucun regroupement ni ordre garanti dans Rappels."
+        }
+      ],
+      "consumed_contracts": [
+        "ct-recette-standard",
+        "ct-normalisation",
+        "ct-categories",
+        "ct-entree-partage"
+      ],
+      "dependencies": [
+        "slice-0"
+      ],
+      "integration_scenarios": [
+        {
+          "given": "Deux recettes pour 4 portions contenant chacune 2 œufs, l'une avec 500 g de farine et l'autre 1 kg, sont dans la bibliothèque",
+          "when": "L'utilisateur les sélectionne pour 3 portions chacune, génère la liste et l'envoie vers une liste Rappels vide",
+          "then": "Rappels contient « œufs 3 » et « farine 1,125 kg », une seule fois chacun",
+          "ears": "WHEN deux lignes portent le même nom normalisé avec des unités comparables THE SYSTEM SHALL additionner les quantités exactes puis arrondir la ligne fusionnée"
+        },
+        {
+          "given": "L'IA embarquée est indisponible et un texte de recette est partagé",
+          "when": "L'extraction se termine",
+          "then": "L'écran de correction s'affiche avec le texte source, la cause ia_indisponible et les ingrédients trouvés par l'analyse déterministe",
+          "ears": "WHEN l'IA embarquée est indisponible THE SYSTEM SHALL l'indiquer et poursuivre avec l'analyse déterministe puis la correction manuelle"
+        },
+        {
+          "given": "Une recette est enregistrée dans la bibliothèque",
+          "when": "L'utilisateur la rouvre, change une quantité, enregistre, puis relance l'app",
+          "then": "La recette modifiée est présente une seule fois avec la nouvelle quantité",
+          "ears": "WHEN l'utilisateur modifie une recette de la bibliothèque THE SYSTEM SHALL la mettre à jour sans créer de doublon"
+        }
+      ],
+      "stubs": [
+        "Bouchon de l'IA embarquée (complet, partiel, échec, indisponible) pour les tests",
+        "Magasin de rappels en mémoire pour les tests"
+      ],
+      "wave": 1
+    },
+    {
+      "id": "slice-2",
+      "goal": "Parcours courses complet : messages, catégories dans l'app, retouche, ajout manuel avant ou pendant les courses, et renvoi vers Rappels sans doublon ni rachat. Se termine par la semaine chronométrée et de vraies courses avec le foyer.",
+      "backlog_item_ids": [
+        "s6_us4",
+        "s6_us11",
+        "s6_us12",
+        "s6_us13",
+        "s6_us16",
+        "s6_sp3",
+        "s6_sp4"
+      ],
+      "owned_domain": [
+        "Renvoi vers Rappels (correspondance avec la liste partagée existante)"
+      ],
+      "provided_contracts": [
+        {
+          "id": "ct-articles-message",
+          "specification": "Articles extraits d'un message partagé ou collé : [{nom, quantite, unite (facultatives), message_id}], validés par l'utilisateur puis intégrés par integrer(articles) de ct-liste-courses. Intégrer deux fois le même message_id est refusé."
+        },
+        {
+          "id": "ct-renvoi",
+          "specification": "renvoyer(ListeCourses, liste_rappels) et envoyerLigne(ligne, liste_rappels) → RapportEnvoi. Règle unique, par ligne non cochée dans l'app, sur l'état de Rappels relu juste avant l'écriture. Rappels pris en compte : même nom normalisé, ouverts, ou cochés à une date ≥ premier_envoi_le. Cochés avant, ou sans date de coche : ignorés. Ligne avec quantité : couvert = somme des quantités comparables ; reste = quantité − couvert ; reste ≤ 0 → ignorée ; couvert = 0 → ajout complet ; sinon complément = reste. Ligne sans quantité : ignorée si un rappel est pris en compte, sinon ajoutée. Table (liste déjà envoyée) : rien → ajout ; « lait 1 l » ouvert, 2 l → 1 l ; « lait 1 l » deux fois ouvert, 2 l → rien ; « lait 1 l » coché depuis, 2 l → 1 l ; « œufs 6 » coché depuis, 6 → rien ; « œufs 6 » coché avant, 6 → 6 ; « lait 3 l » ouvert, 2 l → rien ; « tomates 3 » ouvert, 500 g → 500 g, puis rien au renvoi suivant ; « lait » ouvert sans quantité, 2 l → 2 l, puis rien ; « lait 1 l » ouvert, lait sans quantité → rien ; « tomates cerises » ouvert, tomates → ajout. Plusieurs lignes de même nom et d'unités non comparables sont traitées séparément. Dès slice-2, cette règle s'applique aussi au premier envoi. Cas à tester : « lait 2 l » déjà ouvert, premier envoi de lait 2 l → rien, seuil fixé ; lait coché ensuite, renvoi → rien. Limites acceptées : rien n'est supprimé ni modifié ; un article supprimé à la main dans Rappels peut être rajouté au renvoi complet ; une coche non encore synchronisée n'est pas vue."
+        }
+      ],
+      "consumed_contracts": [
+        "ct-entree-partage",
+        "ct-extraction",
+        "ct-bibliotheque",
+        "ct-liste-courses",
+        "ct-envoi-rappels",
+        "ct-normalisation",
+        "ct-categories"
+      ],
+      "dependencies": [
+        "slice-1"
+      ],
+      "integration_scenarios": [
+        {
+          "given": "La liste en cours (œufs 6, lait 2 l) a été envoyée, puis le foyer a coché « œufs 6 »",
+          "when": "L'utilisateur ajoute « clémentines » par le champ simple pendant les courses",
+          "then": "Seul « clémentines » est ajouté à Rappels ; œufs et lait ne sont pas réexaminés",
+          "ears": "WHEN l'utilisateur ajoute un article après l'envoi THE SYSTEM SHALL envoyer uniquement cette ligne vers la liste Rappels selon la correspondance par nom normalisé"
+        },
+        {
+          "given": "La liste partagée contient « lait 1 l » ouvert, « œufs 6 » coché depuis le premier envoi et « riz 1 kg » coché la semaine précédente",
+          "when": "L'utilisateur renvoie deux fois de suite la liste lait 2 l, œufs 6, riz 1 kg, pain",
+          "then": "Le premier renvoi ajoute « lait 1 l », « riz 1 kg » et « pain » ; le second n'ajoute rien",
+          "ears": "WHEN l'utilisateur renvoie deux fois la même liste sans changement THE SYSTEM SHALL ne rien ajouter au second renvoi"
+        },
+        {
+          "given": "Une semaine passée, « lait 2 l » a été coché après l'envoi de l'ancienne liste",
+          "when": "L'utilisateur génère une nouvelle liste contenant « lait 2 l » et l'envoie",
+          "then": "« lait 2 l » est ajouté",
+          "ears": "WHEN un article a été coché avant le premier envoi de la liste en cours THE SYSTEM SHALL l'ignorer et ajouter la quantité non couverte par les articles ouverts"
+        }
+      ],
+      "stubs": [
+        "Magasin de rappels en mémoire avec états et dates de coche, pour chaque ligne de la table de ct-renvoi"
+      ],
+      "wave": 2
+    },
+    {
+      "id": "slice-3",
+      "goal": "Import de recette par photo. Première des trois tranches restantes (ordre s2_d7) ; maintien décidé au jalon J1 selon s6_sp1.",
+      "backlog_item_ids": [
+        "s6_us3"
+      ],
+      "owned_domain": [
+        "Capture photo (image et texte lu)"
+      ],
+      "provided_contracts": [
+        {
+          "id": "ct-photo",
+          "specification": "lireTexte(image) → texte (Vision, sur l'iPhone) ou rien_trouve ; le ContenuRecu reste de type image et extraire appelle lireTexte, pour que l'image reste disponible à la clé externe ; image conservée pour l'écran de correction jusqu'à l'enregistrement, puis supprimée."
+        }
+      ],
+      "consumed_contracts": [
+        "ct-entree-partage",
+        "ct-extraction",
+        "ct-bibliotheque"
+      ],
+      "dependencies": [
+        "slice-2"
+      ],
+      "integration_scenarios": [
+        {
+          "given": "Une page de livre de recettes est photographiée dans l'app",
+          "when": "La lecture et l'extraction se terminent",
+          "then": "L'écran de correction affiche la photo et les champs pré-remplis ; après correction, la recette est dans la bibliothèque",
+          "ears": "WHEN l'utilisateur prend ou choisit une photo de recette THE SYSTEM SHALL en extraire le texte sur l'iPhone et afficher l'écran de correction pré-rempli"
+        }
+      ],
+      "stubs": [
+        "Photos réelles de test (livre, magazine, manuscrit) issues de s6_sp1"
+      ],
+      "wave": 3
+    },
+    {
+      "id": "slice-4",
+      "goal": "Suivi pas à pas. Deuxième des trois tranches restantes ; coupée après la clé (s5_d1), ou en premier si s5_d3 s'applique.",
+      "backlog_item_ids": [
+        "s6_us9"
+      ],
+      "owned_domain": [
+        "Session de cuisine (étape courante d'une recette)"
+      ],
+      "provided_contracts": [
+        {
+          "id": "ct-session-cuisine",
+          "specification": "ouvrir(recette_id) → étapes ordonnées ; suivante ; precedente ; position. Aucune écriture dans la recette."
+        }
+      ],
+      "consumed_contracts": [
+        "ct-bibliotheque"
+      ],
+      "dependencies": [
+        "slice-2"
+      ],
+      "integration_scenarios": [
+        {
+          "given": "Une recette de 5 étapes est enregistrée",
+          "when": "L'utilisateur ouvre le suivi, avance de deux étapes puis recule d'une",
+          "then": "L'étape 2 sur 5 est affichée et l'écran reste allumé",
+          "ears": "WHEN l'utilisateur passe à l'étape suivante ou précédente THE SYSTEM SHALL afficher cette étape et sa position dans la recette"
+        }
+      ],
+      "stubs": [],
+      "wave": 3
+    },
+    {
+      "id": "slice-5",
+      "goal": "Clé d'IA optionnelle. Dernière des trois tranches restantes ; coupée en premier (s5_d1), sauf si s5_d3 s'applique.",
+      "backlog_item_ids": [
+        "s6_us15"
+      ],
+      "owned_domain": [
+        "Accès au fournisseur d'IA (adresse, clé, consentement)"
+      ],
+      "provided_contracts": [
+        {
+          "id": "ct-fournisseur-ia",
+          "specification": "ConfigurationFournisseur {adresse https, modele, accepte_images, cle (trousseau iOS), hote_consenti, types_consentis}. completer(texte ou image) → résultat au format de ct-extraction, ou fournisseur_en_erreur. hote_consenti comprend l'hôte et le port. Une redirection vers une autre origine est refusée avant tout envoi. Refusé si la clé est absente, l'option désactivée, l'hôte différent de hote_consenti ou le type de données absent de types_consentis."
+        }
+      ],
+      "consumed_contracts": [
+        "ct-extraction"
+      ],
+      "dependencies": [
+        "slice-2"
+      ],
+      "integration_scenarios": [
+        {
+          "given": "La clé est activée et consentie pour un hôte, et l'IA embarquée renvoie un résultat partiel",
+          "when": "L'extraction se poursuit",
+          "then": "Le texte est envoyé à cet hôte sans confirmation supplémentaire, puis l'écran de correction s'affiche avec le résultat",
+          "ears": "WHEN l'extraction par l'IA embarquée échoue ou est partielle et que la clé de l'utilisateur est activée THE SYSTEM SHALL déléguer l'extraction au fournisseur choisi"
+        },
+        {
+          "given": "La clé est activée et consentie pour un hôte",
+          "when": "L'utilisateur remplace l'adresse par un autre hôte",
+          "then": "Aucun envoi n'a lieu avant un nouveau consentement",
+          "ears": "WHEN l'hôte de l'adresse d'API change THE SYSTEM SHALL redemander le consentement avant tout envoi"
+        }
+      ],
+      "stubs": [
+        "Serveur factice compatible avec l'API OpenAI (succès, erreur, délai)"
+      ],
+      "wave": 3
+    }
+  ],
+  "waves": [
+    [
+      "slice-0"
+    ],
+    [
+      "slice-1"
+    ],
+    [
+      "slice-2"
+    ],
+    [
+      "slice-3",
+      "slice-4",
+      "slice-5"
+    ]
+  ]
+}
