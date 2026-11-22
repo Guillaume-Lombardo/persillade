@@ -95,7 +95,6 @@ struct ActionPrincipaleCourses: View {
         .buttonBorderShape(.capsule)
         .controlSize(.large)
         .tint(CouleurPersillade.persil.couleur)
-        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
     }
 }
 
@@ -227,7 +226,7 @@ struct BilanEnvoiCourses: View {
                     rapport.echecs.isEmpty && rapport.causeGenerale == nil ? "Terminé" : "Réessayer",
                     action: rapport.echecs.isEmpty && rapport.causeGenerale == nil ? terminer : reessayer
                 )
-
+                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
             }
         }
         .sensoryFeedback(

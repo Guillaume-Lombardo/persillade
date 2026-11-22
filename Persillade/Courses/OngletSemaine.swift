@@ -112,7 +112,7 @@ struct OngletSemaine: View {
                     faireListe()
                 }
                 .disabled(session.occupee)
-
+                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
             }
         }
     }

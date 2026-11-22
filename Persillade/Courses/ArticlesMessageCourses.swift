@@ -150,7 +150,7 @@ struct ArticlesMessageCourses: View {
                 integrer()
             }
             .disabled(articles.isEmpty || session.occupee)
-
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         }
         .sheet(
             isPresented: Binding(get: { edition != nil }, set: { if !$0 { edition = nil } })
