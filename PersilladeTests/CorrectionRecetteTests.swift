@@ -17,3 +17,8 @@ import Testing
     #expect(citations[4]?.plage.location == 13)
     #expect(citations[6]?.plage.location == 0)
 }
+
+@Test func privilegieLaCitationLongueQuandLesPlagesSeChevauchent() {
+    let citations = CorrespondancesSource.associer(["1 citron", "1 citron vert"], dans: "1 citron vert et 1 citron")
+    #expect(citations.map { $0?.plage.location } == [17, 0])
+}

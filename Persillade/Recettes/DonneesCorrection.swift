@@ -115,8 +115,15 @@ enum CorrespondancesSource {
         let lignes = source.components(separatedBy: .newlines)
         var citations = [Citation?](repeating: nil, count: origines.count)
         var occupees: [Int: [NSRange]] = [:]
+        let parLongueur = origines.indices.sorted { gauche, droite in
+            let tailleGauche = origines[gauche].utf16.count
+            let tailleDroite = origines[droite].utf16.count
+            return tailleGauche == tailleDroite ? gauche < droite : tailleGauche > tailleDroite
+        }
         for exacte in [true, false] {
-            for (index, origine) in origines.enumerated() where citations[index] == nil && !origine.isEmpty {
+            let ordre = exacte ? Array(origines.indices) : parLongueur
+            for index in ordre where citations[index] == nil && !origines[index].isEmpty {
+                let origine = origines[index]
                 for (indice, ligne) in lignes.enumerated() {
                     if exacte, ligne.compare(origine, options: .literal) != .orderedSame { continue }
                     guard let plage = plageDisponible(origine, dans: ligne, occupees: occupees[indice, default: []])
