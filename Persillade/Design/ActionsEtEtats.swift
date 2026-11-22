@@ -1,5 +1,27 @@
 import SwiftUI
 
+struct BoutonActionPersillade: View {
+    let libelle: String
+    let action: () -> Void
+
+    init(_ libelle: String, action: @escaping () -> Void) {
+        self.libelle = libelle
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            Text(libelle)
+                .typographie(.bouton)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(CouleurPersillade.surPersil.couleur)
+        }
+        .buttonStyle(.glassProminent)
+        .controlSize(.large)
+        .tint(CouleurPersillade.persil.couleur)
+    }
+}
+
 struct BarreAction<Actions: View>: ViewModifier {
     @ViewBuilder let actions: () -> Actions
 

@@ -161,7 +161,7 @@ struct LigneArticle: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, GrillePersillade.pas * 2)
-        .frame(minHeight: precision == nil ? GrillePersillade.article : GrillePersillade.ingredientAnnote)
+        .frame(minHeight: precision == nil && !exclu ? GrillePersillade.article : GrillePersillade.ingredientAnnote)
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
     }
@@ -180,6 +180,9 @@ struct LigneArticle: View {
                 .foregroundStyle(exclu ? CouleurPersillade.encre2.couleur : CouleurPersillade.encre.couleur)
             if let precision {
                 Text(precision).typographie(.precision).foregroundStyle(CouleurPersillade.encre2.couleur)
+            }
+            if exclu {
+                Text("Ne sera pas envoyé").typographie(.precision).foregroundStyle(CouleurPersillade.encre2.couleur)
             }
         }
     }

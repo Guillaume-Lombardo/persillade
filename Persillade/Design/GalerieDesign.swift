@@ -42,10 +42,7 @@
                 .background(CouleurPersillade.page.couleur)
                 .navigationTitle("Galerie")
                 .barreAction {
-                    Button("Modifier la quantité") { ouvrirEditeur = true }
-                        .typographie(.bouton)
-                        .buttonStyle(.glassProminent)
-                        .frame(minHeight: GrillePersillade.cible)
+                    BoutonActionPersillade("Modifier la quantité") { ouvrirEditeur = true }
                 }
                 .sheet(isPresented: $ouvrirEditeur) {
                     NavigationStack {
@@ -66,6 +63,7 @@
                             }
                         }
                     }
+                    .environment(\.dynamicTypeSize, tailleGalerie)
                 }
             }
             .environment(\.dynamicTypeSize, tailleGalerie)

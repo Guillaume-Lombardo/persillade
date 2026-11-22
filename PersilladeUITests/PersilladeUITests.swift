@@ -35,6 +35,14 @@ final class PersilladeUITests: XCTestCase {
                 XCTAssertTrue(action.isHittable)
                 joindreCapture("Galerie-\(nom)")
 
+                if nom == "clair" {
+                    app.buttons["Ne pas envoyer Pommes de terre"].tap()
+                    let articleExclu = app.buttons.matching(
+                        NSPredicate(format: "label CONTAINS %@", "Ne sera pas envoyé"))
+                    XCTAssertTrue(articleExclu.firstMatch.exists)
+                    app.buttons["Remettre Pommes de terre"].tap()
+                }
+
                 if nom == "AX5" {
                     action.tap()
                     XCTAssertTrue(app.textFields["editeur-quantite"].exists)

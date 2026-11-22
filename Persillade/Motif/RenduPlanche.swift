@@ -34,6 +34,8 @@ struct DemandePlanche: Hashable, Sendable {
 }
 
 actor RenduPlanche {
+    typealias Dessin = @Sendable (DemandePlanche) async throws -> CGImage
+
     static let partage = RenduPlanche()
     static let limiteOctets = 24_000_000
 
@@ -61,8 +63,18 @@ actor RenduPlanche {
 
     private let cache = NSCache<Cle, CGImage>()
     private var travaux: [DemandePlanche: Travail] = [:]
+    private let dessin: Dessin
 
-    init() { cache.totalCostLimit = Self.limiteOctets }
+    init(dessin: @escaping Dessin = { try RenduPlanche.dessiner($0) }) {
+        self.dessin = dessin
+        cache.totalCostLimit = Self.limiteOctets
+    }
+
+    #if DEBUG
+        func nombreConsommateurs(_ demande: DemandePlanche) -> Int {
+            travaux[demande]?.attentes.count ?? 0
+        }
+    #endif
 
     func image(_ demande: DemandePlanche) async throws -> CGImage {
         try Task.checkCancellation()
@@ -93,8 +105,13 @@ actor RenduPlanche {
             return
         }
         let id = UUID()
-        let tache = Task.detached(priority: .userInitiated) {
-            let resultat = Result { try Self.dessiner(demande) }
+        let tache = Task.detached(priority: .userInitiated) { [dessin] in
+            let resultat: Result<CGImage, any Error>
+            do {
+                resultat = .success(try await dessin(demande))
+            } catch {
+                resultat = .failure(error)
+            }
             await self.terminer(demande, id: id, resultat: resultat)
         }
         travaux[demande] = Travail(id: id, tache: tache, attentes: [consommateur: attente])

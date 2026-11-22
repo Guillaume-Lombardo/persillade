@@ -115,4 +115,29 @@ struct MotifTests {
         #expect(vignette.count == 61)
         #expect(try planche.primitives(largeur: 22, hauteur: 22, cadrage: .miniature, sombre: false).count == 25)
     }
+
+    @Test func leRubanDeSemaineResteEntierAGauche() throws {
+        let id = try #require(UUID(uuidString: "D902B3B1-A984-4449-B7CD-259FE5EF68A0"))
+        let creme = try Ingredient(nom: "crème", quantite: Quantite(20), unite: .cl, texteOrigine: "20 cl de crème")
+        let planche = Planche(id: id, ingredients: [creme])
+        let primitives = try planche.primitives(largeur: 168, hauteur: 104, cadrage: .semaine, sombre: false)
+        let rubans = primitives.filter { $0.remplissage == 0xFFF8E6 }
+        #expect(!rubans.isEmpty)
+        for ruban in rubans {
+            guard case .chemin(let commandes) = ruban.geometrie else {
+                Issue.record("Ruban attendu")
+                continue
+            }
+            let demiTrait = try #require(ruban.trait).largeur / 2
+            for commande in commandes {
+                switch commande {
+                case .aller(let point), .ligne(let point):
+                    let x = point.x * cos(ruban.angle) - point.y * sin(ruban.angle)
+                    #expect(x - demiTrait >= -84)
+                default:
+                    break
+                }
+            }
+        }
+    }
 }

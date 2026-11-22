@@ -25,18 +25,64 @@ struct RenduPlancheTests {
         #expect(try await rendu.image(clair) !== image)
     }
 
-    @Test func annulationSansEffetSurUnAutreConsommateur() async throws {
-        let rendu = RenduPlanche()
-        let demande = try #require(
-            DemandePlanche(
-                planche: plancheDeTest(), cadrage: .fiche, largeur: 393, hauteur: 238, echelle: 3, sombre: false))
+    #if DEBUG
+        @Test func annulationSansEffetSurUnAutreConsommateur() async throws {
+            let porte = PorteRendu()
+            let dessinateur = RenduPlanche()
+            let rendu = RenduPlanche { demande in
+                await porte.attendre()
+                return try await dessinateur.image(demande)
+            }
+            let demande = try #require(
+                DemandePlanche(
+                    planche: plancheDeTest(), cadrage: .fiche, largeur: 393, hauteur: 238, echelle: 3, sombre: false))
 
-        let gardee = Task { try await rendu.image(demande) }
-        let annulee = Task { try await rendu.image(demande) }
-        annulee.cancel()
-        await #expect(throws: CancellationError.self) { try await annulee.value }
-        #expect(try await gardee.value.width == 1_179)
-    }
+            let gardee = Task { try await rendu.image(demande) }
+            let annulee = Task {
+                do {
+                    _ = try await rendu.image(demande)
+                } catch is CancellationError {
+                    await porte.signalerAnnulation()
+                }
+            }
+
+            #expect(await attendre { await rendu.nombreConsommateurs(demande) == 2 })
+            annulee.cancel()
+            #expect(await attendre { await porte.consommateurAnnule })
+            await porte.ouvrir()
+            try await annulee.value
+            #expect(try await gardee.value.width == 1_179)
+        }
+
+        private func attendre(_ condition: () async -> Bool) async -> Bool {
+            let horloge = ContinuousClock()
+            let limite = horloge.now + .seconds(2)
+            while horloge.now < limite {
+                if await condition() { return true }
+                await Task.yield()
+            }
+            return false
+        }
+
+        private actor PorteRendu {
+            private var attentes: [CheckedContinuation<Void, Never>] = []
+            private var ouverte = false
+            private(set) var consommateurAnnule = false
+
+            func attendre() async {
+                if ouverte { return }
+                await withCheckedContinuation { attentes.append($0) }
+            }
+
+            func ouvrir() {
+                ouverte = true
+                for attente in attentes { attente.resume() }
+                attentes.removeAll()
+            }
+
+            func signalerAnnulation() { consommateurAnnule = true }
+        }
+    #endif
 
     #if !DEBUG
         @Test func mesureRendusFroidsSurSimulateur() async throws {

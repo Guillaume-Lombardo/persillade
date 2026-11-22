@@ -264,8 +264,14 @@ private struct RangeeMotif {
         let phase = Planche.tirage(graine, 1) * 6.283
         let demiEpaisseur = hauteur * 0.31
         let largeur = cadre.largeurTournee
-        let gauche = cadre.cadrage == .semaine ? -cadre.largeur / 2 + demiEpaisseur * 1.1 : -largeur / 2 - 4
+        let margeTrait = max(1, hauteur * 0.07) / 2
+        let projectionY = y * cadre.sinus + (amplitude + demiEpaisseur) * abs(cadre.sinus)
+        let gauche =
+            cadre.cadrage == .semaine
+            ? (-cadre.largeur / 2 + margeTrait + projectionY) / cadre.cosinus
+            : -largeur / 2 - 4
         let droite = largeur / 2 + 4
+        guard gauche < droite else { return }
         let nombre = min(60, Int(ceil(largeur / (longueurOnde / 14))))
         var haut: [PrimitiveMotif.Commande] = []
         var bas: [PrimitiveMotif.Commande] = []

@@ -4,7 +4,7 @@ import SwiftUI
 struct EditeurQuantite: View {
     private enum Choix: Hashable {
         case unite(Unite)
-        case personnalisee
+        case personnalisee, sansUnite
     }
 
     private static let standards: [Unite] = [.g, .kg, .ml, .cl, .l, .piece, .cas, .cac]
@@ -65,10 +65,7 @@ struct EditeurQuantite: View {
     }
 
     @ViewBuilder private var actions: some View {
-        Button("Valider") { valider() }
-            .typographie(.bouton)
-            .buttonStyle(.glassProminent)
-            .frame(minHeight: GrillePersillade.cible)
+        BoutonActionPersillade("Valider", action: valider)
         Button("Effacer la quantité") {
             texte = ""
             erreur = nil
@@ -77,7 +74,7 @@ struct EditeurQuantite: View {
         }
         .typographie(.bouton)
         .buttonStyle(.glass)
-        .frame(minHeight: GrillePersillade.cible)
+        .controlSize(.large)
     }
 
     private func valider() {
