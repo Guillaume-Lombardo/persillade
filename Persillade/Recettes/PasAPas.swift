@@ -61,6 +61,9 @@ struct PasAPas: View {
             garderEcranAllume(phase == .active)
         }
         .onChange(of: phase) { _, phase in garderEcranAllume(visible && phase == .active) }
+        .onChange(of: taille.isAccessibilitySize) { _, accessible in
+            if accessible { ensuiteAccessible = false }
+        }
         .onDisappear {
             visible = false
             garderEcranAllume(false)
