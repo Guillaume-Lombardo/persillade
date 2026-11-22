@@ -9,7 +9,7 @@ avec les premiers parcours.
 
 Il faut Xcode 27 ou plus récent, avec le runtime iOS 27. Ouvrir `Persillade.xcodeproj` et sélectionner
 le schéma partagé **Persillade**. Le test de la photothèque utilise un simulateur neuf où le script
-d’installation ajoute une seule photo de recette générée.
+de préparation ajoute une photo de recette générée en tête du sélecteur.
 
 ```sh
 swift test --package-path Paquets/PersilladeCore

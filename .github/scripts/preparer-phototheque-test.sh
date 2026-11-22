@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# Le test sélectionne l’unique image d’un simulateur neuf.
+# La photo générée s’affiche avant les photos d’exemple du simulateur.
 simulateur_photo_test=${1:?Indiquer l’UDID d’un simulateur neuf.}
 mkdir -p .build
 swift .github/scripts/generer-photo-import.swift .build/recette-test.jpg

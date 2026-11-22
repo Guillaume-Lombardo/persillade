@@ -12,8 +12,9 @@
 
             toucher(app.buttons["import-ajouter-recette"])
             toucher(app.buttons["import-choisir-photo"])
-            // Le simulateur est alimenté par le script de test avec une seule photo.
-            toucher(app.cells.firstMatch)
+            // La photo générée est plus récente que les exemples de la photothèque iOS.
+            let grille = app.scrollViews["photosView_content_scroll_view"]
+            toucher(grille.images.matching(identifier: "PXGGridLayout-Info").firstMatch)
             toucher(app.buttons["import-destination-recette"])
             verifierCorrection(app)
             joindre("Photo-correction")
