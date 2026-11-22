@@ -233,6 +233,13 @@ func corpusPages(nom: String, titre: String, portions: Int, ingredients: Int, et
     #expect(try resultat.validerRecette().portions == 4)
 }
 
+@Test func titreAvantUnTiretCadratinEtLesPortions() async throws {
+    let contenu = texteRecu("Nouilles au chou rouge — pour 3 personnes\n220 g de nouilles\nCuire les nouilles.")
+    let resultat = try await Extracteur().extraire(contenu, cible: .recette)
+    #expect(resultat.recette?.titre == "Nouilles au chou rouge")
+    #expect(resultat.recette?.portions == 3)
+}
+
 @Test func recetteComposeeDepuisDesCitations() async throws {
     let original = try fixture("10-prose", "txt")
     let moteur = MoteurBouchon(

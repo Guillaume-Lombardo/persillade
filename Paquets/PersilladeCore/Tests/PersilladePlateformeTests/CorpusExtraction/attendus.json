@@ -1,0 +1,277 @@
+[
+  {
+    "id": "web-01",
+    "type": "web",
+    "titre": "Polenta aux champignons",
+    "portions": 4,
+    "ingredients": [
+      {"nom": "polenta", "quantite": "180", "unite": "g"},
+      {"nom": "champignons", "quantite": "250", "unite": "g"},
+      {"nom": "eau", "quantite": "75", "unite": "cl"}
+    ],
+    "etapes": [
+      "Cuire la polenta dans l’eau.",
+      "Faire dorer les champignons et les déposer dessus."
+    ],
+    "jsonLD": true
+  },
+  {
+    "id": "web-02",
+    "type": "web",
+    "titre": "Pommes au four à la chicorée",
+    "portions": 3,
+    "ingredients": [
+      {"nom": "pommes", "quantite": "3", "unite": "piece"},
+      {"nom": "beurre", "quantite": "20", "unite": "g"},
+      {"nom": "chicorée", "quantite": "1/2", "unite": "cac"}
+    ],
+    "etapes": [
+      "Évider les pommes.",
+      "Répartir le beurre et la chicorée, puis enfourner à 180 °C."
+    ],
+    "jsonLD": true
+  },
+  {
+    "id": "web-03",
+    "type": "web",
+    "titre": "Tartinade de pois cassés",
+    "portions": 6,
+    "ingredients": [
+      {"nom": "pois cassés", "quantite": "200", "unite": "g"},
+      {"nom": "citron", "quantite": "1", "unite": "piece"},
+      {"nom": "huile de colza", "quantite": "2", "unite": "cas"}
+    ],
+    "etapes": [
+      "Cuire les pois cassés jusqu’à ce qu’ils soient tendres.",
+      "Mixer avec le jus de citron et l’huile de colza."
+    ],
+    "jsonLD": true
+  },
+  {
+    "id": "web-04",
+    "type": "web",
+    "titre": "Carottes au sésame",
+    "portions": 2,
+    "ingredients": [
+      {"nom": "carottes", "quantite": "400", "unite": "g"},
+      {"nom": "sésame", "quantite": "1", "unite": "cas"},
+      {"nom": "miel", "quantite": "1", "unite": "cac"}
+    ],
+    "etapes": [
+      "Couper les carottes en bâtons.",
+      "Mélanger avec le miel et le sésame, puis enfourner."
+    ],
+    "jsonLD": false
+  },
+  {
+    "id": "web-05",
+    "type": "web",
+    "titre": "Semoule au lait et au citron",
+    "portions": 4,
+    "ingredients": [
+      {"nom": "semoule fine", "quantite": "75", "unite": "g"},
+      {"nom": "lait", "quantite": "50", "unite": "cl"},
+      {"nom": "citron", "quantite": "1", "unite": "piece"}
+    ],
+    "etapes": [
+      "Chauffer le lait avec le zeste de citron.",
+      "Verser la semoule en pluie et remuer."
+    ],
+    "jsonLD": false
+  },
+  {
+    "id": "texte-01",
+    "type": "texte",
+    "titre": "Galettes de riz au poireau",
+    "portions": 2,
+    "ingredients": [
+      {"nom": "riz cuit", "quantite": "180", "unite": "g"},
+      {"nom": "poireau", "quantite": "1", "unite": "piece"},
+      {"nom": "œuf", "quantite": "1", "unite": "piece"}
+    ],
+    "etapes": [
+      "Émincer le poireau.",
+      "Mélanger le poireau, le riz et l’œuf puis dorer en petits tas."
+    ]
+  },
+  {
+    "id": "texte-02",
+    "type": "texte",
+    "titre": "Velouté de fenouil",
+    "portions": 4,
+    "ingredients": [
+      {"nom": "fenouils", "quantite": "2", "unite": "piece"},
+      {"nom": "bouillon", "quantite": "50", "unite": "cl"},
+      {"nom": "crème", "quantite": "1/2", "unite": "autre:verre"}
+    ],
+    "etapes": [
+      "Émincer les fenouils.",
+      "Cuire dans le bouillon et mixer avec la crème."
+    ]
+  },
+  {
+    "id": "texte-03",
+    "type": "texte",
+    "titre": "Crumble de poires au seigle",
+    "portions": null,
+    "ingredients": [
+      {"nom": "poires", "quantite": "4", "unite": "piece"},
+      {"nom": "farine de seigle", "quantite": "90", "unite": "g"},
+      {"nom": "beurre", "quantite": "60", "unite": "g"}
+    ],
+    "etapes": [
+      "Couper les poires.",
+      "Mélanger la farine et le beurre puis émietter sur les poires."
+    ]
+  },
+  {
+    "id": "texte-04",
+    "type": "texte",
+    "titre": "Nouilles au chou rouge",
+    "portions": 3,
+    "ingredients": [
+      {"nom": "nouilles", "quantite": "220", "unite": "g"},
+      {"nom": "chou rouge", "quantite": "1/2", "unite": "piece"},
+      {"nom": "vinaigre de riz", "quantite": "2", "unite": "cas"}
+    ],
+    "etapes": [
+      "Cuire les nouilles.",
+      "Émincer le chou, puis mélanger avec les nouilles et le vinaigre."
+    ]
+  },
+  {
+    "id": "texte-05",
+    "type": "texte",
+    "titre": "Brouillade aux herbes",
+    "portions": null,
+    "ingredients": [
+      {"nom": "œufs", "quantite": "3", "unite": "piece"},
+      {"nom": "ciboulette", "quantite": "5", "unite": "autre:brin"},
+      {"nom": "crème", "quantite": "1", "unite": "cas"}
+    ],
+    "etapes": [
+      "Battre les œufs et la crème.",
+      "Cuire à feu doux et ajouter la ciboulette."
+    ]
+  },
+  {
+    "id": "photo-01",
+    "type": "imprime",
+    "titre": "Poêlée de radis",
+    "portions": 2,
+    "ingredients": [
+      {"nom": "radis", "quantite": "1", "unite": "autre:botte"},
+      {"nom": "beurre", "quantite": "15", "unite": "g"},
+      {"nom": "moutarde", "quantite": "1", "unite": "cac"}
+    ],
+    "etapes": [
+      "Couper les radis en deux.",
+      "Faire revenir dans le beurre et ajouter la moutarde."
+    ]
+  },
+  {
+    "id": "photo-02",
+    "type": "imprime",
+    "titre": "Gratin de courge au comté",
+    "portions": 4,
+    "ingredients": [
+      {"nom": "courge", "quantite": "600", "unite": "g"},
+      {"nom": "comté", "quantite": "80", "unite": "g"},
+      {"nom": "crème", "quantite": "20", "unite": "cl"}
+    ],
+    "etapes": [
+      "Couper la courge en dés et la cuire à la vapeur.",
+      "Verser la crème, ajouter le comté et enfourner."
+    ]
+  },
+  {
+    "id": "photo-03",
+    "type": "imprime",
+    "titre": "Pain perdu au cacao",
+    "portions": 3,
+    "ingredients": [
+      {"nom": "pain", "quantite": "6", "unite": "autre:tranche"},
+      {"nom": "lait", "quantite": "25", "unite": "cl"},
+      {"nom": "cacao", "quantite": "1", "unite": "cas"}
+    ],
+    "etapes": [
+      "Mélanger le lait et le cacao.",
+      "Laisser le pain tremper puis le dorer à la poêle."
+    ]
+  },
+  {
+    "id": "photo-04",
+    "type": "imprime",
+    "titre": "Chou-fleur à la chapelure",
+    "portions": 4,
+    "ingredients": [
+      {"nom": "chou-fleur", "quantite": "1", "unite": "piece"},
+      {"nom": "chapelure", "quantite": "40", "unite": "g"},
+      {"nom": "huile", "quantite": "2", "unite": "cas"}
+    ],
+    "etapes": [
+      "Cuire le chou-fleur à la vapeur.",
+      "Mélanger la chapelure et l’huile puis faire gratiner."
+    ]
+  },
+  {
+    "id": "photo-05",
+    "type": "imprime",
+    "titre": "Orge au citron confit",
+    "portions": null,
+    "ingredients": [
+      {"nom": "orge perlé", "quantite": "150", "unite": "g"},
+      {"nom": "citron confit", "quantite": "1/4", "unite": "piece"},
+      {"nom": "persil", "quantite": "4", "unite": "autre:brin"}
+    ],
+    "etapes": [
+      "Cuire l’orge dans de l’eau.",
+      "Hacher le citron et le persil puis les ajouter."
+    ]
+  },
+  {
+    "id": "fiche-01",
+    "type": "manuscrit",
+    "titre": "Soupe aux fanes de navet",
+    "portions": 2,
+    "ingredients": [
+      {"nom": "fanes de navet", "quantite": "1", "unite": "autre:botte"},
+      {"nom": "pommes de terre", "quantite": "2", "unite": "piece"},
+      {"nom": "eau", "quantite": "50", "unite": "cl"}
+    ],
+    "etapes": [
+      "Couper les pommes de terre.",
+      "Cuire le tout et mixer."
+    ]
+  },
+  {
+    "id": "fiche-02",
+    "type": "manuscrit",
+    "titre": "Flan au café",
+    "portions": 3,
+    "ingredients": [
+      {"nom": "œufs", "quantite": "2", "unite": "piece"},
+      {"nom": "lait", "quantite": "30", "unite": "cl"},
+      {"nom": "café soluble", "quantite": "1", "unite": "cac"}
+    ],
+    "etapes": [
+      "Battre les œufs avec le lait et le café.",
+      "Verser dans les ramequins et enfourner."
+    ]
+  },
+  {
+    "id": "fiche-03",
+    "type": "manuscrit",
+    "titre": "Salade de pommes et céleri",
+    "portions": null,
+    "ingredients": [
+      {"nom": "pomme", "quantite": "1", "unite": "piece"},
+      {"nom": "céleri-rave", "quantite": "1/2", "unite": "piece"},
+      {"nom": "yaourt", "quantite": "1", "unite": "autre:pot"}
+    ],
+    "etapes": [
+      "Râper la pomme et le céleri.",
+      "Mélanger avec le yaourt."
+    ]
+  }
+]
