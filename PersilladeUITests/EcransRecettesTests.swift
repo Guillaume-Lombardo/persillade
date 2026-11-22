@@ -89,7 +89,9 @@
             XCTAssertTrue(titre.waitForExistence(timeout: 8))
             XCTAssertEqual(titre.value as? String, "Crêpes maison du dimanche")
             XCTAssertEqual(portions.value as? String, "6")
-            let oeufs = app.buttons.containing(NSPredicate(format: "label CONTAINS[c] %@", "œufs")).firstMatch
+            let oeufs = app.buttons.matching(
+                NSPredicate(format: "label CONTAINS[cd] %@ AND label CONTAINS %@", "œufs", "2")
+            ).firstMatch
             XCTAssertTrue(oeufs.exists)
             XCTAssertFalse(oeufs.label.contains("pièce"))
             joindre("Correction-reprise")
@@ -156,8 +158,8 @@
             let exclure = app.buttons["Ne pas envoyer farine"]
             XCTAssertTrue(exclure.waitForExistence(timeout: 8))
             exclure.tap()
-            let bananes = app.buttons.containing(NSPredicate(format: "label BEGINSWITH %@", "2")).matching(
-                NSPredicate(format: "label CONTAINS %@", "bananes")
+            let bananes = app.buttons.matching(
+                NSPredicate(format: "label CONTAINS[cd] %@ AND label CONTAINS %@", "bananes", "2")
             ).firstMatch
             XCTAssertTrue(bananes.exists)
             XCTAssertFalse(bananes.label.contains("pièce"))

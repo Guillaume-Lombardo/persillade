@@ -23,6 +23,11 @@ struct FormulaireMessage: Codable, Equatable, Sendable {
     let cause: CauseExtraction?
     var propositions: [Proposition]
     var edition: Edition?
+
+    private enum CodingKeys: String, CodingKey {
+        case sourceId, cause, propositions, edition
+        case texteDerive = "texte"
+    }
 }
 
 struct ArticlesMessageCourses: View {
@@ -53,7 +58,7 @@ struct ArticlesMessageCourses: View {
 
     init(
         session: SessionCourses, contenu: ContenuRecu?, extracteur: Extracteur, reception: ReceptionEntree,
-        brouillon: FormulaireMessage? = nil, receptionTraitee: @escaping () -> Void
+        brouillon: FormulaireMessage?, integre: Bool, receptionTraitee: @escaping () -> Void
     ) {
         self.session = session
         self.extracteur = extracteur
@@ -61,6 +66,7 @@ struct ArticlesMessageCourses: View {
         self.receptionTraitee = receptionTraitee
         _contenu = State(initialValue: contenu)
         _formulaire = State(initialValue: brouillon)
+        _integre = State(initialValue: integre)
     }
 
     var body: some View {
@@ -303,7 +309,10 @@ struct ArticlesMessageCourses: View {
                 propositions.append(contentsOf: incomprises)
             }
             formulaire = FormulaireMessage(
-                sourceId: contenu.id, texte: extraction.texteSource, cause: extraction.cause, propositions: propositions
+                sourceId: contenu.id,
+                texteDerive: contenu.type == .texte && extraction.texteSource == contenu.texteRecu
+                    ? nil : extraction.texteSource,
+                cause: extraction.cause, propositions: propositions
             )
         } catch is CancellationError {
             return

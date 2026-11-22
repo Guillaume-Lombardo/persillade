@@ -58,7 +58,7 @@ struct CorrectionRecette: View {
     @State private var suppression: Suppression?
 
     init(
-        donnees: DonneesCorrection, photo: Data? = nil, repris: Bool = false,
+        donnees: DonneesCorrection, photo: Data? = nil, repris: Bool = false, enregistree: Bool = false,
         fermer: @escaping () -> Void, enregistrer: @escaping (Recette) async throws -> Void,
         retirerSource: @escaping () async throws -> Void = {}, terminer: @escaping (UUID) -> Void
     ) {
@@ -72,6 +72,8 @@ struct CorrectionRecette: View {
         self.repris = repris
         _initial = State(initialValue: donnees.formulaire)
         _formulaire = State(initialValue: donnees.formulaire)
+        _enregistree = State(initialValue: enregistree)
+        _erreurEcriture = State(initialValue: enregistree)
     }
 
     private var brouillon: BrouillonCorrection { .recette(donnees, formulaire, validation: false) }

@@ -98,7 +98,7 @@ import XCTest
             ).firstMatch
             XCTAssertTrue(refuser.waitForExistence(timeout: 10), springboard.debugDescription)
             refuser.tap()
-            let chemin = app.staticTexts.containing(
+            let chemin = app.staticTexts.matching(
                 NSPredicate(format: "label CONTAINS %@", "Apps → Persillade → Rappels")
             ).firstMatch
             XCTAssertTrue(chemin.waitForExistence(timeout: 10))

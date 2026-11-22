@@ -10,6 +10,11 @@ struct ContexteCorrection: Codable, Equatable, Sendable {
     let photoSansTexte: Bool
     let modification: Bool
     let debutExtrait: Int
+
+    private enum CodingKeys: String, CodingKey {
+        case id, sourceId, url, cause, photoSansTexte, modification, debutExtrait
+        case texteDerive = "source"
+    }
 }
 
 struct DonneesCorrection {

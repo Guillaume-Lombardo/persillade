@@ -50,9 +50,9 @@ private struct Racine: View {
 
     private enum Feuille: Identifiable {
         case importation(ContenuRecu?)
-        case articles(ContenuRecu?, FormulaireMessage? = nil)
+        case articles(ContenuRecu?, FormulaireMessage? = nil, integre: Bool = false)
         case photo(SourcePhoto)
-        case correction(DonneesCorrection, repris: Bool = false)
+        case correction(DonneesCorrection, repris: Bool = false, enregistree: Bool = false)
         case reglages
 
         var id: String {
@@ -60,7 +60,7 @@ private struct Racine: View {
             case .importation: "importation"
             case .articles: "articles"
             case .photo: "photo"
-            case .correction(let donnees, _): donnees.contexte.id.uuidString
+            case .correction(let donnees, _, _): donnees.contexte.id.uuidString
             case .reglages: "reglages"
             }
         }
@@ -198,9 +198,10 @@ private struct Racine: View {
                 initial: recu, reception: reception, bibliotheque: bibliotheque, extracteur: extracteur,
                 repliConsenti: repliConsenti, fermer: { feuille = nil }, terminer: finImport,
                 importerArticles: { feuille = .articles($0) })
-        case .articles(let recu, let brouillon):
+        case .articles(let recu, let brouillon, let integre):
             ArticlesMessageCourses(
-                session: courses, contenu: recu, extracteur: extracteur, reception: reception, brouillon: brouillon
+                session: courses, contenu: recu, extracteur: extracteur, reception: reception, brouillon: brouillon,
+                integre: integre
             ) {
                 traiterSuivant = true
                 onglet = .courses
@@ -209,11 +210,12 @@ private struct Racine: View {
             ParcoursImport(
                 initial: nil, reception: reception, bibliotheque: bibliotheque, extracteur: extracteur,
                 repliConsenti: repliConsenti, fermer: { feuille = nil }, terminer: finImport, sourcePhoto: source)
-        case .correction(let donnees, let repris):
+        case .correction(let donnees, let repris, let enregistree):
             let recu = reception.contenus.first { $0.id == donnees.contexte.sourceId }
             NavigationStack {
                 CorrectionRecette(
                     donnees: donnees, photo: recu?.type == .image ? recu?.contenu : nil, repris: repris,
+                    enregistree: enregistree,
                     fermer: { feuille = nil },
                     enregistrer: {
                         try await bibliotheque.enregistrer(
@@ -269,6 +271,7 @@ private struct Racine: View {
                 ?? recu.flatMap { recu in
                     recu.type == .texte ? recu.texteRecu : reception.textesDeRepli[recu.id]
                 }
+            var enregistree: Recette?
             do {
                 let recette = try await bibliotheque.lire(contexte.id)
                 if contexte.modification { source = recette?.texteSource }
@@ -276,6 +279,8 @@ private struct Racine: View {
                     contexte.modification && validation
                     ? try source.map { try formulaire.valider(contexte, source: $0) } : nil
                 if let recette, !contexte.modification || modifiee == recette {
+                    enregistree = recette
+                    source = recette.texteSource
                     try Task.checkCancellation()
                     if let recu { try await reception.retirer(recu) }
                     try await suivi.effacer()
@@ -284,7 +289,7 @@ private struct Racine: View {
                 }
             } catch {
                 // La correction reste accessible si la bibliothèque ou le nettoyage échoue.
-                if !Task.isCancelled {
+                if !Task.isCancelled, enregistree == nil {
                     bibliotheque.erreur = "Impossible de vérifier l’enregistrement de la recette."
                 }
             }
@@ -293,12 +298,17 @@ private struct Racine: View {
                 erreurReprise = "Impossible de retrouver la source de la correction. Le brouillon est conservé."
                 return
             }
-            feuille = .correction(.init(contexte: contexte, source: source ?? "", formulaire: formulaire), repris: true)
+            let formulaireAffiche = enregistree.map { DonneesCorrection(recette: $0).formulaire } ?? formulaire
+            feuille = .correction(
+                .init(contexte: contexte, source: source ?? "", formulaire: formulaireAffiche),
+                repris: true, enregistree: enregistree != nil)
         case .message(let formulaire):
             let recu = reception.contenus.first { $0.id == formulaire.sourceId }
+            var integre = false
             do {
                 let etat = try await courses.envoi.lire()
-                if etat.liste.contientMessage(id: formulaire.sourceId) {
+                integre = etat.liste.contientMessage(id: formulaire.sourceId)
+                if integre {
                     try Task.checkCancellation()
                     if let recu { try await reception.retirer(recu) }
                     try await suivi.effacer()
@@ -306,11 +316,17 @@ private struct Racine: View {
                     return
                 }
             } catch {
-                if !Task.isCancelled { courses.signaler("Impossible de vérifier l’ajout du message.", erreur: error) }
+                if !Task.isCancelled {
+                    let message =
+                        integre
+                        ? "Les articles sont ajoutés. Impossible de clôturer la validation."
+                        : "Impossible de vérifier l’ajout du message."
+                    courses.signaler(message, erreur: error)
+                }
             }
             guard !Task.isCancelled else { return }
             onglet = .courses
-            feuille = .articles(recu, formulaire)
+            feuille = .articles(recu, formulaire, integre: integre)
         }
     }
 
