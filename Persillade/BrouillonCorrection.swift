@@ -75,6 +75,7 @@ final class SuiviBrouillonCorrection {
     private var courant: BrouillonCorrection?
     private var aEcrire: BrouillonCorrection?
     private(set) var erreurEcriture = false
+    var aUnBrouillon: Bool { aEcrire != nil || courant != nil || erreurEcriture }
 
     init(dossier: URL? = nil) {
         magasin = MagasinBrouillonCorrection(

@@ -214,23 +214,22 @@ private struct Racine: View {
             NavigationStack {
                 CorrectionRecette(
                     donnees: donnees, photo: recu?.type == .image ? recu?.contenu : nil, repris: repris,
-                    fermer: { feuille = nil }
-                ) { recette in
-                    try await bibliotheque.enregistrer(
-                        recette, modification: donnees.contexte.modification, echelle: echelle)
-                    do {
+                    fermer: { feuille = nil },
+                    enregistrer: {
+                        try await bibliotheque.enregistrer(
+                            $0, modification: donnees.contexte.modification, echelle: echelle)
+                    },
+                    retirerSource: {
                         if let recu { try await reception.retirer(recu) }
-                        try await suivi.effacer()
-                    } catch {
-                        throw ErreurClotureImport.retrait
-                    }
-                    if donnees.contexte.sourceId != nil {
-                        finImport(recette.id)
-                    } else {
-                        feuille = nil
-                        if !donnees.contexte.modification { ouvrirFiche(recette.id) }
-                    }
-                }
+                    },
+                    terminer: { id in
+                        if donnees.contexte.sourceId != nil {
+                            finImport(id)
+                        } else {
+                            feuille = nil
+                            if !donnees.contexte.modification { ouvrirFiche(id) }
+                        }
+                    })
             }
             .presentationDetents([.large])
         case .reglages:
@@ -265,11 +264,17 @@ private struct Racine: View {
         switch brouillon {
         case .recette(let contexte, let formulaire, let validation):
             let recu = reception.contenus.first { $0.id == contexte.sourceId }
+            var source =
+                contexte.texteDerive
+                ?? recu.flatMap { recu in
+                    recu.type == .texte ? recu.texteRecu : reception.textesDeRepli[recu.id]
+                }
             do {
                 let recette = try await bibliotheque.lire(contexte.id)
+                if contexte.modification { source = recette?.texteSource }
                 let modifiee =
                     contexte.modification && validation
-                    ? try? formulaire.valider(contexte) : nil
+                    ? try source.map { try formulaire.valider(contexte, source: $0) } : nil
                 if let recette, !contexte.modification || modifiee == recette {
                     try Task.checkCancellation()
                     if let recu { try await reception.retirer(recu) }
@@ -284,7 +289,11 @@ private struct Racine: View {
                 }
             }
             guard !Task.isCancelled else { return }
-            feuille = .correction(.init(contexte: contexte, formulaire: formulaire), repris: true)
+            if contexte.modification || contexte.sourceId != nil, source == nil {
+                erreurReprise = "Impossible de retrouver la source de la correction. Le brouillon est conservé."
+                return
+            }
+            feuille = .correction(.init(contexte: contexte, source: source ?? "", formulaire: formulaire), repris: true)
         case .message(let formulaire):
             let recu = reception.contenus.first { $0.id == formulaire.sourceId }
             do {

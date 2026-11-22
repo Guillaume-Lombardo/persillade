@@ -15,7 +15,6 @@ struct ParcoursImport: View {
     let importerArticles: ((ContenuRecu) -> Void)?
     private let sourcePhoto: SourcePhoto?
 
-    @Environment(SuiviBrouillonCorrection.self) private var suivi
     @Environment(\.displayScale) private var echelle
     @Environment(\.dynamicTypeSize) private var taille
     @State private var etape: Etape
@@ -102,29 +101,18 @@ struct ParcoursImport: View {
         case .correction:
             if let recu, let resultat {
                 CorrectionRecette(
-                    donnees: .init(recu: recu, resultat: resultat, url: lienRecu),
+                    donnees: .init(recu: recu, resultat: resultat, url: lienRecu, texteDeRepli: texteDeRepli),
                     photo: recu.type == .image ? recu.contenu : nil,
-                    fermer: fermer
-                ) { recette in
-                    if recetteEnregistree == nil {
-                        try await bibliotheque.enregistrer(recette, modification: false, echelle: echelle)
-                        recetteEnregistree = recette.id
-                    }
-                    do {
-                        try await reception.retirer(recu)
-                        try await suivi.effacer()
-                    } catch {
-                        throw ErreurClotureImport.retrait
-                    }
-                    terminer(recette.id)
-                }
+                    fermer: fermer,
+                    enregistrer: { try await bibliotheque.enregistrer($0, modification: false, echelle: echelle) },
+                    retirerSource: { try await reception.retirer(recu) },
+                    terminer: { terminer($0) })
             }
         case .saisie:
-            CorrectionRecette(donnees: saisieLibre, fermer: fermer) { recette in
-                try await bibliotheque.enregistrer(recette, modification: false, echelle: echelle)
-                try await suivi.effacer()
-                terminer(recette.id)
-            }
+            CorrectionRecette(
+                donnees: saisieLibre, fermer: fermer,
+                enregistrer: { try await bibliotheque.enregistrer($0, modification: false, echelle: echelle) },
+                terminer: { terminer($0) })
         }
     }
 
@@ -237,7 +225,7 @@ struct ParcoursImport: View {
     }
 
     private var messageEchec: String {
-        if recetteEnregistree != nil { return ErreurClotureImport.message }
+        if recetteEnregistree != nil { return CorrectionRecette.messageCloture }
         if let erreur = resultat?.erreurAccesPage?.errorDescription { return erreur }
         switch resultat?.cause {
         case .horsLigne: return "L’iPhone est hors ligne. Le lien est gardé."
@@ -297,12 +285,6 @@ struct ParcoursImport: View {
             self.erreur = "Impossible d’abandonner ce contenu. Il est gardé."
         }
     }
-}
-
-enum ErreurClotureImport: Error {
-    case retrait
-
-    static let message = "La recette est enregistrée. La correction n’a pas pu être clôturée."
 }
 
 private struct FeuilleCollage: View {

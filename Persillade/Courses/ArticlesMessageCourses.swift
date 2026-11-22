@@ -19,7 +19,7 @@ struct FormulaireMessage: Codable, Equatable, Sendable {
     }
 
     let sourceId: UUID
-    let texte: String
+    let texteDerive: String?
     let cause: CauseExtraction?
     var propositions: [Proposition]
     var edition: Edition?
@@ -159,7 +159,7 @@ struct ArticlesMessageCourses: View {
                 Button("Réessayer") { suivi.programmer(.message(brouillon)) }
             }
             DisclosureGroup("Texte reçu") {
-                Text(brouillon.texte).textSelection(.enabled)
+                Text(brouillon.texteDerive ?? contenu?.texteRecu ?? "").textSelection(.enabled)
             }
             if let cause = brouillon.cause {
                 Text(explication(cause)).typographie(.precision)

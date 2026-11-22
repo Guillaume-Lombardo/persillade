@@ -30,8 +30,13 @@ struct CorrectionRecette: View {
 
     let fermer: () -> Void
     let enregistrer: (Recette) async throws -> Void
+    let retirerSource: () async throws -> Void
+    let terminer: (UUID) -> Void
+
+    static let messageCloture = "La recette est enregistrée. La correction n’a pas pu être clôturée."
 
     private let donnees: ContexteCorrection
+    private let source: String
     private let photo: Data?
     private let repris: Bool
     @State private var initial: FormulaireRecette
@@ -54,11 +59,15 @@ struct CorrectionRecette: View {
 
     init(
         donnees: DonneesCorrection, photo: Data? = nil, repris: Bool = false,
-        fermer: @escaping () -> Void, enregistrer: @escaping (Recette) async throws -> Void
+        fermer: @escaping () -> Void, enregistrer: @escaping (Recette) async throws -> Void,
+        retirerSource: @escaping () async throws -> Void = {}, terminer: @escaping (UUID) -> Void
     ) {
         self.fermer = fermer
         self.enregistrer = enregistrer
+        self.retirerSource = retirerSource
+        self.terminer = terminer
         self.donnees = donnees.contexte
+        source = donnees.source
         self.photo = photo
         self.repris = repris
         _initial = State(initialValue: donnees.formulaire)
@@ -68,7 +77,7 @@ struct CorrectionRecette: View {
     private var brouillon: BrouillonCorrection { .recette(donnees, formulaire, validation: false) }
 
     private var brouillonNecessaire: Bool {
-        repris || donnees.sourceId != nil || formulaire != initial
+        repris || donnees.sourceId != nil || formulaire != initial || suivi.aUnBrouillon
     }
 
     private var alertes: [Champ] {
@@ -97,7 +106,7 @@ struct CorrectionRecette: View {
                         VStack(alignment: .leading, spacing: GrillePersillade.pas * 2) {
                             Text(
                                 enregistree
-                                    ? ErreurClotureImport.message
+                                    ? Self.messageCloture
                                     : "La recette n’a pas été enregistrée. Rien n’est perdu."
                             )
                             .typographie(.alerte)
@@ -142,7 +151,7 @@ struct CorrectionRecette: View {
                 if donnees.cause != nil || !alertes.isEmpty {
                     Section { bandeau(defilement) }
                 }
-                if !donnees.source.isEmpty && saisie == nil {
+                if !source.isEmpty && saisie == nil {
                     Section { panneauSource(defilement) }
                 }
 
@@ -188,7 +197,9 @@ struct CorrectionRecette: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fermer") {
-                        if !enregistree && (repris || formulaire != initial || erreurEcriture) {
+                        if enregistree {
+                            fermer()
+                        } else if repris || formulaire != initial || erreurEcriture {
                             confirmerQuitter = true
                         } else {
                             abandonner()
@@ -328,7 +339,7 @@ struct CorrectionRecette: View {
 
     private func panneauSource(_ defilement: ScrollViewProxy) -> some View {
         VoletTexteRecu(
-            source: donnees.source, debut: donnees.debutExtrait, ingredients: formulaire.ingredients,
+            source: source, debut: donnees.debutExtrait, ingredients: formulaire.ingredients,
             ouvert: Binding(
                 get: { sourceOuverte ?? (photo == nil && !taille.isAccessibilitySize) },
                 set: { sourceOuverte = $0 })
@@ -561,14 +572,20 @@ struct CorrectionRecette: View {
         Task {
             defer { enregistrant = false }
             do {
-                let recette = try formulaire.recette(donnees, portions: portions, ingredients: ingredients)
-                if !enregistree { try await suivi.forcer(.recette(donnees, formulaire, validation: true)) }
-                try await enregistrer(recette)
+                if !enregistree {
+                    let recette = try formulaire.recette(
+                        donnees, source: source, portions: portions, ingredients: ingredients)
+                    try await suivi.forcer(.recette(donnees, formulaire, validation: true))
+                    try await enregistrer(recette)
+                    enregistree = true
+                }
+                try await retirerSource()
+                try await suivi.effacer()
+                terminer(donnees.id)
             } catch {
-                enregistree = error is ErreurClotureImport
                 erreurEcriture = true
                 let message =
-                    enregistree ? ErreurClotureImport.message : "La recette n’a pas été enregistrée. Rien n’est perdu."
+                    enregistree ? Self.messageCloture : "La recette n’a pas été enregistrée. Rien n’est perdu."
                 AccessibilityNotification.Announcement(message).post()
                 await Task.yield()
                 defilement.scrollTo("erreur-ecriture", anchor: .top)

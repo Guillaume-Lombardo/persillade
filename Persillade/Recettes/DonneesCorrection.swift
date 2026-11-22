@@ -4,7 +4,7 @@ import PersilladeCore
 struct ContexteCorrection: Codable, Equatable, Sendable {
     let id: UUID
     let sourceId: UUID?
-    let source: String
+    let texteDerive: String?
     let url: URL?
     let cause: CauseExtraction?
     let photoSansTexte: Bool
@@ -14,21 +14,25 @@ struct ContexteCorrection: Codable, Equatable, Sendable {
 
 struct DonneesCorrection {
     let contexte: ContexteCorrection
+    let source: String
     let formulaire: FormulaireRecette
 
     init() {
+        source = ""
         contexte = .init(
-            id: UUID(), sourceId: nil, source: "", url: nil, cause: nil,
+            id: UUID(), sourceId: nil, texteDerive: nil, url: nil, cause: nil,
             photoSansTexte: false, modification: false, debutExtrait: 0)
         formulaire = FormulaireRecette(BrouillonRecette(portions: 4), source: "")
     }
 
-    init(recu: ContenuRecu, resultat: ResultatExtraction, url: URL?) {
+    init(recu: ContenuRecu, resultat: ResultatExtraction, url: URL?, texteDeRepli: String?) {
         let brouillon = resultat.recette ?? BrouillonRecette()
-        let source = resultat.texteSource
+        source = resultat.texteSource
         formulaire = FormulaireRecette(brouillon, source: source)
+        let reference = recu.type == .texte ? recu.texteRecu : texteDeRepli
         contexte = .init(
-            id: recu.id, sourceId: recu.id, source: source, url: resultat.urlSource ?? url,
+            id: recu.id, sourceId: recu.id, texteDerive: source == reference ? nil : source,
+            url: resultat.urlSource ?? url,
             cause: resultat.statut == .echec ? nil : resultat.cause,
             photoSansTexte: recu.type == .image && resultat.cause == .rienTrouve && source.isEmpty,
             modification: false,
@@ -37,6 +41,7 @@ struct DonneesCorrection {
     }
 
     init(recette: Recette) {
+        source = recette.texteSource
         let brouillon = BrouillonRecette(
             titre: recette.titre, portions: recette.portions,
             ingredients: recette.ingredients.map {
@@ -45,13 +50,14 @@ struct DonneesCorrection {
             etapes: recette.etapes)
         formulaire = FormulaireRecette(brouillon, source: recette.texteSource)
         contexte = .init(
-            id: recette.id, sourceId: nil, source: recette.texteSource, url: recette.urlSource,
+            id: recette.id, sourceId: nil, texteDerive: nil, url: recette.urlSource,
             cause: nil, photoSansTexte: false, modification: true,
             debutExtrait: recette.urlSource == nil ? 0 : formulaire.debutExtraitWeb(dans: recette.texteSource))
     }
 
-    init(contexte: ContexteCorrection, formulaire: FormulaireRecette) {
+    init(contexte: ContexteCorrection, source: String, formulaire: FormulaireRecette) {
         self.contexte = contexte
+        self.source = source
         self.formulaire = formulaire
     }
 }
@@ -112,16 +118,19 @@ struct FormulaireRecette: Codable, Equatable, Sendable {
         etapes = brouillon.etapes.map { LigneEtapeCorrection(texte: $0) }
     }
 
-    func valider(_ contexte: ContexteCorrection) throws -> Recette {
+    func valider(_ contexte: ContexteCorrection, source: String) throws -> Recette {
         guard let portionsEffectives else { throw Recette.Erreur.portionsNonPositives }
-        return try recette(contexte, portions: portionsEffectives, ingredients: ingredients.map { try $0.valider() })
+        return try recette(
+            contexte, source: source, portions: portionsEffectives, ingredients: ingredients.map { try $0.valider() })
     }
 
-    func recette(_ contexte: ContexteCorrection, portions: Int, ingredients: [Ingredient]) throws -> Recette {
+    func recette(
+        _ contexte: ContexteCorrection, source: String, portions: Int, ingredients: [Ingredient]
+    ) throws -> Recette {
         try Recette(
             id: contexte.id, titre: titre, portions: portions, ingredients: ingredients,
             etapes: etapes.map(\.texte).filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty },
-            texteSource: contexte.source, urlSource: contexte.url)
+            texteSource: source, urlSource: contexte.url)
     }
 
     func debutExtraitWeb(dans source: String) -> Int {

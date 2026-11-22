@@ -98,7 +98,9 @@
 
             app.terminate()
             app.launch()
-            XCTAssertTrue(app.buttons["ouvrir-recette"].firstMatch.waitForExistence(timeout: 8))
+            XCTAssertTrue(
+                app.descendants(matching: .any).matching(identifier: "ouvrir-recette").firstMatch.waitForExistence(
+                    timeout: 8))
             XCTAssertFalse(titre.exists)
             XCTAssertFalse(app.buttons["ouvrir-contenu-recu"].exists)
         }
@@ -126,7 +128,7 @@
 
             app.terminate()
             app.launch()
-            let recette = app.buttons["ouvrir-recette"].firstMatch
+            let recette = app.descendants(matching: .any).matching(identifier: "ouvrir-recette").firstMatch
             XCTAssertTrue(recette.waitForExistence(timeout: 8))
             recette.tap()
             XCTAssertTrue(app.staticTexts["titre-fiche"].waitForExistence(timeout: 8))

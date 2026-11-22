@@ -9,8 +9,9 @@ struct MagasinBrouillonCorrectionTests {
         let dossier = URL.temporaryDirectory.appending(path: UUID().uuidString)
         let magasin = MagasinBrouillonCorrection(dossier: dossier)
         let sourceId = UUID()
+        let texteLu = "2 pommes de terre\n3 tomates"
         let contexte = ContexteCorrection(
-            id: sourceId, sourceId: sourceId, source: "2 pommes de terre\n3 tomates", url: nil, cause: .iaIndisponible,
+            id: sourceId, sourceId: sourceId, texteDerive: texteLu, url: nil, cause: .iaIndisponible,
             photoSansTexte: false, modification: false, debutExtrait: 0)
         var formulaire = FormulaireRecette(
             BrouillonRecette(
@@ -23,7 +24,7 @@ struct MagasinBrouillonCorrectionTests {
                         ligneNonComprise: true),
                 ],
                 etapes: ["Faire cuire.", ""]),
-            source: contexte.source)
+            source: texteLu)
         formulaire.portions = "0"
         formulaire.ingredients.swapAt(0, 1)
         formulaire.ingredients[0].nonComprise = false
@@ -65,11 +66,12 @@ struct MagasinBrouillonCorrectionTests {
         saisie.texte = "2,"
         let brouillon = BrouillonCorrection.message(
             .init(
-                sourceId: original.id, texte: "2 pommes", cause: .iaIndisponible, propositions: [proposition],
+                sourceId: original.id, texteDerive: nil, cause: .iaIndisponible, propositions: [proposition],
                 edition: .init(id: proposition.id, saisie: saisie)))
         await suivi.programmer(brouillon)
         try await suivi.forcer(brouillon)
         #expect(try await suivi.lire() == brouillon)
+        #expect(try !String(contentsOf: fichier, encoding: .utf8).contains(original.texteRecu))
         try await suivi.effacer()
         #expect(try await suivi.lire() == nil)
         #expect(try await file.lire().contenus == [original])
