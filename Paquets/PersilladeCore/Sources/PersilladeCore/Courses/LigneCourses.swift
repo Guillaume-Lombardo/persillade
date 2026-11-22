@@ -18,6 +18,7 @@ public struct LigneCourses: Codable, Equatable, Identifiable, Sendable {
     public internal(set) var categorie: Categorie
     public private(set) var origines: [OrigineCourses]
     public internal(set) var cochee: Bool
+    var idsFusionnes: [UUID] = []
 
     public var quantiteArrondie: Quantite? {
         get throws {
@@ -81,6 +82,7 @@ public struct LigneCourses: Codable, Equatable, Identifiable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case id, libelle, quantite, unite, categorie, origines, cochee
         case nomNormalise = "nom_normalise"
+        case idsFusionnes = "ids_fusionnes"
     }
 
     public init(from decoder: any Decoder) throws {
@@ -91,11 +93,13 @@ public struct LigneCourses: Codable, Equatable, Identifiable, Sendable {
         categorie = try champs.decode(Categorie.self, forKey: .categorie)
         origines = try champs.decode([OrigineCourses].self, forKey: .origines)
         cochee = try champs.decode(Bool.self, forKey: .cochee)
+        idsFusionnes = try champs.decodeIfPresent([UUID].self, forKey: .idsFusionnes) ?? []
 
         let quantite = try champs.decodeIfPresent(Quantite.self, forKey: .quantite)
         let unite = try champs.decodeIfPresent(Unite.self, forKey: .unite)
         guard !nomNormalise.isEmpty, nomNormalise == normaliserNom(libelle),
             !origines.isEmpty, Set(origines).count == origines.count,
+            !idsFusionnes.contains(id), Set(idsFusionnes).count == idsFusionnes.count,
             (quantite == nil) == (unite == nil), unite == unite?.canoniqueCourses
         else {
             throw DecodingError.dataCorrupted(

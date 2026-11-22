@@ -164,6 +164,8 @@ public struct ListeCourses: Codable, Equatable, Identifiable, Sendable {
                 fusion.cochee = fusion.cochee && ajout.cochee
             }
             try fusion.fusionner(avec: ajout)
+            fusion.idsFusionnes.append(ajout.id)
+            fusion.idsFusionnes.append(contentsOf: ajout.idsFusionnes)
             lignes[premiere] = fusion
             lignes.remove(at: seconde)
         } else {

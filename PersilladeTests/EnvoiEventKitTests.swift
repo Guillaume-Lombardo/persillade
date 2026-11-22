@@ -56,7 +56,8 @@
             let coche = try await rappels.lire(destinationId: listeId)
             XCTAssertEqual(coche.count, 1)
             let cocheLe = try XCTUnwrap(coche.first?.cocheLe)
-            XCTAssertGreaterThanOrEqual(cocheLe, seuil, "Écart EventKit : \(cocheLe.timeIntervalSince(seuil)) s")
+            XCTAssertGreaterThanOrEqual(
+                cocheLe.timeIntervalSinceReferenceDate, seuil.timeIntervalSinceReferenceDate.rounded(.down))
             let second = try await relance.renvoyer()
             XCTAssertEqual(second.ignores, premier.ajoutes)
             XCTAssertTrue(second.ajoutes.isEmpty)

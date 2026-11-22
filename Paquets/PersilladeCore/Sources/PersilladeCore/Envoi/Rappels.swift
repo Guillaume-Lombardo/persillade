@@ -45,10 +45,16 @@ public struct RappelCourses: Equatable, Identifiable, Sendable {
 }
 
 public protocol MagasinRappels: Sendable {
+    func autoriser() async throws
     func destinations() async throws -> [DestinationRappels]
     func lire(destinationId: String) async throws -> [RappelCourses]
+    /// Une erreur typée indique que l'écriture a été rejetée.
     /// L'identifiant d'écriture est enregistré avec le titre dans la même opération.
     func ajouter(titre: String, destinationId: String, identifiantEcriture: UUID) async throws -> RappelCourses
+}
+
+extension MagasinRappels {
+    public func autoriser() async throws {}
 }
 
 public struct RapportEnvoi: Equatable, Sendable {

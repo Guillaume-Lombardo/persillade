@@ -10,12 +10,21 @@ public enum PlanEnvoi: Equatable, Sendable {
         ligne: LigneCourses, rappels: [RappelCourses], journal: JournalEnvoi, premierEnvoiLe: Date,
         destinationId: String? = nil
     ) throws {
+        try self.init(ligne: ligne, rappels: rappels, journal: journal, destinationId: destinationId) { rappel in
+            rappel.cocheLe.map { $0 >= premierEnvoiLe } == true
+        }
+    }
+
+    init(
+        ligne: LigneCourses, rappels: [RappelCourses], journal: JournalEnvoi, destinationId: String?,
+        cocheDepuisPremierEnvoi: @escaping (RappelCourses) -> Bool
+    ) throws {
         guard !ligne.cochee else {
             self = .exclure
             return
         }
         let articles = rappels.lazy.filter { rappel in
-            !rappel.coche || rappel.cocheLe.map { $0 >= premierEnvoiLe } == true
+            !rappel.coche || cocheDepuisPremierEnvoi(rappel)
         }.map { journal.article(du: $0, destinationId: destinationId) }.filter { $0.nomNormalise == ligne.nomNormalise }
 
         guard let quantite = try ligne.quantiteArrondie, let unite = ligne.unite else {
@@ -25,7 +34,7 @@ public enum PlanEnvoi: Equatable, Sendable {
 
         var reste = quantite
         for article in articles {
-            guard let valeur = article.quantite, let source = article.unite,
+            guard let valeur = article.quantite, let source = article.uniteOriginale,
                 let couverture = try convertir(valeur, source, unite)
             else { continue }
             if couverture >= reste {

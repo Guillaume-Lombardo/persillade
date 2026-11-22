@@ -42,7 +42,7 @@ struct EnvoiCoursesTests {
         let premier = try await envoi.renvoyer()
         #expect(premier.ignores.count == 1)
         let etat = try await envoi.lire()
-        #expect(etat.liste.premierEnvoiLe == Self.seuil)
+        #expect(etat.liste.premierEnvoiLe == Self.seuil.addingTimeInterval(0.5))
         #expect(!etat.destinationVerrouillee)
         let ligne = try #require(etat.liste.lignes.first)
         #expect(try etat.etatEnvoi(de: ligne) == .rienAAjouter)
@@ -55,6 +55,23 @@ struct EnvoiCoursesTests {
         try await envoi.choisirDestination("autre")
         #expect(try await envoi.lire().liste.premierEnvoiLe == nil)
         #expect(try await envoi.lire().etatEnvoi(de: ligne) == .aEnvoyer)
+        try nettoyer()
+    }
+
+    @Test func uneCocheDejaVueALaSecondeDuPremierEnvoiResteAnterieure() async throws {
+        let (envoi, rappels) = scenario()
+        await rappels.remplacerRappels(
+            [RappelCourses(id: "ancien", titre: "œufs 6", coche: true, cocheLe: Self.seuil)],
+            destinationId: "courses")
+        try await envoi.choisirDestination("courses")
+        try await envoi.modifier { liste, _ in
+            try liste.ajouter(ArticleCourses(nom: "œufs", quantite: Quantite(6)))
+        }
+        #expect(try await envoi.renvoyer().ajoutes.count == 1)
+        let relance = service(rappels)
+        let articles = try await rappels.lire(destinationId: "courses")
+        await rappels.remplacerRappels(articles.filter { $0.id == "ancien" }, destinationId: "courses")
+        #expect(try await relance.renvoyer().ajoutes.count == 1)
         try nettoyer()
     }
 
@@ -93,7 +110,7 @@ struct EnvoiCoursesTests {
         try await envoi.modifier { liste, _ in try liste.ajouter(ArticleCourses(nom: "sel")) }
         await rappels.fixerEcrituresEnEchec(["sel"])
         #expect(try await envoi.renvoyer().echecs.count == 1)
-        #expect(try await envoi.lire().liste.premierEnvoiLe == Self.seuil)
+        #expect(try await envoi.lire().liste.premierEnvoiLe == Self.seuil.addingTimeInterval(0.5))
         #expect(try await !envoi.lire().destinationVerrouillee)
         try await envoi.choisirDestination("autre")
         #expect(try await envoi.lire().liste.premierEnvoiLe == nil)
@@ -174,6 +191,29 @@ struct EnvoiCoursesTests {
         try nettoyer()
     }
 
+    @Test func uneProvenanceCommuneSansFusionNeTransferePasLeResultat() async throws {
+        let (envoi, _) = scenario()
+        try await envoi.choisirDestination("courses")
+        try await envoi.modifier { liste, _ in
+            try liste.integrer(
+                [
+                    ArticleCourses(nom: "tomates", quantite: Quantite(250), unite: .g),
+                    ArticleCourses(nom: "tomates", quantite: Quantite(2)),
+                ], messageId: UUID())
+        }
+        let lignes = try await envoi.lire().liste.lignes
+        let grammes = try #require(lignes.first)
+        let pieces = try #require(lignes.last)
+        _ = try await envoi.envoyerLigne(pieces.id)
+        try await envoi.modifier { liste, _ in
+            try liste.retirer(pieces.id)
+            try liste.modifierQuantite(grammes.id, valeur: Quantite(2), unite: .piece)
+        }
+        let etat = try await envoi.lire()
+        #expect(try etat.etatEnvoi(de: #require(etat.liste.lignes.first)) == .aEnvoyer)
+        try nettoyer()
+    }
+
     @Test func uneNouvelleListeLibereLaDestinationEtConserveLeJournal() async throws {
         let (envoi, _) = scenario()
         try await envoi.choisirDestination("courses")
@@ -215,7 +255,8 @@ struct EnvoiCoursesTests {
         try nettoyer()
     }
 
-    @Test func coupureApresEventKitRetrouveLEcritureMemeAvecTitreAmbigu() async throws {
+    @Test(arguments: [false, true])
+    func coupureApresEventKitRetrouveLEcritureMemeAvecTitreAmbigu(effacerNotes: Bool) async throws {
         let (_, rappels) = scenario()
         let disque = MagasinDocumentFichiers(dossier: dossier)
         let interrompu = DocumentsAvecCoupure(disque)
@@ -224,8 +265,15 @@ struct EnvoiCoursesTests {
         try await envoi.choisirDestination("courses")
         try await envoi.modifier { liste, _ in try liste.ajouter(ArticleCourses(nom: "5 épices")) }
         await #expect(throws: DocumentsAvecCoupure.Erreur.coupure) { try await envoi.renvoyer() }
-        #expect(try await rappels.lire(destinationId: "courses").count == 1)
+        let rappelsEcrits = try await rappels.lire(destinationId: "courses")
+        #expect(rappelsEcrits.count == 1)
         #expect(try await envoi.lire().journal.entrees.isEmpty)
+        if effacerNotes {
+            let original = try #require(rappelsEcrits.first)
+            await rappels.remplacerRappels(
+                [RappelCourses(id: original.id, titre: original.titre, creeLe: original.creeLe)],
+                destinationId: "courses")
+        }
 
         let relance = service(rappels)
         await #expect(throws: EnvoiCourses.Erreur.destinationVerrouillee) {
@@ -241,6 +289,36 @@ struct EnvoiCoursesTests {
         #expect(try await relance.lire().journal.article(du: renomme).nomNormalise == "lait")
         try nettoyer()
     }
+    @Test(arguments: [false, true])
+    func nouvelleListeLocalePossibleApresCoupureEtDestinationInaccessible(supprimee: Bool) async throws {
+        let (_, rappels) = scenario()
+        let disque = MagasinDocumentFichiers(dossier: dossier)
+        let envoi = EnvoiCourses(documents: DocumentsAvecCoupure(disque), rappels: rappels, maintenant: { Self.seuil })
+        try await envoi.choisirDestination("courses")
+        try await envoi.modifier { liste, _ in try liste.ajouter(ArticleCourses(nom: "5 épices")) }
+        let precedente = try await envoi.lire().liste.id
+        await #expect(throws: DocumentsAvecCoupure.Erreur.coupure) { try await envoi.renvoyer() }
+
+        if supprimee { await rappels.supprimerDestination("courses") }
+        await rappels.fixerAcces(false)
+        let relance = service(rappels)
+        try await relance.modifier { liste, _ in liste.nouvelleListe(confirmee: true) }
+        try await relance.choisirDestination("autre")
+        #expect(try await relance.lire().liste.id != precedente)
+        #expect(try await !relance.lire().destinationVerrouillee)
+
+        await rappels.fixerAcces(true)
+        if !supprimee {
+            try await relance.choisirDestination("courses")
+            try await relance.modifier { liste, _ in try liste.ajouter(ArticleCourses(nom: "5 épices")) }
+            #expect(try await relance.renvoyer().ignores.count == 1)
+            let etat = try await relance.lire()
+            #expect(etat.journal.entrees.map(\.listeId) == [precedente])
+            #expect(!etat.destinationVerrouillee)
+        }
+        try nettoyer()
+    }
+
 }
 
 private actor DocumentsAvecCoupure: MagasinDocument {

@@ -3,12 +3,17 @@ import Foundation
 public struct ArticleRappel: Codable, Equatable, Sendable {
     public let nomNormalise: String
     public let quantite: Quantite?
-    public let unite: Unite?
+    let uniteOriginale: Unite?
+
+    public var unite: Unite? {
+        if case .autre(let nom) = uniteOriginale { return .autre(normaliserNom(nom)) }
+        return uniteOriginale
+    }
 
     init(nomNormalise: String, quantite: Quantite?, unite: Unite?) {
         self.nomNormalise = nomNormalise
         self.quantite = quantite
-        self.unite = unite
+        uniteOriginale = unite
     }
 
     public init(titre: String) {
@@ -23,7 +28,7 @@ public struct ArticleRappel: Codable, Equatable, Sendable {
             self.init(
                 nomNormalise: normaliserNom(mots.dropLast(2).joined(separator: " ")),
                 quantite: avantDerniere,
-                unite: Self.uniteConnue(dernier) ?? .autre(normaliserNom(String(dernier))))
+                unite: Self.uniteConnue(dernier) ?? .autre(String(dernier)))
         } else if mots.count >= 2, let premiere = Self.lireQuantite(mots.first) {
             let unite = mots.count >= 3 ? Self.uniteConnue(mots[1]) : nil
             let nom = mots.dropFirst(unite == nil ? 1 : 2).joined(separator: " ")
@@ -59,7 +64,8 @@ public struct ArticleRappel: Codable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case nomNormalise = "nom_normalise"
-        case quantite, unite
+        case quantite
+        case uniteOriginale = "unite"
     }
 }
 

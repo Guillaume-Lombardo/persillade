@@ -42,10 +42,7 @@ public actor EnvoiCourses {
         var liste = etat.liste
         let resultat = try modifier(&liste, &etat.selection)
         if liste.id != etat.liste.id {
-            if let destination = etat.destinationId, etat.enAttente != nil {
-                let rappelsLus = try await rappels.lire(destinationId: destination)
-                reprendre(&etat, rappelsLus: rappelsLus, destinationId: destination)
-            }
+            etat.cochesAnterieures = []
             etat.resultats = []
             liste.premierEnvoiLe = nil
         } else {
@@ -65,7 +62,10 @@ public actor EnvoiCourses {
         defer { operationEnCours = false }
         var etat = try await lire()
         guard etat.destinationId != id else { return }
-        if let precedente = etat.destinationId, etat.enAttente != nil {
+        guard !etat.destinationVerrouillee else { throw Erreur.destinationVerrouillee }
+        if let precedente = etat.destinationId,
+            etat.enAttente.contains(where: { $0.listeId == etat.liste.id })
+        {
             let anciensRappels = try await rappels.lire(destinationId: precedente)
             reprendre(&etat, rappelsLus: anciensRappels, destinationId: precedente)
             try await persister(etat)
@@ -73,6 +73,7 @@ public actor EnvoiCourses {
         guard !etat.destinationVerrouillee else { throw Erreur.destinationVerrouillee }
         etat.destinationId = id
         etat.liste.premierEnvoiLe = nil
+        etat.cochesAnterieures = []
         etat.resultats = []
         try await persister(etat)
     }
@@ -99,11 +100,11 @@ public actor EnvoiCourses {
         if lignes != nil && aTraiter.isEmpty { return rapport }
         guard let destination = etat.destinationId else { throw Erreur.destinationNonChoisie }
 
-        // EventKit ramène les dates de coche à la seconde.
-        let instant = maintenant().timeIntervalSinceReferenceDate
-        let avantLecture = Date(timeIntervalSinceReferenceDate: instant.rounded(.down))
+        let avantLecture: Date
         let rappelsLus: [RappelCourses]
         do {
+            try await rappels.autoriser()
+            avantLecture = maintenant()
             rappelsLus = try await rappels.lire(destinationId: destination)
         } catch let cause as CauseEchecEnvoi {
             try await signaler(cause, lignes: aTraiter[...], etat: &etat, rapport: &rapport)
@@ -112,7 +113,13 @@ public actor EnvoiCourses {
 
         reprendre(&etat, rappelsLus: rappelsLus, destinationId: destination)
         let seuil = etat.liste.premierEnvoiLe ?? avantLecture
-        etat.liste.premierEnvoiLe = seuil
+        if etat.liste.premierEnvoiLe == nil {
+            etat.liste.premierEnvoiLe = seuil
+            // EventKit tronque les dates de coche à la seconde. La première lecture départage les coches de cette seconde.
+            etat.cochesAnterieures = rappelsLus.filter { $0.coche && $0.cocheLe == seuil.debutSeconde }
+                .map(EtatCourses.IdentifiantsRappel.init)
+        }
+        let cochesAnterieures = etat.cochesAnterieures
         try await persister(etat)
 
         for (index, ligne) in aTraiter.enumerated() {
@@ -124,8 +131,13 @@ public actor EnvoiCourses {
                 return rapport
             }
             let plan = try PlanEnvoi(
-                ligne: ligne, rappels: rappelsActuels, journal: etat.journal, premierEnvoiLe: seuil,
-                destinationId: destination)
+                ligne: ligne, rappels: rappelsActuels, journal: etat.journal, destinationId: destination
+            ) { rappel in
+                guard let date = rappel.cocheLe else { return false }
+                return date >= seuil
+                    || (date == seuil.debutSeconde
+                        && !cochesAnterieures.contains { $0.correspondent(au: rappel) })
+            }
             let quantite = try ligne.quantiteArrondie
             let ecriture: EtatCourses.Ecriture
             switch plan {
@@ -137,25 +149,29 @@ public actor EnvoiCourses {
                 try await persister(etat)
                 continue
             case .ajouter(let valeur):
-                ecriture = try preparer(ligne, valeur: valeur, quantiteTraitee: quantite, issue: .ajoutee)
+                ecriture = try preparer(
+                    ligne, valeur: valeur, quantiteTraitee: quantite, issue: .ajoutee,
+                    listeId: etat.liste.id, destinationId: destination, rappelsActuels: rappelsActuels)
             case .completer(let valeur):
-                ecriture = try preparer(ligne, valeur: valeur, quantiteTraitee: quantite, issue: .completee)
+                ecriture = try preparer(
+                    ligne, valeur: valeur, quantiteTraitee: quantite, issue: .completee,
+                    listeId: etat.liste.id, destinationId: destination, rappelsActuels: rappelsActuels)
             }
 
-            etat.enAttente = ecriture
+            etat.enAttente.append(ecriture)
             try await persister(etat)
             let rappel: RappelCourses
             do {
                 rappel = try await rappels.ajouter(
                     titre: ecriture.titre, destinationId: destination, identifiantEcriture: ecriture.id)
             } catch let cause as CauseEchecEnvoi {
-                etat.enAttente = nil
+                etat.retirerEcriture(ecriture.id)
                 signaler(cause, ligne: ligne, etat: &etat, rapport: &rapport)
                 try await persister(etat)
                 continue
             }
 
-            etat.confirmer(ecriture, rappel: rappel, destinationId: destination)
+            etat.confirmer(ecriture, rappel: rappel)
             if case .completer = plan {
                 rapport.complements.append(ligne.id)
             } else {
@@ -176,25 +192,39 @@ public actor EnvoiCourses {
     }
 
     private func reprendre(_ etat: inout EtatCourses, rappelsLus: [RappelCourses], destinationId: String) {
-        if let ecriture = etat.enAttente,
-            let rappel = rappelsLus.first(where: { $0.identifiantEcriture == ecriture.id })
-        {
-            etat.confirmer(ecriture, rappel: rappel, destinationId: destinationId)
+        for ecriture in etat.enAttente where ecriture.destinationId == destinationId {
+            let marques = rappelsLus.filter { $0.identifiantEcriture == ecriture.id }
+            if marques.count == 1, let rappel = marques.first {
+                etat.confirmer(ecriture, rappel: rappel)
+                continue
+            }
+            let candidats = rappelsLus.filter { rappel in
+                rappel.identifiantEcriture == nil && rappel.titre == ecriture.titre
+                    && rappel.creeLe.map { $0 >= ecriture.date.debutSeconde } == true
+                    && !ecriture.rappelsAvant.contains { $0.correspondent(au: rappel) }
+                    && !etat.journal.entrees.contains { $0.rappelId == rappel.id }
+            }
+            if candidats.count == 1, let rappel = candidats.first {
+                etat.confirmer(ecriture, rappel: rappel)
+            } else {
+                etat.retirerEcriture(ecriture.id)
+            }
         }
-        etat.enAttente = nil
     }
 
     private func preparer(
-        _ ligne: LigneCourses, valeur: Quantite?, quantiteTraitee: Quantite?, issue: EtatCourses.ResultatLigne.Issue
+        _ ligne: LigneCourses, valeur: Quantite?, quantiteTraitee: Quantite?, issue: EtatCourses.ResultatLigne.Issue,
+        listeId: UUID, destinationId: String, rappelsActuels: [RappelCourses]
     ) throws -> EtatCourses.Ecriture {
         var titre = ligne.libelle
         if let valeur, let unite = ligne.unite {
             titre += " " + (try formaterQuantiteCourses(valeur, unite: unite))
         }
         return EtatCourses.Ecriture(
-            id: UUID(), titre: titre,
+            id: UUID(), destinationId: destinationId, listeId: listeId, titre: titre,
             article: ArticleRappel(nomNormalise: ligne.nomNormalise, quantite: valeur, unite: ligne.unite),
-            resultat: .init(ligne: ligne, quantiteTraitee: quantiteTraitee, issue: issue), date: maintenant())
+            resultat: .init(ligne: ligne, quantiteTraitee: quantiteTraitee, issue: issue), date: maintenant(),
+            rappelsAvant: rappelsActuels.map(EtatCourses.IdentifiantsRappel.init))
     }
 
     private func signaler(
@@ -212,5 +242,11 @@ public actor EnvoiCourses {
     ) {
         rapport.echecs.append(.init(ligneId: ligne.id, cause: cause))
         etat.enregistrer(.init(ligne: ligne, quantiteTraitee: nil, issue: .echec, cause: cause))
+    }
+}
+
+extension Date {
+    fileprivate var debutSeconde: Date {
+        Date(timeIntervalSinceReferenceDate: timeIntervalSinceReferenceDate.rounded(.down))
     }
 }

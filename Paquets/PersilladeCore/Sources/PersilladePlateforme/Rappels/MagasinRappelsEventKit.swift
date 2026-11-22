@@ -10,7 +10,7 @@ public final class MagasinRappelsEventKit: MagasinRappels {
     public init() {}
 
     public func destinations() async throws -> [DestinationRappels] {
-        try await verifierAcces()
+        try await autoriser()
         return magasin.calendars(for: .reminder).map {
             DestinationRappels(
                 id: $0.calendarIdentifier, titre: $0.title, compte: $0.source.title,
@@ -19,7 +19,7 @@ public final class MagasinRappelsEventKit: MagasinRappels {
     }
 
     public func lire(destinationId: String) async throws -> [RappelCourses] {
-        try await verifierAcces()
+        try await autoriser()
         let calendrier = try calendrierModifiable(destinationId)
         let predicat = magasin.predicateForReminders(in: [calendrier])
         let rappels: [RappelCourses]? = await withCheckedContinuation { continuation in
@@ -36,7 +36,7 @@ public final class MagasinRappelsEventKit: MagasinRappels {
     }
 
     public func ajouter(titre: String, destinationId: String, identifiantEcriture: UUID) async throws -> RappelCourses {
-        try await verifierAcces()
+        try await autoriser()
         let rappel = EKReminder(eventStore: magasin)
         rappel.calendar = try calendrierModifiable(destinationId)
         rappel.title = titre
@@ -65,7 +65,7 @@ public final class MagasinRappelsEventKit: MagasinRappels {
         return Self.convertir(rappel)
     }
 
-    private func verifierAcces() async throws {
+    public func autoriser() async throws {
         switch EKEventStore.authorizationStatus(for: .reminder) {
         case .fullAccess:
             return

@@ -76,6 +76,10 @@ struct RenvoiTests {
         #expect(try plan("lait", nil, exclue: true) == .exclure)
     }
 
+    @Test func uneUniteLibreNestNormaliseeQuUneFois() throws {
+        #expect(try plan("café", Quantite(2), .autre("press"), titres: ["café 2 press"]) == .ignorer)
+    }
+
     @Test func leComplementConserveLaFractionExacte() throws {
         #expect(
             try plan("farine", Quantite(1), .g, titres: ["farine 1/3 g"])

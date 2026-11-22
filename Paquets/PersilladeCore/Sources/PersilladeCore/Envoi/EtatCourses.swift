@@ -17,7 +17,6 @@ public struct EtatCourses: Codable, Equatable, Sendable {
         let ligneId: UUID
         let nomNormalise: String
         let unite: Unite?
-        let origines: [OrigineCourses]
         let quantiteTraitee: Quantite?
         let issue: Issue
         let cause: CauseEchecEnvoi?
@@ -26,7 +25,6 @@ public struct EtatCourses: Codable, Equatable, Sendable {
             ligneId = ligne.id
             nomNormalise = ligne.nomNormalise
             unite = ligne.unite
-            origines = ligne.origines
             self.quantiteTraitee = quantiteTraitee
             self.issue = issue
             self.cause = cause
@@ -42,16 +40,33 @@ public struct EtatCourses: Codable, Equatable, Sendable {
             case ligneId = "ligne_id"
             case nomNormalise = "nom_normalise"
             case quantiteTraitee = "quantite_traitee"
-            case unite, origines, issue, cause
+            case unite, issue, cause
+        }
+    }
+
+    struct IdentifiantsRappel: Codable, Equatable, Sendable {
+        let id: String
+        let externe: String?
+
+        init(_ rappel: RappelCourses) {
+            id = rappel.id
+            externe = rappel.idExterne
+        }
+
+        func correspondent(au rappel: RappelCourses) -> Bool {
+            id == rappel.id || (externe?.isEmpty == false && externe == rappel.idExterne)
         }
     }
 
     struct Ecriture: Codable, Equatable, Sendable {
         let id: UUID
+        let destinationId: String
+        let listeId: UUID
         let titre: String
         let article: ArticleRappel
         let resultat: ResultatLigne
         let date: Date
+        let rappelsAvant: [IdentifiantsRappel]
     }
 
     public static let versionSchemaCourante = 1
@@ -60,7 +75,8 @@ public struct EtatCourses: Codable, Equatable, Sendable {
     public internal(set) var selection = SelectionSemaine()
     public internal(set) var destinationId: String?
     public internal(set) var journal = JournalEnvoi()
-    var enAttente: Ecriture?
+    var enAttente: [Ecriture] = []
+    var cochesAnterieures: [IdentifiantsRappel] = []
     var resultats: [ResultatLigne] = []
 
     public var destinationVerrouillee: Bool { journal.entrees.contains { $0.listeId == liste.id } }
@@ -72,14 +88,10 @@ public struct EtatCourses: Codable, Equatable, Sendable {
     public init() {}
 
     public func etatEnvoi(de ligne: LigneCourses) throws -> EtatEnvoiLigne {
+        let deLaLigne = resultats.filter { $0.ligneId == ligne.id || ligne.idsFusionnes.contains($0.ligneId) }
         let resultat =
-            resultats.last {
-                $0.correspond(nom: ligne.nomNormalise, unite: ligne.unite)
-                    && ($0.ligneId == ligne.id || $0.origines.contains(where: ligne.origines.contains))
-            }
-            ?? resultats.last {
-                $0.ligneId == ligne.id && ($0.unite == nil || ligne.unite == nil)
-            }
+            deLaLigne.last { $0.correspond(nom: ligne.nomNormalise, unite: ligne.unite) }
+            ?? deLaLigne.last { $0.unite == nil || ligne.unite == nil }
         guard let resultat else { return .aEnvoyer }
         if let cause = resultat.cause { return .echec(cause) }
         if let quantite = try ligne.quantiteArrondie, let unite = ligne.unite {
@@ -96,20 +108,25 @@ public struct EtatCourses: Codable, Equatable, Sendable {
         resultats.append(resultat)
     }
 
-    mutating func confirmer(_ ecriture: Ecriture, rappel: RappelCourses, destinationId: String) {
+    mutating func confirmer(_ ecriture: Ecriture, rappel: RappelCourses) {
         journal.entrees.append(
             .init(
                 rappelId: rappel.id, rappelIdExterne: rappel.idExterne, identifiantEcriture: ecriture.id,
-                destinationId: destinationId, listeId: liste.id, ligneId: ecriture.resultat.ligneId,
+                destinationId: ecriture.destinationId, listeId: ecriture.listeId, ligneId: ecriture.resultat.ligneId,
                 article: ecriture.article,
                 titreEcrit: ecriture.titre, date: rappel.creeLe ?? ecriture.date))
-        enAttente = nil
-        enregistrer(ecriture.resultat)
+        retirerEcriture(ecriture.id)
+        if ecriture.listeId == liste.id { enregistrer(ecriture.resultat) }
+    }
+
+    mutating func retirerEcriture(_ id: UUID) {
+        enAttente.removeAll { $0.id == id }
     }
 
     private enum CodingKeys: String, CodingKey {
         case liste, selection, journal, resultats
         case destinationId = "destination_id"
         case enAttente = "en_attente"
+        case cochesAnterieures = "coches_anterieures"
     }
 }
