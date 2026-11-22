@@ -3,6 +3,7 @@ import SwiftUI
 
 struct DetailArticleCourses: View {
     @Environment(\.dismiss) private var fermer
+    @Environment(\.dynamicTypeSize) private var taille
     @State private var editerQuantite = false
     @State private var confirmerRetrait = false
     @State private var rappelsInchanges = false
@@ -120,10 +121,11 @@ struct DetailArticleCourses: View {
                         .disabled(session.occupee)
                         .erreurCourses(session)
                     }
+                    .environment(\.dynamicTypeSize, taille)
                     .presentationDetents([.large])
                 }
                 .confirmationDialog(
-                    "Retirer « \(ligne.libelle) » ?", isPresented: $confirmerRetrait, titleVisibility: .visible
+                    "Retirer « \(nom) » ?", isPresented: $confirmerRetrait, titleVisibility: .visible
                 ) {
                     Button("Retirer", role: .destructive) { retirer(ligne.id) }
                     Button("Annuler", role: .cancel) {}

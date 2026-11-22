@@ -14,6 +14,7 @@ struct ArticlesMessageCourses: View {
     }
 
     @Environment(\.dismiss) private var fermer
+    @Environment(\.dynamicTypeSize) private var taille
     @State private var contenu: ContenuRecu?
     @State private var saisie = ""
     @State private var resultat: ResultatExtraction?
@@ -161,6 +162,7 @@ struct ArticlesMessageCourses: View {
         ) {
             if let edition, let index = propositions.firstIndex(where: { $0.id == edition }) {
                 modifier($propositions[index])
+                    .environment(\.dynamicTypeSize, taille)
             }
         }
     }

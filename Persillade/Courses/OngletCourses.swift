@@ -20,6 +20,7 @@ struct OngletCourses: View {
     }
 
     @Environment(\.accessibilityReduceMotion) private var reduireAnimations
+    @Environment(\.dynamicTypeSize) private var taille
     @Environment(\.openURL) private var ouvrirURL
     @State private var feuille: Feuille?
     @State private var rapport: RapportEnvoi?
@@ -90,40 +91,43 @@ struct OngletCourses: View {
                 Button("OK", role: .cancel) {}
             }
             .sheet(item: $feuille) { choix in
-                switch choix {
-                case .ajout:
-                    AjoutArticleCourses(session: session)
-                case .message:
-                    ArticlesMessageCourses(session: session, extracteur: extracteur)
-                case .destination:
-                    choixRappels
-                case .acces:
-                    FeuilleCourses("Accès à Rappels") { AccesRappels() }.presentationDetents([.medium, .large])
-                case .rapport:
-                    if let rapport {
-                        FeuilleCourses("Rapport d’envoi") {
-                            BilanEnvoiCourses(
-                                rapport: rapport, session: session, envoiEnCours: envoiEnCours,
-                                terminer: { feuille = nil },
-                                reessayer: {
-                                    envoyer(rapport.echecs.isEmpty ? nil : rapport.echecs.map(\.ligneId))
-                                },
-                                choisir: {
-                                    feuille = nil
-                                    preparerDestinations()
-                                },
-                                nouvelleListe: {
-                                    feuille = nil
-                                    nouvelleListe()
-                                },
-                                ouvrirRappels: ouvrirRappels)
+                Group {
+                    switch choix {
+                    case .ajout:
+                        AjoutArticleCourses(session: session)
+                    case .message:
+                        ArticlesMessageCourses(session: session, extracteur: extracteur)
+                    case .destination:
+                        choixRappels
+                    case .acces:
+                        FeuilleCourses("Accès à Rappels") { AccesRappels() }.presentationDetents([.medium, .large])
+                    case .rapport:
+                        if let rapport {
+                            FeuilleCourses("Rapport d’envoi") {
+                                BilanEnvoiCourses(
+                                    rapport: rapport, session: session, envoiEnCours: envoiEnCours,
+                                    terminer: { feuille = nil },
+                                    reessayer: {
+                                        envoyer(rapport.echecs.isEmpty ? nil : rapport.echecs.map(\.ligneId))
+                                    },
+                                    choisir: {
+                                        feuille = nil
+                                        preparerDestinations()
+                                    },
+                                    nouvelleListe: {
+                                        feuille = nil
+                                        nouvelleListe()
+                                    },
+                                    ouvrirRappels: ouvrirRappels)
+                            }
+                            .presentationDetents([.large])
+                            .interactiveDismissDisabled(envoiEnCours)
                         }
-                        .presentationDetents([.large])
-                        .interactiveDismissDisabled(envoiEnCours)
+                    case .detail(let id):
+                        DetailArticleCourses(id: id, session: session)
                     }
-                case .detail(let id):
-                    DetailArticleCourses(id: id, session: session)
                 }
+                .environment(\.dynamicTypeSize, taille)
             }
         }
         .task { await session.actualiser() }

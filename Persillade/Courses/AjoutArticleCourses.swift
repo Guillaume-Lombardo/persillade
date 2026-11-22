@@ -3,6 +3,7 @@ import SwiftUI
 
 struct AjoutArticleCourses: View {
     @Environment(\.dismiss) private var fermer
+    @Environment(\.dynamicTypeSize) private var taille
     @State private var saisie = ""
     @State private var quantiteModifiee: ArticleCourses?
     @State private var categorie: Categorie?
@@ -86,7 +87,10 @@ struct AjoutArticleCourses: View {
                 quantiteModifiee = nil
                 categorie = nil
             }
-            .sheet(item: $detail) { DetailArticleCourses(id: $0.id, session: session) }
+            .sheet(item: $detail) {
+                DetailArticleCourses(id: $0.id, session: session)
+                    .environment(\.dynamicTypeSize, taille)
+            }
             .sheet(isPresented: $editerQuantite) {
                 let quantite = quantiteModifiee == nil ? analyse.quantite : quantiteModifiee?.quantite
                 let unite = quantiteModifiee == nil ? analyse.unite : quantiteModifiee?.unite
@@ -104,6 +108,7 @@ struct AjoutArticleCourses: View {
                     }
                     .erreurCourses(session)
                 }
+                .environment(\.dynamicTypeSize, taille)
                 .presentationDetents([.medium, .large])
             }
             .confirmationDialog(
