@@ -138,7 +138,10 @@ public actor EnvoiCourses {
                 reprises = reprendre(&etat, rappelsLus: rappelsActuels, destinationId: destination)
             }
             let journal = etat.journal
-            let rapprochements = reprises
+            let rapprochements = reprises.filter { _, ecriture in
+                ecriture.listeId == etat.liste.id
+                    && (ecriture.resultat.ligneId == ligne.id || ligne.idsFusionnes.contains(ecriture.resultat.ligneId))
+            }
             let plan = try PlanEnvoi(
                 ligne: ligne, rappels: rappelsActuels,
                 lireArticle: { rappel in
@@ -175,7 +178,7 @@ public actor EnvoiCourses {
                     && enAttente.article.nomNormalise == ligne.nomNormalise
                     && (ligne.unite == nil
                         || enAttente.resultat.correspond(nom: ligne.nomNormalise, unite: ligne.unite))
-                    && !reprises.values.contains { $0.id == enAttente.id }
+                    && !rapprochements.values.contains { $0.id == enAttente.id }
             }) {
                 signaler(.ecriture, ligne: ligne, etat: &etat, rapport: &rapport)
                 try await persister(etat)

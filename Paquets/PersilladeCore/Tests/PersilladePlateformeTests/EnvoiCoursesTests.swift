@@ -328,7 +328,12 @@ struct EnvoiCoursesTests {
             [RappelCourses(id: "manuel", titre: "5 épices", creeLe: Self.seuil)], destinationId: "courses")
 
         let relance = service(rappels)
-        #expect(try await relance.renvoyer().ignores.count == 1)
+        try await relance.modifier { liste, _ in
+            try liste.ajouter(ArticleCourses(nom: "épices", quantite: Quantite(5)))
+        }
+        let rapport = try await relance.renvoyer()
+        #expect(rapport.ignores.count == 2)
+        #expect(rapport.ajoutes.isEmpty)
         #expect(try await rappels.lire(destinationId: "courses").map(\.id) == ["manuel"])
         #expect(try await relance.lire().journal.entrees.isEmpty)
         #expect(try await !relance.lire().destinationVerrouillee)
