@@ -13,7 +13,7 @@ import XCTest
             let farine = bouton("article-farine", dans: app)
             XCTAssertTrue((farine.value as? String)?.contains("1,125") == true)
             let oeufs = bouton("article-oeuf", dans: app)
-            XCTAssertTrue(oeufs.value as? String == "3")
+            XCTAssertEqual(oeufs.value as? String, "3, À envoyer")
             farine.tap()
             bouton("modifier-quantite-courses", dans: app).tap()
             let quantite = app.textFields["editeur-quantite"]
