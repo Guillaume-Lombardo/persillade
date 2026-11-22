@@ -51,6 +51,18 @@
             app.buttons["Augmenter les portions"].tap()
             XCTAssertTrue(app.staticTexts["4 portions"].waitForExistence(timeout: 5))
 
+            app.navigationBars.firstMatch.buttons.firstMatch.tap()
+            app.tabBars.firstMatch.buttons["Semaine"].tap()
+            let diminuer = app.buttons["Diminuer les portions de Crêpes maison"]
+            XCTAssertTrue(diminuer.waitForExistence(timeout: 5))
+            XCTAssertEqual(diminuer.value as? String, "4 portions")
+            diminuer.tap()
+            app.buttons["Crêpes maison"].tap()
+            XCTAssertTrue(app.staticTexts["titre-fiche"].waitForExistence(timeout: 5))
+            XCTAssertEqual(app.staticTexts["nombre-portions"].label, "3 portions")
+            app.buttons["Augmenter les portions"].tap()
+            XCTAssertTrue(app.staticTexts["4 portions"].waitForExistence(timeout: 5))
+
             app.terminate()
             app.launch()
             let entree = app.descendants(matching: .any).matching(identifier: "ouvrir-recette").firstMatch
@@ -58,6 +70,26 @@
             entree.tap()
             XCTAssertTrue(app.staticTexts["Dans la semaine"].waitForExistence(timeout: 5))
             XCTAssertEqual(app.staticTexts["nombre-portions"].label, "4 portions")
+        }
+
+        @MainActor
+        func testMessageDepuisDestination() {
+            let app = lancer(texte: "2 bananes\n500 g de farine")
+            coller(app)
+            app.buttons["Articles de courses"].tap()
+            let ajouter = app.buttons["Ajouter 2 articles"]
+            XCTAssertTrue(ajouter.waitForExistence(timeout: 10))
+            ajouter.tap()
+            let terminer = app.buttons["Terminé"]
+            XCTAssertTrue(terminer.waitForExistence(timeout: 5))
+            terminer.tap()
+
+            XCTAssertTrue(app.navigationBars["Courses"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.buttons["Ne pas envoyer bananes"].exists)
+            XCTAssertTrue(app.buttons["Ne pas envoyer farine"].exists)
+            app.tabBars.firstMatch.buttons["Recettes"].tap()
+            XCTAssertTrue(app.navigationBars["Recettes"].waitForExistence(timeout: 5))
+            XCTAssertFalse(app.buttons["Ouvrir"].exists)
         }
 
         @MainActor
@@ -117,13 +149,13 @@
         }
 
         @MainActor
-        private func lancer(arguments: [String] = []) -> XCUIApplication {
+        private func lancer(arguments: [String] = [], texte: String? = nil) -> XCUIApplication {
             continueAfterFailure = false
             let app = XCUIApplication()
             app.launchArguments = ["-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"] + arguments
             app.launchEnvironment = [
                 "PERSILLADE_TEST_SESSION": UUID().uuidString,
-                "PERSILLADE_TEST_PRESSE_PAPIERS": Self.recette,
+                "PERSILLADE_TEST_PRESSE_PAPIERS": texte ?? Self.recette,
             ]
             app.launch()
             XCTAssertTrue(app.buttons["Coller un lien ou un texte"].waitForExistence(timeout: 8), app.debugDescription)

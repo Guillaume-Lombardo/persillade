@@ -108,6 +108,7 @@ struct LigneArticle: View {
     var precision: String?
     var exclu = false
     var ouvrir: (() -> Void)?
+    var identifiantOuverture: String?
     var basculerExclusion: (() -> Void)?
 
     @Environment(\.dynamicTypeSize) private var taille
@@ -117,6 +118,7 @@ struct LigneArticle: View {
             if let ouvrir {
                 Button(action: ouvrir) { contenu }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier(identifiantOuverture ?? "", isEnabled: identifiantOuverture != nil)
             } else {
                 contenu
             }

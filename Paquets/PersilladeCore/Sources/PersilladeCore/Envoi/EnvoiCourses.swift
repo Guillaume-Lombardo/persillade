@@ -91,7 +91,9 @@ public actor EnvoiCourses {
     }
 
     /// Pour un ajout ou une intégration, utiliser les identifiants de ListeCourses.Effets.lignesAEnvoyer.
-    public func envoyer(lignes: [UUID]?) async throws -> RapportEnvoi {
+    public func envoyer(
+        lignes: [UUID]?, progression: (@Sendable (_ traitees: Int, _ total: Int) async -> Void)? = nil
+    ) async throws -> RapportEnvoi {
         try commencer()
         defer { operationEnCours = false }
         var etat = try await lire()
@@ -127,6 +129,7 @@ public actor EnvoiCourses {
         try await persister(etat)
 
         for (index, ligne) in aTraiter.enumerated() {
+            await progression?(index, aTraiter.count)
             let rappelsActuels: [RappelCourses]
             do {
                 rappelsActuels = index == 0 ? rappelsLus : try await rappels.lire(destinationId: destination)
@@ -199,6 +202,7 @@ public actor EnvoiCourses {
             }
             try await persister(etat)
         }
+        await progression?(aTraiter.count, aTraiter.count)
         return rapport
     }
 
