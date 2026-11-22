@@ -87,7 +87,7 @@ struct AnalyseTexteRecette {
 
             let sansNumero = ligne.remplacer(Self.numeroEtape, par: "").epure
             let etapeVerbale = sansNumero.correspond(Self.verbeEtape)
-            if section == .etapes || etapeVerbale || (section != .ingredients && sansNumero != ligne) {
+            if section == .etapes || etapeVerbale || (!ingredientsExplicites && sansNumero != ligne) {
                 section = .etapes
                 if !sansNumero.isEmpty {
                     recette.etapes.append(sansNumero)

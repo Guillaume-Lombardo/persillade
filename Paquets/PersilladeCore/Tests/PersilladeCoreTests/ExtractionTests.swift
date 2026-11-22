@@ -193,12 +193,12 @@ func corpusPages(nom: String, titre: String, portions: Int, ingredients: Int, et
 }
 
 @Test func listeSansEnteteConserveTitreEtIngredientsNonDoses() async throws {
-    let contenu = texteRecu("Cake\n2 œufs\nfarine\n100 g de beurre\nMélanger.")
+    let contenu = texteRecu("Cake\n2 œufs\nfarine\n100 g de beurre\n1. Fouetter les œufs.")
     let resultat = try await Extracteur().extraire(contenu, cible: .recette)
     #expect(resultat.statut == .complet)
     #expect(resultat.recette?.titre == "Cake")
     #expect(resultat.recette?.ingredients.map(\.nom) == ["œufs", "farine", "beurre"])
-    #expect(resultat.recette?.etapes == ["Mélanger."])
+    #expect(resultat.recette?.etapes == ["Fouetter les œufs."])
 }
 
 @Test func brouillonOCRConserveLaLigneIncomprise() async throws {
@@ -370,6 +370,20 @@ func causePageEtLienConserve(_ cause: CauseExtraction) async throws {
     #expect(await moteur.morceaux == morceaux)
     #expect(resultat.statut == .complet)
     #expect(resultat.articles.map(\.nom) == morceaux)
+}
+
+@Test func decoupageNeCoupePasUneFractionMixte() async throws {
+    let moteur = MoteurBouchon(
+        .reponse { texte in
+            if texte.contains("1 1/2 kg de pommes") { return .init(articles: ["1 1/2 kg de pommes"]) }
+            if texte.contains("1/2 kg de pommes") { return .init(articles: ["1/2 kg de pommes"]) }
+            return .init()
+        }, budget: 20)
+    let resultat = try await Extracteur(moteurIA: moteur).extraire(
+        texteRecu("Achète pour demain 1 1/2 kg de pommes"), cible: .message)
+    #expect(await moteur.morceaux == ["Achète pour demain", "1 1/2 kg de pommes"])
+    #expect(resultat.statut == .complet)
+    #expect(resultat.articles.first?.quantite == (try Quantite(texte: "3/2")))
 }
 
 @Test func contenuTropLongPreserveLeDecoupageManuel() async throws {

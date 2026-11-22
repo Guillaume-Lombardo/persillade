@@ -176,13 +176,21 @@ public struct Extracteur: Sendable {
         if source != texte, try await moteur.compterJetons(source) <= budget { return ([source], false) }
 
         var morceaux: [String] = []
+        let mesures = AnalyseIngredient.positionsMesures(dans: source)
         var reste = source.drop(while: \.isWhitespace)
         while !reste.isEmpty, morceaux.count < 3 {
             try Task.checkCancellation()
             if try await moteur.compterJetons(String(reste)) <= budget {
                 return (morceaux + [String(reste)], false)
             }
-            let indices = Array(reste.indices.filter { reste[$0].isWhitespace })
+            var mesuresRestantes = mesures[...]
+            let indices = reste.indices.filter { index in
+                guard reste[index].isWhitespace else { return false }
+                while let mesure = mesuresRestantes.first, mesure.upperBound <= index {
+                    mesuresRestantes = mesuresRestantes.dropFirst()
+                }
+                return mesuresRestantes.first?.contains(index) != true
+            }
             var bas = 0
             var haut = indices.count
             while bas < haut {
