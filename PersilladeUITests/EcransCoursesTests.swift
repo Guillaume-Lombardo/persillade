@@ -23,8 +23,11 @@ import XCTest
             XCTAssertTrue(quantite.waitForExistence(timeout: 5))
             quantite.tap()
             quantite.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 4) + "1500")
+            XCTAssertEqual(quantite.value as? String, "1500")
             app.buttons["Valider"].tap()
-            app.navigationBars["farine"].buttons["Fermer"].tap()
+            let fermerDetail = app.navigationBars["farine"].buttons["Fermer"]
+            XCTAssertTrue(fermerDetail.waitForExistence(timeout: 10), app.debugDescription)
+            fermerDetail.tap()
             XCTAssertTrue(farine.buttons.matching(NSPredicate(format: "label CONTAINS %@", "1,5")).firstMatch.exists)
 
             app.buttons["Ne pas envoyer œufs"].tap()

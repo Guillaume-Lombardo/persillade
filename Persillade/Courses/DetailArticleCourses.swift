@@ -93,7 +93,7 @@ struct DetailArticleCourses: View {
                         .disabled(session.occupee)
                         .erreurCourses(session)
                     }
-                    .presentationDetents([.medium, .large])
+                    .presentationDetents([.large])
                 }
                 .confirmationDialog(
                     "Retirer « \(ligne.libelle) » ?", isPresented: $confirmerRetrait, titleVisibility: .visible
