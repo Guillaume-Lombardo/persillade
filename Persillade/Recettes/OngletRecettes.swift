@@ -148,13 +148,18 @@ struct OngletRecettes: View {
             } actions: {
             }
         }
-        .barreAction {
-            VStack(spacing: GrillePersillade.pas * 3) {
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: GrillePersillade.pas * 2) {
                 CommandeRecettes(
                     titre: "Coller un lien ou un texte", symbole: "document.on.clipboard", principale: true,
                     action: coller)
                 CommandeRecettes(titre: "Prendre une photo", symbole: "camera", action: prendrePhoto)
             }
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+            .tint(CouleurPersillade.persil.couleur)
+            .padding(.horizontal, GrillePersillade.margeBarre)
+            .padding(.vertical, GrillePersillade.pas)
+            .background(CouleurPersillade.page.couleur)
         }
     }
 

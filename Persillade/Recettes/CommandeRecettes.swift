@@ -34,7 +34,7 @@ struct CommandeRecettes: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .typographie(.bouton)
-            .frame(maxWidth: .infinity, minHeight: GrillePersillade.cible)
+            .frame(maxWidth: .infinity, minHeight: GrillePersillade.pas * 8)
         }
     }
 }

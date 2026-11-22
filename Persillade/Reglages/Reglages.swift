@@ -204,7 +204,15 @@ private struct ConsentementFournisseur: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: GrillePersillade.pas * 4) {
-                    information("Fournisseur", adresse?.absoluteString ?? "")
+                    VStack(alignment: .leading, spacing: GrillePersillade.pas) {
+                        Text("Fournisseur").typographie(.section).accessibilityAddTraits(.isHeader)
+                        if let adresse {
+                            Text(adresse.absoluteString)
+                                .typographie(.texte)
+                                .accessibilityLabel("Adresse du fournisseur : \(adresse.absoluteString)")
+                                .accessibilityIdentifier("fournisseur-adresse-consentement")
+                        }
+                    }
                     information(
                         "Données envoyées",
                         accepteImages

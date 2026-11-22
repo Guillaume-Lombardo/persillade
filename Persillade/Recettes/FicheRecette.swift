@@ -139,17 +139,20 @@ struct FicheRecette: View {
             if choisie != nil { Text("Retirée aussi de la semaine.") }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            HStack(spacing: GrillePersillade.pas * 2) {
-                commandeSemaine(portions)
-                if !recette.etapes.isEmpty {
-                    CommandeRecettes(
-                        titre: positionCuisine > 0 ? "Reprendre à l’étape \(positionCuisine)" : "Cuisiner",
-                        symbole: "frying.pan.fill", principale: true
-                    ) {
-                        if positionCuisine == 0 { positionCuisine = 1 }
-                        cuisiner = true
+            Group {
+                if recette.etapes.isEmpty {
+                    commandeSemaine(portions)
+                } else {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: GrillePersillade.pas * 2) {
+                            commandeSemaine(portions).fixedSize(horizontal: true, vertical: false)
+                            commandeCuisine
+                        }
+                        HStack(spacing: GrillePersillade.pas * 2) {
+                            commandeSemaine(portions)
+                            commandeCuisine
+                        }
                     }
-                    .accessibilityIdentifier("ouvrir-cuisine")
                 }
             }
             .dynamicTypeSize(...DynamicTypeSize.accessibility1)
@@ -174,7 +177,6 @@ struct FicheRecette: View {
                     positionCuisine = position
                 }
                 .environment(\.dynamicTypeSize, taille)
-                .onAppear { autoriserPaysageCuisine(true) }
             }
         }
         .sensoryFeedback(.selection, trigger: portions)
@@ -184,19 +186,24 @@ struct FicheRecette: View {
 
     private func commandeSemaine(_ portions: Int) -> some View {
         let titre = choisie == nil ? "Ajouter à la semaine" : "Retirer de la semaine"
-        return ViewThatFits(in: .horizontal) {
-            CommandeRecettes(titre: titre, action: { basculerSemaine(portions) })
-                .fixedSize(horizontal: true, vertical: false)
-            CommandeRecettes(titre: titre, action: { basculerSemaine(portions) })
+        return CommandeRecettes(titre: titre) {
+            Task {
+                if choisie != nil { portionsLocales = portions }
+                await bibliotheque.choisir(id, portions: choisie == nil ? portions : nil)
+            }
         }
         .disabled(!bibliotheque.selectionDisponible || bibliotheque.operationSemaine)
     }
 
-    private func basculerSemaine(_ portions: Int) {
-        Task {
-            if choisie != nil { portionsLocales = portions }
-            await bibliotheque.choisir(id, portions: choisie == nil ? portions : nil)
+    private var commandeCuisine: some View {
+        CommandeRecettes(
+            titre: positionCuisine > 0 ? "Reprendre à l’étape \(positionCuisine)" : "Cuisiner",
+            symbole: "frying.pan.fill", principale: true
+        ) {
+            if positionCuisine == 0 { positionCuisine = 1 }
+            cuisiner = true
         }
+        .accessibilityIdentifier("ouvrir-cuisine")
     }
 
     private func blocPortions(_ portions: Int) -> some View {

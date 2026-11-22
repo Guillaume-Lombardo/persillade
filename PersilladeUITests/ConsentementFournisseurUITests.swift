@@ -38,8 +38,9 @@ final class ConsentementFournisseurUITests: XCTestCase {
         enregistrer.tap()
 
         let consentement = app.navigationBars["Autoriser l’envoi"]
+        let adresseConsentement = app.staticTexts["fournisseur-adresse-consentement"]
         XCTAssertTrue(consentement.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts[adresseInitiale].exists)
+        XCTAssertEqual(adresseConsentement.label, "Adresse du fournisseur : \(adresseInitiale)")
         XCTAssertTrue(app.staticTexts["Les frais éventuels du fournisseur sont à votre charge."].exists)
         XCTAssertTrue(
             app.staticTexts["Le texte des recettes et des messages, y compris le texte lu sur les photos."].exists)
@@ -76,7 +77,7 @@ final class ConsentementFournisseurUITests: XCTestCase {
         cle.typeText("autre-cle-fictive")
         enregistrer.tap()
         XCTAssertTrue(consentement.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts[autreAdresse].exists)
+        XCTAssertEqual(adresseConsentement.label, "Adresse du fournisseur : \(autreAdresse)")
         app.buttons["fournisseur-refuser"].tap()
         XCTAssertTrue(reglages.waitForExistence(timeout: 5))
         XCTAssertEqual(adresse.value as? String, adresseInitiale)

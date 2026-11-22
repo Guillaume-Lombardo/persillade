@@ -3,7 +3,7 @@
 
     final class PasAPasTests: XCTestCase {
         @MainActor
-        func testSuiviEtRepriseDUneRecetteDeCinqEtapes() {
+        func testSuiviEtRepriseDUneRecetteDeCinqEtapes() throws {
             continueAfterFailure = false
             let app = XCUIApplication()
             app.launchArguments = ["-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"]
@@ -41,6 +41,14 @@
             XCTAssertTrue(position.waitForExistence(timeout: 12))
             XCTAssertEqual(position.label, "Étape 1 sur 5")
             XCTAssertFalse(precedente.isEnabled)
+            joindre("cuisine-clair")
+            toucher(app.buttons["ingredients-cuisine"])
+            let portions = app.staticTexts["portions-cuisine"]
+            XCTAssertTrue(portions.waitForExistence(timeout: 5))
+            XCTAssertEqual(portions.label, "Quantités pour 4 portions. Étapes prévues pour 4.")
+            joindre("cuisine-ingredients-clair")
+            try app.performAccessibilityAudit(for: [.sufficientElementDescription, .trait])
+            toucher(app.buttons["fermer-ingredients-cuisine"])
             toucher(suivante)
             XCTAssertTrue(position.wait(for: \.label, toEqual: "Étape 2 sur 5", timeout: 12))
             suivante.tap()
@@ -55,6 +63,14 @@
             XCTAssertTrue(ouvrir.wait(for: \.label, toEqual: "Reprendre à l’étape 2", timeout: 12))
             toucher(ouvrir)
             XCTAssertTrue(position.wait(for: \.label, toEqual: "Étape 2 sur 5", timeout: 12))
+        }
+
+        @MainActor
+        private func joindre(_ nom: String) {
+            let capture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            capture.name = nom
+            capture.lifetime = .keepAlways
+            add(capture)
         }
 
         @MainActor

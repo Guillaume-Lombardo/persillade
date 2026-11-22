@@ -346,6 +346,7 @@
             let fermer = app.buttons["fermer-cuisine"]
             XCTAssertTrue(fermer.waitForExistence(timeout: 5))
             appareil.orientation = .landscapeLeft
+            joindre("cuisine-apres-rotation")
             wait(for: [XCTNSPredicateExpectation(predicate: paysage, object: app)], timeout: 5)
             XCTAssertTrue(app.buttons["suivante-cuisine"].isHittable)
             joindre("cuisine-paysage")
