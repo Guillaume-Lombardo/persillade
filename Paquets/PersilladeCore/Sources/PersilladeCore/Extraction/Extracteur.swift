@@ -132,7 +132,9 @@ public struct Extracteur: Sendable {
                     var candidat = proposition
                     if try candidat.appliquer(reponse, ancrages: ancrages, moteur: .cleExterne) {
                         try ancrages.verifierEcheance()
-                        candidat.cause = citationsVerifiees ? nil : .fournisseurEnErreur
+                        if candidat.cause != .contenuTropLong {
+                            candidat.cause = citationsVerifiees ? nil : .fournisseurEnErreur
+                        }
                         proposition = candidat
                     } else if !citationsVerifiees {
                         proposition.cause = .fournisseurEnErreur

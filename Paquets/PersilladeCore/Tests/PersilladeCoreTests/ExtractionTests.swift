@@ -416,6 +416,7 @@ func causePageEtLienConserve(_ cause: CauseExtraction) async throws {
         Il faut 2 œufs et de la patience.
         On mélange et on enfourne.
         Puis on attend encore une bonne demi-heure.
+        Enfin il faudra 100 g de farine.
         """
     let moteur = MoteurBouchon(
         .reponse { _ in
@@ -427,6 +428,15 @@ func causePageEtLienConserve(_ cause: CauseExtraction) async throws {
     #expect(resultat.recette?.etapes == ["On mélange et on enfourne."])
     #expect(resultat.statut == .partiel)
     #expect(resultat.cause == .contenuTropLong)
+
+    let distant = try await Extracteur(moteurIA: moteur).extraire(texteRecu(texte), cible: .recette) { _, _, _ in
+        .init(ingredients: ["100 g de farine"], etapes: ["Puis on attend encore une bonne demi-heure."])
+    }
+    #expect(distant.moteur == .cleExterne)
+    #expect(distant.recette?.ingredients.map(\.nom) == ["œufs", "farine"])
+    #expect(distant.recette?.etapes == resultat.recette?.etapes)
+    #expect(distant.statut == .partiel)
+    #expect(distant.cause == .contenuTropLong)
 }
 
 @Test func repliConsentiSuitLeMoteurEmbarque() async throws {
