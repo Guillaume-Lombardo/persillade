@@ -222,29 +222,34 @@ struct ArticlesMessageCourses: View {
                     }
                 } catch ListeCourses.Erreur.messageDejaIntegre {
                     integre = true
-                    try await retirerContenuRecu()
                     session.erreur = "Les articles de ce message ont déjà été ajoutés."
+                    await retirerApresIntegration()
                     return
                 }
-                if case .applique(let effets) = action {
-                    integre = true
-                    aEnvoyer = effets.lignesAEnvoyer
-                    exclus = effets.decochagePropose
+                guard case .applique(let effets) = action else {
+                    confirmerIntegration = true
+                    return
+                }
+                integre = true
+                aEnvoyer = effets.lignesAEnvoyer
+                exclus = effets.decochagePropose
+                do {
                     try await session.relire()
                     if !exclus.isEmpty { confirmerRemise = true }
-                    do {
-                        try await retirerContenuRecu()
-                    } catch {
-                        session.erreur = "Les articles sont ajoutés. Le message reste dans la file de réception."
-                    }
-                    if !aEnvoyer.isEmpty {
-                        rapport = try await session.envoyer(aEnvoyer)
-                        aEnvoyer = []
-                    }
-                } else {
-                    confirmerIntegration = true
+                } catch {
+                    session.signaler("Les articles sont ajoutés. Impossible de relire les courses.", erreur: error)
                 }
+                await retirerApresIntegration()
+                if !aEnvoyer.isEmpty { await envoyerArticlesIntegres(aEnvoyer) }
             }
+        }
+    }
+
+    private func retirerApresIntegration() async {
+        do {
+            try await retirerContenuRecu()
+        } catch {
+            session.signaler("Les articles sont ajoutés. Le message reste dans la file de réception.", erreur: error)
         }
     }
 
@@ -259,10 +264,7 @@ struct ArticlesMessageCourses: View {
                 try await session.relire()
                 if envoyer {
                     let reste = Set(ids + aEnvoyer + (rapport?.echecs.map(\.ligneId) ?? []))
-                    aEnvoyer = Array(reste)
-                    rapport = nil
-                    rapport = try await session.envoyer(aEnvoyer)
-                    aEnvoyer = []
+                    await envoyerArticlesIntegres(Array(reste))
                 }
             }
         }
@@ -271,9 +273,19 @@ struct ArticlesMessageCourses: View {
     private func envoyer(_ ids: [UUID]) {
         Task {
             await session.effectuer("L’envoi des articles a été interrompu. Réessayez.") {
-                rapport = try await session.envoyer(ids)
-                aEnvoyer = []
+                await envoyerArticlesIntegres(ids)
             }
+        }
+    }
+
+    private func envoyerArticlesIntegres(_ ids: [UUID]) async {
+        aEnvoyer = ids
+        do {
+            rapport = try await session.envoyer(ids)
+            aEnvoyer = []
+        } catch {
+            rapport = nil
+            session.signaler("Les articles sont ajoutés. Leur envoi a été interrompu.", erreur: error)
         }
     }
 
