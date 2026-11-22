@@ -52,15 +52,7 @@ private struct Racine: View {
             }
         }
         .sheet(isPresented: $afficherReglages) {
-            NavigationStack {
-                Form {}
-                    .navigationTitle("Réglages")
-                    .toolbar {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Fermer") { afficherReglages = false }
-                        }
-                    }
-            }
+            Reglages()
         }
     }
 

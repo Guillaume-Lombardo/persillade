@@ -416,6 +416,7 @@ func causePageEtLienConserve(_ cause: CauseExtraction) async throws {
         Il faut 2 œufs et de la patience.
         On mélange et on enfourne.
         Puis on attend encore une bonne demi-heure.
+        Enfin il faudra 100 g de farine.
         """
     let moteur = MoteurBouchon(
         .reponse { _ in
@@ -427,6 +428,15 @@ func causePageEtLienConserve(_ cause: CauseExtraction) async throws {
     #expect(resultat.recette?.etapes == ["On mélange et on enfourne."])
     #expect(resultat.statut == .partiel)
     #expect(resultat.cause == .contenuTropLong)
+
+    let distant = try await Extracteur(moteurIA: moteur).extraire(texteRecu(texte), cible: .recette) { _, _, _ in
+        .init(ingredients: ["100 g de farine"], etapes: ["Puis on attend encore une bonne demi-heure."])
+    }
+    #expect(distant.moteur == .cleExterne)
+    #expect(distant.recette?.ingredients.map(\.nom) == ["œufs", "farine"])
+    #expect(distant.recette?.etapes == resultat.recette?.etapes)
+    #expect(distant.statut == .partiel)
+    #expect(distant.cause == .contenuTropLong)
 }
 
 @Test func repliConsentiSuitLeMoteurEmbarque() async throws {
@@ -463,6 +473,23 @@ func causePageEtLienConserve(_ cause: CauseExtraction) async throws {
     #expect(resultat.moteur == .embarque)
 }
 
+@Test func repliConserveLesEtapesDejaLues() async throws {
+    let originale = try fixture("10-prose", "txt")
+    let premiere = "J’ai pesé 350 g de farine"
+    let suivante = "on laisse lever la pâte près du four pendant deux heures."
+    let moteur = MoteurBouchon(.reponse { _ in .init(ingredients: ["350 g de farine"], etapes: [suivante]) })
+    let resultat = try await Extracteur(moteurIA: moteur).extraire(texteRecu(originale), cible: .recette) {
+        _, _, local in
+        #expect(local.recette?.etapes == [suivante])
+        return .init(
+            titre: "brioche à la fleur d’oranger",
+            etapes: [premiere, "laisse lever la pâte près du four"])
+    }
+    #expect(resultat.statut == .complet)
+    #expect(resultat.moteur == .cleExterne)
+    #expect(resultat.recette?.etapes == [suivante])
+}
+
 @Test(.timeLimit(.minutes(1))) func annulationPendantLaGeneration() async {
     let moteur = MoteurBouchon(.lent)
     let tache = Task {
@@ -486,9 +513,11 @@ func causePageEtLienConserve(_ cause: CauseExtraction) async throws {
 }
 
 private struct LecteurBouchon: LecteurImage {
+    var texte = "3 œufs"
+
     func lireTexte(_ image: Data) async throws -> String {
         #expect(image == Data([42]))
-        return "3 œufs"
+        return texte
     }
 }
 
@@ -501,4 +530,35 @@ private struct LecteurBouchon: LecteurImage {
     #expect(lu.statut == .partiel)
     #expect(lu.recette?.ingredients.first?.nom == "œufs")
     #expect(lu.texteSource == "3 œufs")
+}
+
+@Test func repliPhotoConserveSeulementLesCitationsDuTexteLu() async throws {
+    let image = ContenuRecu(type: .image, contenu: Data([42]), origine: .phototheque)
+    let sansLecteur = try await Extracteur().extraire(image, cible: .message) { _, _, _ in
+        Issue.record("Une photo sans texte vérifiable a déclenché le repli.")
+        return .init(articles: ["3 œufs"])
+    }
+    #expect(sansLecteur.cause == .rienTrouve)
+    let resultat = try await Extracteur(lecteurImage: LecteurBouchon()).extraire(image, cible: .message) {
+        _, _, _ in .init(articles: ["3 œufs", "du sucre"])
+    }
+    #expect(resultat.moteur == .cleExterne)
+    #expect(resultat.statut == .partiel)
+    #expect(resultat.cause == .fournisseurEnErreur)
+    #expect(resultat.articles.map(\.nom) == ["œufs"])
+}
+
+@Test func recettePhotoRestePartielleSiUneEtapeNestPasAncree() async throws {
+    let image = ContenuRecu(type: .image, contenu: Data([42]), origine: .phototheque)
+    let lecteur = LecteurBouchon(texte: try fixture("10-prose", "txt"))
+    let extrait = "on laisse lever la pâte près du four pendant deux heures."
+    let resultat = try await Extracteur(lecteurImage: lecteur).extraire(image, cible: .recette) { _, _, _ in
+        .init(
+            titre: "brioche à la fleur d’oranger", ingredients: ["350 g de farine"],
+            etapes: [extrait, "Ajouter le sucre."])
+    }
+    #expect(resultat.recette?.etapes == [extrait])
+    #expect(resultat.moteur == .cleExterne)
+    #expect(resultat.statut == .partiel)
+    #expect(resultat.cause == .fournisseurEnErreur)
 }
