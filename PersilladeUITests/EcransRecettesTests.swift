@@ -17,7 +17,11 @@
         @MainActor
         func testCollageCorrectionPortionsEtRelance() throws {
             let app = lancer()
+            joindre("recettes-vide-clair")
+            try auditer(app)
             coller(app)
+            joindre("destination-clair")
+            try auditer(app)
             XCTAssertTrue(app.navigationBars["Destination"].exists)
             app.navigationBars["Destination"].buttons["Fermer"].tap()
             XCTAssertTrue(app.buttons["Ouvrir"].waitForExistence(timeout: 5))
@@ -67,6 +71,8 @@
             app.launch()
             let entree = app.descendants(matching: .any).matching(identifier: "ouvrir-recette").firstMatch
             XCTAssertTrue(entree.waitForExistence(timeout: 5))
+            joindre("recettes-clair")
+            try auditer(app)
             entree.tap()
             XCTAssertTrue(app.staticTexts["Dans la semaine"].waitForExistence(timeout: 5))
             XCTAssertEqual(app.staticTexts["nombre-portions"].label, "4 portions")
@@ -239,12 +245,14 @@
         }
 
         @MainActor
-        func testCapturesSombreAX3EtAX5() {
+        func testCapturesSombreAX3EtAX5() throws {
             for (nom, argument) in [("sombre", "-recettes-sombre"), ("AX3", "-recettes-ax3"), ("AX5", "-recettes-ax5")]
             {
                 let app = lancer(arguments: [argument])
-                joindre("Bibliothèque-vide-\(nom)")
+                joindre("recettes-vide-\(nom)")
+                try auditer(app)
                 coller(app)
+                joindre("destination-\(nom)")
                 ouvrirCorrection(app)
                 if nom.hasPrefix("AX") {
                     XCTAssertFalse(
@@ -254,7 +262,9 @@
                 enregistrer(app)
                 joindre("Fiche-\(nom)")
                 let action = app.buttons["Ajouter à la semaine"]
+                let cuisiner = app.buttons["ouvrir-cuisine"]
                 XCTAssertTrue(action.exists, nom)
+                XCTAssertTrue(cuisiner.exists, nom)
                 XCTAssertGreaterThanOrEqual(action.frame.height, 44, nom)
                 let derniere = app.staticTexts.containing(
                     NSPredicate(format: "label CONTAINS %@", "cuisez les crêpes")
@@ -266,8 +276,17 @@
                 XCTAssertTrue(derniere.isHittable, nom)
                 XCTAssertLessThanOrEqual(derniere.frame.maxY, action.frame.minY, nom)
                 XCTAssertEqual(action.frame.minX - app.frame.minX, 21, accuracy: 2, nom)
-                XCTAssertEqual(app.frame.maxX - action.frame.maxX, 21, accuracy: 2, nom)
+                XCTAssertEqual(app.frame.maxX - cuisiner.frame.maxX, 21, accuracy: 2, nom)
+                XCTAssertEqual(action.frame.midY, cuisiner.frame.midY, accuracy: 2, nom)
                 joindre("Fiche-dernière-ligne-\(nom)")
+                try auditer(app)
+
+                cuisiner.tap()
+                let suivante = app.buttons["suivante-cuisine"]
+                XCTAssertTrue(suivante.waitForExistence(timeout: 5))
+                XCTAssertEqual(suivante.label, "Suivante")
+                joindre("cuisine-\(nom)")
+                try auditer(app)
                 app.terminate()
             }
         }
@@ -279,6 +298,34 @@
                 predicate: NSPredicate(format: "label == %@", "Brouillon écrit \(valeur)"),
                 object: temoin)
             XCTAssertEqual(XCTWaiter.wait(for: [ecrit], timeout: 10), .completed)
+        }
+
+        @MainActor
+        func testRecettesEtCuisineEnPaysage() throws {
+            let app = lancer()
+            coller(app)
+            ouvrirCorrection(app)
+            enregistrer(app)
+
+            let appareil = XCUIDevice.shared
+            appareil.orientation = .landscapeLeft
+            defer { appareil.orientation = .portrait }
+            let cuisiner = app.buttons["ouvrir-cuisine"]
+            XCTAssertTrue(cuisiner.isHittable)
+            joindre("fiche-paysage")
+            cuisiner.tap()
+            let fermer = app.buttons["fermer-cuisine"]
+            XCTAssertTrue(fermer.waitForExistence(timeout: 5))
+            XCTAssertGreaterThan(app.frame.width, app.frame.height)
+            XCTAssertTrue(app.buttons["suivante-cuisine"].isHittable)
+            joindre("cuisine-paysage")
+            try auditer(app)
+            fermer.tap()
+            app.navigationBars.buttons.firstMatch.tap()
+            let liste = app.descendants(matching: .any)["ouvrir-recette"].firstMatch
+            XCTAssertTrue(liste.waitForExistence(timeout: 5))
+            XCTAssertTrue(liste.isHittable)
+            joindre("recettes-paysage")
         }
 
         @MainActor

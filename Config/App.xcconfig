@@ -1,5 +1,6 @@
 PRODUCT_NAME = Persillade
 PRODUCT_BUNDLE_IDENTIFIER = xyz.g1lom.persillade
+ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
 GENERATE_INFOPLIST_FILE = YES
 INFOPLIST_KEY_CFBundleDisplayName = Persillade
 INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES

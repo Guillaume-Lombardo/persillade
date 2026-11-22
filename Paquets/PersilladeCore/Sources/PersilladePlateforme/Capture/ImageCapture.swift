@@ -13,7 +13,7 @@ public enum ErreurCapture: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .origineInvalide: "L’origine de cette photo est inconnue."
-        case .imageIllisible: "Cette image est illisible."
+        case .imageIllisible: "Cette photo est illisible."
         case .encodageImpossible: "Impossible de préparer cette photo."
         case .lectureVision: "Impossible de lire le texte de cette photo."
         case .stockage: "Impossible d’accéder aux photos d’import."

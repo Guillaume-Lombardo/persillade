@@ -33,23 +33,28 @@ struct FeuillePhoto: View {
                     ProgressView("Préparation de la photo")
                 } else {
                     if let message {
-                        Label(message, systemImage: "exclamationmark.circle")
-                            .typographie(.alerte)
-                            .foregroundStyle(CouleurPersillade.tomate.couleur)
+                        Label {
+                            Text(message)
+                        } icon: {
+                            Image(systemName: "exclamationmark.circle").accessibilityHidden(true)
+                        }
+                        .typographie(.texte)
+                        .foregroundStyle(CouleurPersillade.tomate.couleur)
+                        .accessibilityIdentifier("photo-erreur")
+                    }
+                    if cameraDisponible {
+                        CommandeRecettes(titre: "Prendre une photo", symbole: "camera", principale: true) {
+                            Task { await ouvrirCamera() }
+                        }
+                    }
+                    CommandeRecettes(titre: "Choisir une photo", symbole: "photo", principale: !cameraDisponible) {
+                        phototheque = true
                     }
                     if proposerReglages {
-                        BoutonActionPersillade("Ouvrir Réglages") {
+                        CommandeRecettes(titre: "Ouvrir Réglages", symbole: "gear") {
                             if let url = URL(string: UIApplication.openSettingsURLString) { ouvrirURL(url) }
                         }
                     }
-                    if cameraDisponible {
-                        Button("Prendre une photo", systemImage: "camera") {
-                            Task { await ouvrirCamera() }
-                        }
-                        .frame(minHeight: GrillePersillade.cible)
-                    }
-                    Button("Choisir une photo", systemImage: "photo") { phototheque = true }
-                        .frame(minHeight: GrillePersillade.cible)
                     if message != nil {
                         Button("Saisir la recette", systemImage: "pencil", action: saisir)
                             .frame(minHeight: GrillePersillade.cible)
@@ -59,7 +64,7 @@ struct FeuillePhoto: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(GrillePersillade.marge)
         }
-        .background(CouleurPersillade.page.couleur)
+        .background(CouleurPersillade.page.couleur.ignoresSafeArea())
         .photosPicker(
             isPresented: $phototheque, selection: $selection, matching: .images, preferredItemEncoding: .current
         )

@@ -24,42 +24,47 @@ struct Reglages: View {
                 Section {
                     Toggle("Utiliser un fournisseur externe", isOn: activationFournisseur)
                         .accessibilityIdentifier("fournisseur-actif")
+                        .listRowBackground(CouleurPersillade.page2.couleur)
                 } header: {
                     Text("Extraction de recettes et de messages")
+                        .typographie(.section)
+                        .textCase(nil)
                 } footer: {
                     Text("Ce service intervient si l’extraction sur l’iPhone reste incomplète.")
+                        .foregroundStyle(CouleurPersillade.encre2.couleur)
                 }
 
-                Section("Fournisseur d’IA") {
-                    TextField("Adresse de l’API (HTTPS)", text: $brouillon.adresse)
-                        .focused($champActif, equals: .adresse)
-                        .keyboardType(.URL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .accessibilityIdentifier("fournisseur-adresse")
-                    TextField("Nom du modèle", text: $brouillon.modele)
-                        .focused($champActif, equals: .modele)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .accessibilityIdentifier("fournisseur-modele")
-                    SecureField(cleEnregistree ? "Nouvelle clé d’API" : "Clé d’API", text: $cle)
-                        .focused($champActif, equals: .cle)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .accessibilityIdentifier("fournisseur-cle")
+                if brouillon.active {
+                    Section {
+                        champsFournisseur
+                            .listRowBackground(CouleurPersillade.page2.couleur)
+                    } header: {
+                        Text("Fournisseur d’IA")
+                            .typographie(.section)
+                            .textCase(nil)
+                    }
 
-                    if hoteAvecCle != nil {
-                        Button("Supprimer la clé enregistrée", role: .destructive) { confirmerSuppression = true }
+                    Section {
+                        Toggle("Le modèle accepte les photos", isOn: $brouillon.accepteImages)
+                            .accessibilityIdentifier("fournisseur-images")
+                            .listRowBackground(CouleurPersillade.page2.couleur)
+                    } footer: {
+                        Text("Sans cette option, seul le texte lu sur les photos est envoyé.")
+                            .foregroundStyle(CouleurPersillade.encre2.couleur)
                     }
                 }
 
-                Section {
-                    Toggle("Le modèle accepte les images", isOn: $brouillon.accepteImages)
-                        .accessibilityIdentifier("fournisseur-images")
-                } footer: {
-                    Text("Sans cette option, seul le texte lu sur les photos est envoyé.")
+                if hoteAvecCle != nil {
+                    Section {
+                        Button("Supprimer la clé enregistrée", role: .destructive) { confirmerSuppression = true }
+                            .foregroundStyle(CouleurPersillade.tomate.couleur)
+                            .listRowBackground(CouleurPersillade.page2.couleur)
+                    }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(CouleurPersillade.page.couleur.ignoresSafeArea())
+            .foregroundStyle(CouleurPersillade.encre.couleur)
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Réglages")
             .tint(CouleurPersillade.persil.couleur)
@@ -85,7 +90,9 @@ struct Reglages: View {
                     refuser: {
                         afficherConsentement = false
                         recharger()
-                    })
+                    }
+                )
+                .presentationBackground(CouleurPersillade.page.couleur)
             }
             .confirmationDialog(
                 "Supprimer la clé d’API ?", isPresented: $confirmerSuppression, titleVisibility: .visible
@@ -113,6 +120,26 @@ struct Reglages: View {
                 Text(messageErreur ?? "")
             }
         }
+        .presentationBackground(CouleurPersillade.page.couleur)
+    }
+
+    @ViewBuilder private var champsFournisseur: some View {
+        TextField("Adresse de l’API (HTTPS)", text: $brouillon.adresse)
+            .focused($champActif, equals: .adresse)
+            .keyboardType(.URL)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("fournisseur-adresse")
+        TextField("Nom du modèle", text: $brouillon.modele)
+            .focused($champActif, equals: .modele)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("fournisseur-modele")
+        SecureField(cleEnregistree ? "Nouvelle clé d’API" : "Clé d’API", text: $cle)
+            .focused($champActif, equals: .cle)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("fournisseur-cle")
     }
 
     private var cleEnregistree: Bool {
@@ -184,25 +211,33 @@ private struct ConsentementFournisseur: View {
                             ? "Le texte des recettes et des messages, ainsi que les photos et le texte lu sur ces photos."
                             : "Le texte des recettes et des messages, y compris le texte lu sur les photos.")
                     information("Facturation", "Les frais éventuels du fournisseur sont à votre charge.")
-                    BoutonActionPersillade("Accepter et activer", action: accepter)
-                        .accessibilityIdentifier("fournisseur-accepter")
-                    Button("Refuser", role: .cancel, action: refuser)
-                        .accessibilityIdentifier("fournisseur-refuser")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(GrillePersillade.marge)
             }
             .foregroundStyle(CouleurPersillade.encre.couleur)
-            .background(CouleurPersillade.page.couleur)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                VStack(spacing: GrillePersillade.pas * 3) {
+                    CommandeRecettes(titre: "Accepter et activer", principale: true, action: accepter)
+                        .accessibilityIdentifier("fournisseur-accepter")
+                    CommandeRecettes(titre: "Refuser", action: refuser)
+                        .accessibilityIdentifier("fournisseur-refuser")
+                }
+                .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+                .padding(.horizontal, GrillePersillade.margeBarre)
+                .padding(.vertical, GrillePersillade.pas * 2)
+                .background(CouleurPersillade.page.couleur)
+            }
+            .background(CouleurPersillade.page.couleur.ignoresSafeArea())
             .navigationTitle("Autoriser l’envoi")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
         }
         .interactiveDismissDisabled()
     }
 
     private func information(_ titre: String, _ detail: String) -> some View {
         VStack(alignment: .leading, spacing: GrillePersillade.pas) {
-            Text(titre).font(.headline).accessibilityAddTraits(.isHeader)
+            Text(titre).typographie(.section).accessibilityAddTraits(.isHeader)
             Text(detail).typographie(.texte)
         }
     }

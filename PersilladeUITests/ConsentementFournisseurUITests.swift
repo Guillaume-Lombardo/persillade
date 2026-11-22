@@ -2,8 +2,13 @@ import XCTest
 
 final class ConsentementFournisseurUITests: XCTestCase {
     @MainActor
-    func testConsentementFournisseurEtSuppression() {
+    func testConsentementFournisseurEtSuppression() throws {
+        continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchArguments = ["-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"]
+        let domaine = UUID().uuidString.lowercased()
+        let adresseInitiale = "https://\(domaine).test/v1"
+        let autreAdresse = "https://autre.\(domaine).test/v1"
         app.launch()
         ouvrirReglages(app)
         let reglages = app.navigationBars["Réglages"]
@@ -18,16 +23,16 @@ final class ConsentementFournisseurUITests: XCTestCase {
         let supprimer = app.buttons["Supprimer la clé enregistrée"]
         if supprimer.exists { supprimerCle(app) }
         regler(actif, sur: false)
-        regler(images, sur: false)
-        remplacer(adresse, par: "")
-        remplacer(modele, par: "")
-        if enregistrer.isEnabled { enregistrer.tap() }
-        XCTAssertEqual(actif.value as? String, "0")
-        if !actif.isHittable { app.swipeDown() }
-        joindreCapture("819-Réglages-désactivés")
+        XCTAssertFalse(adresse.exists)
+        XCTAssertFalse(modele.exists)
+        XCTAssertFalse(cle.exists)
+        XCTAssertFalse(images.exists)
+        joindreCapture("reglages-clair")
+        try app.performAccessibilityAudit(for: [.sufficientElementDescription, .trait])
 
         regler(actif, sur: true)
-        remplacer(adresse, par: "https://api.exemple.test/v1")
+        regler(images, sur: false)
+        remplacer(adresse, par: adresseInitiale)
         remplacer(modele, par: "exemple")
         cle.tap()
         cle.typeText("cle-fictive")
@@ -35,19 +40,25 @@ final class ConsentementFournisseurUITests: XCTestCase {
 
         let consentement = app.navigationBars["Autoriser l’envoi"]
         XCTAssertTrue(consentement.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["https://api.exemple.test/v1"].exists)
+        XCTAssertTrue(app.staticTexts[adresseInitiale].exists)
         XCTAssertTrue(app.staticTexts["Les frais éventuels du fournisseur sont à votre charge."].exists)
         XCTAssertTrue(
             app.staticTexts["Le texte des recettes et des messages, y compris le texte lu sur les photos."].exists)
         XCTAssertFalse(app.staticTexts["cle-fictive"].exists)
-        joindreCapture("819-Consentement-texte")
+        let accepter = app.buttons["fournisseur-accepter"]
+        let refuser = app.buttons["fournisseur-refuser"]
+        XCTAssertEqual(accepter.frame.width, refuser.frame.width, accuracy: 1)
+        XCTAssertEqual(accepter.frame.height, refuser.frame.height, accuracy: 1)
+        joindreCapture("consentement-clair")
+        try app.performAccessibilityAudit(for: [.sufficientElementDescription, .trait])
         app.buttons["fournisseur-refuser"].tap()
         XCTAssertTrue(reglages.waitForExistence(timeout: 5))
         XCTAssertEqual(actif.value as? String, "0")
         XCTAssertFalse(supprimer.exists)
 
         regler(actif, sur: true)
-        remplacer(adresse, par: "https://api.exemple.test/v1")
+        regler(images, sur: false)
+        remplacer(adresse, par: adresseInitiale)
         remplacer(modele, par: "exemple")
         cle.tap()
         cle.typeText("cle-fictive")
@@ -61,15 +72,15 @@ final class ConsentementFournisseurUITests: XCTestCase {
         enregistrer.tap()
         XCTAssertFalse(consentement.exists)
 
-        remplacer(adresse, par: "https://autre.exemple.test/v1")
+        remplacer(adresse, par: autreAdresse)
         cle.tap()
         cle.typeText("autre-cle-fictive")
         enregistrer.tap()
         XCTAssertTrue(consentement.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["https://autre.exemple.test/v1"].exists)
+        XCTAssertTrue(app.staticTexts[autreAdresse].exists)
         app.buttons["fournisseur-refuser"].tap()
         XCTAssertTrue(reglages.waitForExistence(timeout: 5))
-        XCTAssertEqual(adresse.value as? String, "https://api.exemple.test/v1")
+        XCTAssertEqual(adresse.value as? String, adresseInitiale)
 
         if !images.isHittable { app.swipeUp() }
         regler(images, sur: true)
@@ -80,7 +91,7 @@ final class ConsentementFournisseurUITests: XCTestCase {
                 "Le texte des recettes et des messages, ainsi que les photos et le texte lu sur ces photos."
             ]
             .exists)
-        joindreCapture("819-Consentement-photos")
+        joindreCapture("consentement-photos-clair")
         app.buttons["fournisseur-accepter"].tap()
         XCTAssertTrue(supprimer.waitForExistence(timeout: 5))
         regler(actif, sur: false)
@@ -101,6 +112,7 @@ final class ConsentementFournisseurUITests: XCTestCase {
 
     @MainActor
     private func regler(_ interrupteur: XCUIElement, sur active: Bool) {
+        XCTAssertTrue(interrupteur.waitForExistence(timeout: 5))
         let valeur = active ? "1" : "0"
         if interrupteur.value as? String != valeur {
             interrupteur.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
@@ -114,13 +126,12 @@ final class ConsentementFournisseurUITests: XCTestCase {
             XCTFail("Champ de configuration absent.")
             return
         }
-        if valeur == label && texte.isEmpty { return }
-        champ.coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: 0.5)).tap()
+        champ.tap()
         if valeur != label {
-            champ.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: valeur.count))
-            XCTAssertEqual(champ.value as? String, label)
+            champ.typeKey("a", modifierFlags: .command)
         }
-        if !texte.isEmpty { champ.typeText(texte) }
+        champ.typeText(texte)
+        XCTAssertEqual(champ.value as? String, texte)
     }
 
     @MainActor
