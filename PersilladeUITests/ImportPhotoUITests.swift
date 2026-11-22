@@ -3,6 +3,22 @@
 
     final class ImportPhotoUITests: XCTestCase {
         @MainActor
+        func testRepliQuandAppareilPhotoIndisponible() throws {
+            let app = XCUIApplication()
+            app.launchArguments = ["-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"]
+            app.launchEnvironment["PERSILLADE_TEST_SESSION"] = UUID().uuidString
+            app.launch()
+
+            toucher(app.buttons["Prendre une photo"])
+            let choix = app.buttons["Choisir une photo"]
+            XCTAssertTrue(app.staticTexts["L’appareil photo est indisponible."].waitForExistence(timeout: 5))
+            XCTAssertTrue(choix.isHittable)
+            XCTAssertGreaterThanOrEqual(choix.frame.height, 44)
+            joindre("photo-appareil-indisponible-clair")
+            try app.performAccessibilityAudit(for: [.sufficientElementDescription, .trait])
+        }
+
+        @MainActor
         func testPhotothequeCorrectionRepriseEtEnregistrement() {
             continueAfterFailure = false
             let app = XCUIApplication()

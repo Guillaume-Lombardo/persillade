@@ -166,12 +166,13 @@ struct FicheRecette: View {
                     }
             }
         }
-        .fullScreenCover(isPresented: $cuisiner) {
+        .fullScreenCover(isPresented: $cuisiner, onDismiss: { autoriserPaysageCuisine(false) }) {
             if let session = SessionCuisine(recette: recette, position: positionCuisine) {
                 PasAPas(recette: recette, portions: portions, fond: planche.fond, session: session) { position in
                     positionCuisine = position
                 }
                 .environment(\.dynamicTypeSize, taille)
+                .onAppear { autoriserPaysageCuisine(true) }
             }
         }
         .sensoryFeedback(.selection, trigger: portions)

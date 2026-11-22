@@ -12,6 +12,9 @@
             Préparation :
             1. Mélangez les œufs et la farine.
             2. Versez le lait et cuisez les crêpes.
+            3. Retournez chaque crêpe après une minute.
+            4. Réservez les crêpes cuites sur une assiette.
+            5. Servez les crêpes encore chaudes.
             """
 
         @MainActor
@@ -76,6 +79,23 @@
             entree.tap()
             XCTAssertTrue(app.staticTexts["Dans la semaine"].waitForExistence(timeout: 5))
             XCTAssertEqual(app.staticTexts["nombre-portions"].label, "4 portions")
+
+            app.buttons["Options de la recette"].tap()
+            app.buttons["Supprimer"].tap()
+            let confirmation = app.alerts["Supprimer cette recette ?"]
+            XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+            XCTAssertTrue(confirmation.staticTexts["Retirée aussi de la semaine."].exists)
+            joindre("fiche-suppression-clair")
+            confirmation.buttons["Annuler"].tap()
+
+            app.buttons["Retirer de la semaine"].tap()
+            XCTAssertTrue(app.buttons["Ajouter à la semaine"].waitForExistence(timeout: 5))
+            app.buttons["Options de la recette"].tap()
+            app.buttons["Supprimer"].tap()
+            XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+            XCTAssertFalse(confirmation.staticTexts["Retirée aussi de la semaine."].exists)
+            confirmation.buttons["Supprimer"].tap()
+            XCTAssertTrue(app.buttons["Coller un lien ou un texte"].waitForExistence(timeout: 5))
         }
 
         @MainActor
@@ -267,7 +287,7 @@
                 XCTAssertTrue(cuisiner.exists, nom)
                 XCTAssertGreaterThanOrEqual(action.frame.height, 44, nom)
                 let derniere = app.staticTexts.containing(
-                    NSPredicate(format: "label CONTAINS %@", "cuisez les crêpes")
+                    NSPredicate(format: "label CONTAINS %@", "Servez les crêpes")
                 ).firstMatch
                 for _ in 0..<7 {
                     if derniere.isHittable, derniere.frame.maxY <= action.frame.minY { break }
@@ -287,6 +307,11 @@
                 XCTAssertEqual(suivante.label, "Suivante")
                 joindre("cuisine-\(nom)")
                 try auditer(app)
+                if nom == "AX5" {
+                    for _ in 1..<5 { suivante.tap() }
+                    XCTAssertTrue(suivante.wait(for: \.label, toEqual: "Terminer", timeout: 5))
+                    joindre("cuisine-fin-AX5")
+                }
                 app.terminate()
             }
         }
@@ -301,7 +326,7 @@
         }
 
         @MainActor
-        func testRecettesEtCuisineEnPaysage() throws {
+        func testPaysageReserveALaCuisine() throws {
             let app = lancer()
             coller(app)
             ouvrirCorrection(app)
@@ -311,21 +336,20 @@
             appareil.orientation = .landscapeLeft
             defer { appareil.orientation = .portrait }
             let cuisiner = app.buttons["ouvrir-cuisine"]
+            XCTAssertLessThan(app.frame.width, app.frame.height)
             XCTAssertTrue(cuisiner.isHittable)
-            joindre("fiche-paysage")
+            appareil.orientation = .portrait
             cuisiner.tap()
             let fermer = app.buttons["fermer-cuisine"]
             XCTAssertTrue(fermer.waitForExistence(timeout: 5))
+            appareil.orientation = .landscapeLeft
             XCTAssertGreaterThan(app.frame.width, app.frame.height)
             XCTAssertTrue(app.buttons["suivante-cuisine"].isHittable)
             joindre("cuisine-paysage")
             try auditer(app)
             fermer.tap()
-            app.navigationBars.buttons.firstMatch.tap()
-            let liste = app.descendants(matching: .any)["ouvrir-recette"].firstMatch
-            XCTAssertTrue(liste.waitForExistence(timeout: 5))
-            XCTAssertTrue(liste.isHittable)
-            joindre("recettes-paysage")
+            XCTAssertTrue(cuisiner.wait(for: \.isHittable, toEqual: true, timeout: 5))
+            XCTAssertLessThan(app.frame.width, app.frame.height)
         }
 
         @MainActor
