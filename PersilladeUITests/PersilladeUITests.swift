@@ -31,8 +31,9 @@ final class PersilladeUITests: XCTestCase {
                 app.launchArguments = ["-galerie"] + arguments
                 app.launch()
                 let action = app.buttons["Modifier la quantité"]
-                XCTAssertTrue(action.waitForExistence(timeout: 5))
-                XCTAssertTrue(action.isHittable)
+                let atteignable = XCTNSPredicateExpectation(
+                    predicate: NSPredicate(format: "exists == true AND hittable == true"), object: action)
+                XCTAssertEqual(XCTWaiter.wait(for: [atteignable], timeout: 8), .completed, nom)
                 joindreCapture("Galerie-\(nom)")
 
                 if nom == "clair" {
