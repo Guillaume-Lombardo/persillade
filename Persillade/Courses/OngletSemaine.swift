@@ -143,11 +143,12 @@ struct OngletSemaine: View {
                     Text("\(choix.portions)").typographie(.texte).monospacedDigit()
                         .contentTransition(.numericText())
                         .frame(minWidth: 44, minHeight: 44)
-                        .accessibilityLabel("\(choix.portions) portions")
+                        .accessibilityHidden(true)
                     boutonPortions("Augmenter les portions", symbole: "plus", choix: choix, variation: 1)
                 }
                 if taille >= .accessibility3 {
                     Text("\(choix.portions) portions").typographie(.texte).contentTransition(.numericText())
+                        .accessibilityHidden(true)
                     HStack {
                         boutonPortions("Diminuer les portions", symbole: "minus", choix: choix, variation: -1)
                         boutonPortions("Augmenter les portions", symbole: "plus", choix: choix, variation: 1)
@@ -180,6 +181,7 @@ struct OngletSemaine: View {
         .buttonStyle(.plain)
         .disabled(session.occupee || (variation < 0 ? choix.portions <= 1 : choix.portions == Int.max))
         .accessibilityLabel("\(nom) de \(session.recettes[choix.recetteId]?.titre ?? "la recette")")
+        .accessibilityValue("\(choix.portions) portions")
         .accessibilityShowsLargeContentViewer { Label(nom, systemImage: symbole) }
     }
 

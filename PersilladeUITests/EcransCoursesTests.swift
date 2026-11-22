@@ -97,6 +97,7 @@ import XCTest
             let app = lancer()
             ouvrirOnglet("Semaine", dans: app)
             XCTAssertTrue(app.buttons["Faire la liste"].waitForExistence(timeout: 10))
+            XCTAssertEqual(app.buttons["Augmenter les portions de Crêpes"].value as? String, "4 portions")
             let audits: XCUIAccessibilityAuditType = [
                 .contrast, .elementDetection, .hitRegion, .sufficientElementDescription,
             ]
