@@ -44,7 +44,7 @@ struct ArticlesMessageCourses: View {
     }
 
     var body: some View {
-        FeuilleCourses("Articles d’un message") {
+        FeuilleCourses("Articles d’un message", fermetureInterdite: session.occupee) {
             Group {
                 if let rapport {
                     BilanEnvoiCourses(

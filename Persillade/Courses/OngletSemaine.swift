@@ -25,7 +25,7 @@ struct OngletSemaine: View {
                     ContentUnavailableView {
                         Label("Semaine indisponible", systemImage: "calendar")
                     } actions: {
-                        Button("Réessayer") { Task { await session.actualiser(semaine: true) } }
+                        Button("Réessayer") { Task { await session.actualiser() } }
                     }
                 }
             }
@@ -59,7 +59,7 @@ struct OngletSemaine: View {
                 )
             }
         }
-        .task { await session.actualiser(semaine: true) }
+        .task { await session.actualiser() }
         .sensoryFeedback(.selection, trigger: session.etat?.selection)
     }
 

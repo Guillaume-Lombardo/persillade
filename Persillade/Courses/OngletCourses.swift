@@ -122,7 +122,7 @@ struct OngletCourses: View {
                 }
             }
         }
-        .task { await session.actualiser(semaine: true) }
+        .task { await session.actualiser() }
     }
 
     private func liste(_ etat: EtatCourses) -> some View {

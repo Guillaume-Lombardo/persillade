@@ -120,7 +120,7 @@ private struct Racine: View {
             }
             Tab("Semaine", systemImage: "calendar", value: .semaine) {
                 OngletSemaine(
-                    session: courses, voirRecettes: { onglet = .recettes }, voirCourses: { onglet = .courses },
+                    session: courses, voirRecettes: voirBibliotheque, voirCourses: { onglet = .courses },
                     reglages: { feuille = .reglages }, ouvrirFiche: ouvrirFiche
                 )
                 .erreurCourses(courses)
@@ -238,6 +238,11 @@ private struct Racine: View {
         }
     }
 
+    private func voirBibliotheque() {
+        chemin.removeAll()
+        onglet = .recettes
+    }
+
     private func ouvrirFiche(_ id: UUID) {
         if onglet == .recherche {
             cheminRecherche = [id]
@@ -254,7 +259,7 @@ private struct Racine: View {
     }
 
     private func actualiserCourses() async {
-        await courses.actualiser(semaine: true)
+        await courses.actualiser()
         if !bibliotheque.selectionDisponible, let erreur = courses.erreur {
             bibliotheque.erreur = erreur
             courses.erreur = nil

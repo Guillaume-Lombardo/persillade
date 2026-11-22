@@ -7,6 +7,7 @@ import PersilladePlateforme
 final class BibliothequeRecettes {
     private let bibliotheque: Result<any Bibliotheque, any Error>
     let envoiCourses: EnvoiCourses
+    private var actualisationReportee: (@MainActor () async -> Void)?
 
     private(set) var etatCourses: EtatCourses?
     var selection: SelectionSemaine { etatCourses?.selection ?? SelectionSemaine() }
@@ -43,6 +44,14 @@ final class BibliothequeRecettes {
 
     func terminerOperation() {
         operationSemaine = false
+        if let actualisationReportee {
+            self.actualisationReportee = nil
+            Task { await actualisationReportee() }
+        }
+    }
+
+    func reporterActualisation(_ actualiser: @escaping @MainActor () async -> Void) {
+        actualisationReportee = actualiser
     }
 
     func relireCourses() async throws {

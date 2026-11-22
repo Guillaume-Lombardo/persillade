@@ -28,7 +28,11 @@ final class SessionCourses {
         #endif
     }
 
-    func actualiser(semaine: Bool = false) async {
+    func actualiser() async {
+        if occupee {
+            bibliotheque.reporterActualisation { [weak self] in await self?.actualiser() }
+            return
+        }
         await effectuer("La liste de courses n’a pas pu être lue.") {
             #if DEBUG
                 if preparerEssai {
@@ -37,9 +41,7 @@ final class SessionCourses {
                 }
             #endif
             try await relire()
-            if semaine {
-                try await actualiserRecettes()
-            }
+            try await actualiserRecettes()
             if etat?.destinationId != nil, destinations.isEmpty {
                 do {
                     try await chargerDestinations()

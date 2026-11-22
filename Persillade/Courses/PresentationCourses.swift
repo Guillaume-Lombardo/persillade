@@ -101,10 +101,14 @@ struct ActionPrincipaleCourses: View {
 struct FeuilleCourses<Contenu: View>: View {
     @Environment(\.dismiss) private var fermer
     let titre: String
+    let fermetureInterdite: Bool
     @ViewBuilder var contenu: () -> Contenu
 
-    init(_ titre: String, @ViewBuilder contenu: @escaping () -> Contenu) {
+    init(
+        _ titre: String, fermetureInterdite: Bool = false, @ViewBuilder contenu: @escaping () -> Contenu
+    ) {
         self.titre = titre
+        self.fermetureInterdite = fermetureInterdite
         self.contenu = contenu
     }
 
@@ -116,6 +120,7 @@ struct FeuilleCourses<Contenu: View>: View {
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Fermer") { fermer() }
+                            .disabled(fermetureInterdite)
                     }
                 }
         }
