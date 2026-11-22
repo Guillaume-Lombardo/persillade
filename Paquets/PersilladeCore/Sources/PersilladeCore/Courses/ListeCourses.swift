@@ -156,8 +156,12 @@ public struct ListeCourses: Codable, Equatable, Identifiable, Sendable {
             let seconde = max(index, autre)
             var fusion = premiere == index ? modifiee : lignes[premiere]
             let ajout = seconde == index ? modifiee : lignes[seconde]
+            if fusion.quantite == nil {
+                fusion.cochee = ajout.cochee
+            } else if ajout.quantite != nil {
+                fusion.cochee = fusion.cochee && ajout.cochee
+            }
             try fusion.fusionner(avec: ajout)
-            fusion.cochee = fusion.cochee && ajout.cochee
             lignes[premiere] = fusion
             lignes.remove(at: seconde)
         } else {
@@ -195,7 +199,9 @@ public struct ListeCourses: Codable, Equatable, Identifiable, Sendable {
             return [ligne.id]
         }
 
-        try lignes[index].fusionner(avec: ligne)
+        if ligne.quantite != nil || origine.type != .manuel {
+            try lignes[index].fusionner(avec: ligne)
+        }
         if ligne.quantite == nil {
             for index in correspondances where lignes[index].cochee {
                 effets.decochagePropose.append(lignes[index].id)

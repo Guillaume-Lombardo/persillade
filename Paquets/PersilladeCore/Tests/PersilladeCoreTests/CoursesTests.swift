@@ -312,6 +312,22 @@ private func preparer(_ recettes: [Recette], portions: Int) throws -> SelectionS
         #expect(try relue.lignesAEnvoyer.map { try $0.titreCourses } == ["huile 500 ml"])
     }
 
+    @Test(arguments: [true, false]) func effacementPreserveLaCocheDeLaQuantiteConservee(enPremier: Bool) throws {
+        var liste = ListeCourses()
+        let compte = try article("Tomates", "2", .piece)
+        let poids = try article("tomates", "300", .g)
+        for entree in enPremier ? [compte, poids] : [poids, compte] {
+            try liste.ajouter(entree)
+        }
+        let aEffacer = try #require(liste.lignes.first { $0.unite == .piece })
+        let aConserver = try #require(liste.lignes.first { $0.unite == .g })
+        try liste.cocher(aConserver.id)
+        try liste.modifierQuantite(aEffacer.id, valeur: nil, unite: nil)
+        #expect(liste.lignes.map(\.quantite) == [Quantite(300)])
+        #expect(liste.lignes.map(\.cochee) == [true])
+        #expect(liste.lignesAEnvoyer.isEmpty)
+    }
+
     @Test func retraitBaisseEffacementEtChangementDUniteApresEnvoiSontSignales() throws {
         var liste = ListeCourses()
         try liste.ajouter(article("lait", "2", .l))
@@ -343,10 +359,9 @@ private func preparer(_ recettes: [Recette], portions: Int) throws -> SelectionS
         let ids = liste.lignes.map(\.id)
         try liste.cocher(ids[0])
         liste.premierEnvoiLe = Date(timeIntervalSince1970: 42)
+        let avant = liste
         let effets = try liste.ajouter(article("oeuf"))
-        #expect(liste.lignes.map(\.id) == ids)
-        #expect(liste.lignes.map(\.cochee) == [true, false, false])
-        #expect(liste.lignes.map(\.quantite) == [Quantite(2), Quantite(200), Quantite(1000)])
+        #expect(liste == avant)
         #expect(effets.decochagePropose == [ids[0]])
         #expect(effets.lignesDecochees.isEmpty)
         #expect(effets.lignesAEnvoyer == [ids[1]])
