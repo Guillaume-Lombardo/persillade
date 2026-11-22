@@ -9,6 +9,7 @@ struct ParcoursImport: View {
     let reception: ReceptionEntree
     let bibliotheque: BibliothequeRecettes
     let extracteur: Extracteur
+    let repliConsenti: Extracteur.RepliConsenti?
     let fermer: () -> Void
     let terminer: (UUID?) -> Void
     let importerArticles: ((ContenuRecu) -> Void)?
@@ -25,12 +26,13 @@ struct ParcoursImport: View {
 
     init(
         initial: ContenuRecu?, reception: ReceptionEntree, bibliotheque: BibliothequeRecettes, extracteur: Extracteur,
-        fermer: @escaping () -> Void, terminer: @escaping (UUID?) -> Void,
+        repliConsenti: Extracteur.RepliConsenti?, fermer: @escaping () -> Void, terminer: @escaping (UUID?) -> Void,
         importerArticles: ((ContenuRecu) -> Void)? = nil
     ) {
         self.reception = reception
         self.bibliotheque = bibliotheque
         self.extracteur = extracteur
+        self.repliConsenti = repliConsenti
         self.fermer = fermer
         self.terminer = terminer
         self.importerArticles = importerArticles
@@ -99,6 +101,7 @@ struct ParcoursImport: View {
             }
         }
     }
+
     private var texteDeRepli: String? {
         recu.flatMap { reception.textesDeRepli[$0.id] }
     }
@@ -209,6 +212,7 @@ struct ParcoursImport: View {
         switch resultat?.cause {
         case .horsLigne: return "L’iPhone est hors ligne. Le lien est gardé."
         case .pageInaccessible, .delai: return "La page ne répond pas. Le lien est gardé."
+        case .fournisseurEnErreur: return "Le fournisseur externe n’a pas pu compléter la lecture. Le texte est gardé."
         case .none: return "Impossible de lire la recette. Le contenu est gardé."
         default: return "Aucune recette trouvée dans ce texte. Il reste affiché pour la saisie."
         }
@@ -238,7 +242,7 @@ struct ParcoursImport: View {
                     texteDeRepli.map {
                         ContenuRecu(id: recu.id, type: .texte, contenu: Data($0.utf8), origine: .pressePapiers)
                     } ?? recu
-                let lecture = try await extracteur.extraire(entree, cible: .recette)
+                let lecture = try await extracteur.extraire(entree, cible: .recette, repliConsenti: repliConsenti)
                 try Task.checkCancellation()
                 resultat = lecture
                 etape = lecture.statut == .echec ? .echec : .correction

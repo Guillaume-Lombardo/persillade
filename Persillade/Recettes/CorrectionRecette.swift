@@ -242,6 +242,8 @@ struct CorrectionRecette: View {
             "La lecture s’est interrompue. Les ingrédients ont été lus ligne par ligne."
         case .contenuTropLong:
             "Le texte est trop long, la fin n’a pas été lue."
+        case .fournisseurEnErreur:
+            "Le fournisseur externe n’a pas pu compléter la lecture. Vérifiez les champs préremplis."
         default:
             "Une partie de la recette reste à vérifier."
         }

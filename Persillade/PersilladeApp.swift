@@ -70,6 +70,7 @@ private struct Racine: View {
     @State private var reception: ReceptionEntree
     @State private var bibliotheque: BibliothequeRecettes
     private let extracteur: Extracteur
+    private let repliConsenti: Extracteur.RepliConsenti?
 
     init() {
         var dossier: URL?
@@ -84,6 +85,7 @@ private struct Racine: View {
         _reception = State(initialValue: ReceptionEntree(dossier: dossier))
         _bibliotheque = State(initialValue: BibliothequeRecettes(dossier: dossier))
         extracteur = Extracteur(telechargeur: TelechargeurURLSession(), moteurIA: moteur)
+        repliConsenti = dossier == nil ? ReglagesFournisseur.partage.repliConsenti : nil
     }
 
     var body: some View {
@@ -144,7 +146,7 @@ private struct Racine: View {
         case .importation(let recu):
             ParcoursImport(
                 initial: recu, reception: reception, bibliotheque: bibliotheque, extracteur: extracteur,
-                fermer: { feuille = nil }, terminer: finImport)
+                repliConsenti: repliConsenti, fermer: { feuille = nil }, terminer: finImport)
         case .ecriture:
             NavigationStack {
                 CorrectionRecette(
@@ -167,17 +169,10 @@ private struct Racine: View {
             }
             .presentationDetents([.large])
         case .reglages:
-            NavigationStack {
-                Form {}
-                    .navigationTitle("Réglages")
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Fermer") { feuille = nil }
-                        }
-                    }
-            }
+            Reglages()
         }
     }
+
     private func recettes(chemin: Binding<[UUID]>, recherche: Bool = false) -> some View {
         OngletRecettes(
             chemin: chemin, bibliotheque: bibliotheque, rechercheActive: recherche, messageReception: reception.message,
