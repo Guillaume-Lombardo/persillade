@@ -284,8 +284,10 @@ private func preparer(_ recettes: [Recette], portions: Int) throws -> SelectionS
         try liste.ajouter(article("tomate", "300", .g))
         try liste.ajouter(article("tomate", "2", .autre("boîtes")))
         let premiere = liste.lignes[0]
-        try liste.modifierQuantite(liste.lignes[1].id, valeur: Quantite(3), unite: .piece)
+        let idModifie = liste.lignes[1].id
+        try liste.modifierQuantite(idModifie, valeur: Quantite(3), unite: .piece)
         #expect(liste.lignes.count == 2)
+        #expect(liste.ligne(id: idModifie)?.id == premiere.id)
         #expect(liste.lignes.first?.id == premiere.id)
         #expect(liste.lignes.first?.quantite == Quantite(5))
         #expect(liste.lignes.first?.origines.count == 2)

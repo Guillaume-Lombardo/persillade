@@ -50,6 +50,10 @@ public struct ListeCourses: Codable, Equatable, Identifiable, Sendable {
 
     public var lignesAEnvoyer: [LigneCourses] { lignes.filter { !$0.cochee } }
 
+    public func ligne(id: UUID) -> LigneCourses? {
+        lignes.first { $0.id == id || $0.idsFusionnes.contains(id) }
+    }
+
     public var rayons: [Rayon] {
         let parCategorie = Dictionary(grouping: lignes, by: \.categorie)
         let francais = Locale(identifier: "fr_FR")
