@@ -1,11 +1,11 @@
 import Foundation
 
-public struct SelectionSemaine: Equatable, Sendable {
+public struct SelectionSemaine: Codable, Equatable, Sendable {
     public enum Erreur: Error, Equatable, Sendable {
         case portionsNonPositives
     }
 
-    public struct Choix: Equatable, Sendable {
+    public struct Choix: Codable, Equatable, Sendable {
         public let recetteId: UUID
         public let portions: Int
 
@@ -13,6 +13,18 @@ public struct SelectionSemaine: Equatable, Sendable {
             guard portions > 0 else { throw Erreur.portionsNonPositives }
             self.recetteId = recetteId
             self.portions = portions
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case recetteId = "recette_id"
+            case portions
+        }
+
+        public init(from decoder: any Decoder) throws {
+            let champs = try decoder.container(keyedBy: CodingKeys.self)
+            try self.init(
+                recetteId: champs.decode(UUID.self, forKey: .recetteId),
+                portions: champs.decode(Int.self, forKey: .portions))
         }
     }
 
@@ -32,8 +44,10 @@ public struct SelectionSemaine: Equatable, Sendable {
     public struct Preparation: Equatable, Sendable {
         public let contributions: [Contribution]
         public let recettesAbsentes: [UUID]
+        public let selection: SelectionSemaine
     }
 
+    public static let versionSchemaCourante = 1
     public private(set) var choix: [Choix] = []
 
     public init() {}
@@ -69,6 +83,27 @@ public struct SelectionSemaine: Equatable, Sendable {
         }
         let idsAbsents = Set(absentes)
         choix.removeAll { idsAbsents.contains($0.recetteId) }
-        return Preparation(contributions: contributions, recettesAbsentes: absentes)
+        return Preparation(contributions: contributions, recettesAbsentes: absentes, selection: self)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case versionSchema = "version_schema"
+        case choix
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let champs = try decoder.container(keyedBy: CodingKeys.self)
+        let version = try champs.decode(Int.self, forKey: .versionSchema)
+        guard version == Self.versionSchemaCourante else { throw ErreurMagasinDocument.versionInconnue(version) }
+        choix = try champs.decode([Choix].self, forKey: .choix)
+        guard Set(choix.map(\.recetteId)).count == choix.count else {
+            throw DecodingError.dataCorruptedError(forKey: .choix, in: champs, debugDescription: "Recette répétée")
+        }
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var champs = encoder.container(keyedBy: CodingKeys.self)
+        try champs.encode(Self.versionSchemaCourante, forKey: .versionSchema)
+        try champs.encode(choix, forKey: .choix)
     }
 }
