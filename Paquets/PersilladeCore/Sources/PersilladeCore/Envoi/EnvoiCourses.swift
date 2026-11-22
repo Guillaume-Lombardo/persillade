@@ -229,6 +229,8 @@ public actor EnvoiCourses {
             } else if candidats.count == 1, let rappel = candidats.first, rappel.creeLe != nil,
                 aRapprocher.filter({ $0.candidats.contains(where: { $0.id == rappel.id }) }).count == 1
             {
+                // Si la coupure a précédé EventKit, un ajout manuel identique peut être le seul candidat.
+                // Son origine est alors indiscernable.
                 etat.confirmer(ecriture, rappel: rappel)
             }
         }
