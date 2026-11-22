@@ -42,6 +42,7 @@ public struct ListeCourses: Codable, Equatable, Identifiable, Sendable {
     public let versionSchema: Int
     public let id: UUID
     public var premierEnvoiLe: Date?
+    public private(set) var selectionALaGeneration: SelectionSemaine?
     public private(set) var lignes: [LigneCourses] = []
     private var messagesIntegres: [UUID] = []
 
@@ -84,6 +85,7 @@ public struct ListeCourses: Codable, Equatable, Identifiable, Sendable {
 
         var copie = self
         if !motifs.isEmpty { copie.repartirSurListeVide() }
+        copie.selectionALaGeneration = preparation.selection
         for contribution in preparation.contributions {
             let origine = OrigineCourses(type: .recette, ref: contribution.recetteId)
             let ligne = try LigneCourses(article: contribution.article, origine: origine)
@@ -162,6 +164,8 @@ public struct ListeCourses: Codable, Equatable, Identifiable, Sendable {
                 fusion.cochee = fusion.cochee && ajout.cochee
             }
             try fusion.fusionner(avec: ajout)
+            fusion.idsFusionnes.append(ajout.id)
+            fusion.idsFusionnes.append(contentsOf: ajout.idsFusionnes)
             lignes[premiere] = fusion
             lignes.remove(at: seconde)
         } else {
@@ -224,6 +228,7 @@ public struct ListeCourses: Codable, Equatable, Identifiable, Sendable {
         case versionSchema = "version_schema"
         case premierEnvoiLe = "premier_envoi_le"
         case messagesIntegres = "messages_integres"
+        case selectionALaGeneration = "selection_a_la_generation"
     }
 
     public init(from decoder: any Decoder) throws {
@@ -233,6 +238,7 @@ public struct ListeCourses: Codable, Equatable, Identifiable, Sendable {
         versionSchema = version
         id = try champs.decode(UUID.self, forKey: .id)
         premierEnvoiLe = try champs.decodeIfPresent(Date.self, forKey: .premierEnvoiLe)
+        selectionALaGeneration = try champs.decodeIfPresent(SelectionSemaine.self, forKey: .selectionALaGeneration)
         lignes = try champs.decode([LigneCourses].self, forKey: .lignes)
         messagesIntegres = try champs.decode([UUID].self, forKey: .messagesIntegres)
 
