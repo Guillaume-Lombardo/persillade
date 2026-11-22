@@ -34,6 +34,7 @@ struct PasAPas: View {
     private var sombre: Bool { apparence == .dark }
     private var couleurFond: Color { Color(motif: fond.couleur(sombre: sombre)) }
     private var encre: Color { Color(motif: fond.encre(sombre: sombre)) }
+    private var apparenceDuFond: ColorScheme { sombre || fond == .persil || fond == .aubergine ? .dark : .light }
     private var derniereEtape: Bool { session.etapeSuivante == nil }
     private var positionAnnoncee: String { "Étape \(session.position) sur \(session.etapes.count)" }
 
@@ -43,15 +44,13 @@ struct PasAPas: View {
                 .safeAreaInset(edge: .bottom, spacing: 0) { commandes }
                 .foregroundStyle(encre)
                 .background(couleurFond.ignoresSafeArea())
-                .tint(encre)
                 .navigationTitle(recette.titre)
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbarColorScheme(
-                    sombre || fond == .persil || fond == .aubergine ? .dark : .light, for: .navigationBar
-                )
+                .toolbarColorScheme(apparenceDuFond, for: .navigationBar)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Fermer", systemImage: "xmark", action: quitter)
+                            .tint(encre)
                             .accessibilityIdentifier("fermer-cuisine")
                     }
                 }
@@ -97,12 +96,7 @@ struct PasAPas: View {
 
                     if let suivante = session.etapeSuivante {
                         Rectangle().frame(height: GrillePersillade.filet).accessibilityHidden(true)
-                        DisclosureGroup(
-                            "Ensuite", isExpanded: taille.isAccessibilitySize ? $ensuiteAccessible : $ensuite
-                        ) {
-                            Text(suivante).typographie(.texte)
-                        }
-                        .font(.headline)
+                        apercu(suivante)
                     }
                 }
                 .padding(GrillePersillade.marge)
@@ -121,6 +115,29 @@ struct PasAPas: View {
                 }
             )
             .onChange(of: session.position) { defilement.scrollTo("debut", anchor: .top) }
+        }
+    }
+
+    private func apercu(_ consigne: String) -> some View {
+        let deplie = taille.isAccessibilitySize ? $ensuiteAccessible : $ensuite
+        return VStack(alignment: .leading, spacing: GrillePersillade.pas * 2) {
+            Button {
+                deplie.wrappedValue.toggle()
+            } label: {
+                HStack {
+                    Text("Ensuite").font(.headline)
+                    Spacer()
+                    Image(systemName: deplie.wrappedValue ? "chevron.down" : "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .accessibilityHidden(true)
+                }
+                .frame(minHeight: GrillePersillade.cible)
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(deplie.wrappedValue ? "Déplié" : "Replié")
+
+            if deplie.wrappedValue { Text(consigne).typographie(.texte) }
         }
     }
 
@@ -183,7 +200,8 @@ struct PasAPas: View {
             .padding(.horizontal, GrillePersillade.pas * 2)
             .frame(minWidth: GrillePersillade.cibleCuisine, minHeight: GrillePersillade.cibleCuisine)
             .background(encre.opacity(transparenceReduite ? 0.14 : 0), in: .capsule)
-            .glassEffect(transparenceReduite ? .identity : .regular.interactive(), in: .capsule)
+            .glassEffect(transparenceReduite ? .identity : .regular.tint(couleurFond).interactive(), in: .capsule)
+            .environment(\.colorScheme, apparenceDuFond)
             .contentShape(.capsule)
         }
         .buttonStyle(.plain)
