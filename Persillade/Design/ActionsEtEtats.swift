@@ -1,8 +1,14 @@
 import SwiftUI
 
+extension EnvironmentValues {
+    @Entry fileprivate var dansBarreAction = false
+}
+
 struct BoutonActionPersillade: View {
     let libelle: String
     let action: () -> Void
+
+    @Environment(\.dansBarreAction) private var dansBarre
 
     init(_ libelle: String, action: @escaping () -> Void) {
         self.libelle = libelle
@@ -14,6 +20,8 @@ struct BoutonActionPersillade: View {
             Text(libelle)
                 .typographie(.bouton)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: dansBarre ? .infinity : nil)
                 .foregroundStyle(CouleurPersillade.surPersil.couleur)
         }
         .buttonStyle(.glassProminent)
@@ -28,6 +36,8 @@ struct BarreAction<Actions: View>: ViewModifier {
     func body(content: Content) -> some View {
         content.safeAreaBar(edge: .bottom, spacing: 0) {
             actions()
+                .environment(\.dansBarreAction, true)
+                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, GrillePersillade.margeBarre)
                 .padding(.vertical, GrillePersillade.pas * 2)

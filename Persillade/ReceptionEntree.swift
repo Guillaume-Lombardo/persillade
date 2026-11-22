@@ -1,121 +1,98 @@
 import PersilladeCore
 import SwiftUI
-import UniformTypeIdentifiers
 
-@Observable
 @MainActor
+@Observable
 final class ReceptionEntree {
-    private let file = Result { try FileEntree.groupeApplication() }
+    private let file: Result<FileEntree, any Error>
+    private var numeroLecture = 0
 
-    private(set) var premier: ContenuRecu?
+    private(set) var contenus: [ContenuRecu] = []
     private(set) var message: String?
-    var affiche: ContenuRecu?
+
+    init(dossier: URL? = nil) {
+        file = Result {
+            if let dossier { return FileEntree(dossier: dossier.appending(path: "Entree")) }
+            return try FileEntree.groupeApplication()
+        }
+    }
 
     func actualiser() async {
+        numeroLecture += 1
+        let numero = numeroLecture
         do {
             let lecture = try await file.get().lire()
-            premier = lecture.contenus.first
-            affiche = premier
-            message =
-                lecture.fichiersIllisibles.isEmpty
-                ? nil : "Des éléments illisibles ont été mis de côté."
+            guard numero == numeroLecture else { return }
+            contenus = lecture.contenus
+            message = lecture.fichiersIllisibles.isEmpty ? nil : "Des éléments illisibles ont été mis de côté."
         } catch {
-            message = "Impossible de lire les éléments reçus."
+            if numero == numeroLecture { message = "Impossible de lire les éléments reçus." }
         }
     }
 
-    func coller(_ fournisseurs: [NSItemProvider]) async {
-        do {
-            let contenu = try await ContenuRecu.charger(fournisseurs, origine: .pressePapiers)
-            try await file.get().deposer(contenu)
-            await actualiser()
-        } catch {
-            message = "Impossible d’ajouter le contenu du presse-papiers."
-        }
+    func deposer(_ contenu: ContenuRecu) async throws {
+        try await file.get().deposer(contenu)
+        await actualiser()
     }
 
-    func abandonner(id: UUID) async throws {
-        try await file.get().retirer(id: id)
+    func retirer(_ contenu: ContenuRecu) async throws {
+        try await file.get().retirer(id: contenu.id)
+        contenus.removeAll { $0.id == contenu.id }
         await actualiser()
     }
 }
 
-struct ChoixReception: View {
-    private enum Destination: String {
-        case recette = "Recette"
-        case courses = "Articles de courses"
+extension ContenuRecu {
+    var texteRecu: String {
+        type == .image ? "Image" : String(decoding: contenu, as: UTF8.self)
     }
 
-    @Environment(\.dismiss) private var fermer
-    @State private var destination: Destination?
-    @State private var echecAbandon = false
+    var libelleType: String {
+        switch type {
+        case .url: "Lien"
+        case .texte: "Texte"
+        case .image: "Image"
+        }
+    }
 
-    let contenu: ContenuRecu
-    let message: String?
-    let abandonner: () async throws -> Void
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                if let message {
-                    Text(message)
-                }
-                Section(contenu.type == .url ? "Lien reçu" : "Contenu reçu") {
-                    if contenu.type == .image {
-                        Label("Image", systemImage: "photo")
-                    } else {
-                        Text(String(decoding: contenu.contenu, as: UTF8.self))
-                    }
-                }
-                if let destination {
-                    Section(destination.rawValue) {
-                        Text("L’élément reste dans la file de réception.")
-                    }
-                } else {
-                    Section("Destination") {
-                        Button("Recette") { destination = .recette }
-                        Button("Articles de courses") { destination = .courses }
-                    }
-                }
-                Button("Abandonner", role: .destructive) {
-                    Task {
-                        do {
-                            try await abandonner()
-                        } catch {
-                            echecAbandon = true
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Élément reçu")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Fermer") { fermer() }
-                }
-            }
-            .alert("Impossible d’abandonner cet élément", isPresented: $echecAbandon) {
-                Button("OK", role: .cancel) {}
-            }
+    var libelleOrigine: String {
+        switch origine {
+        case .feuillePartage: "Partage iOS"
+        case .pressePapiers: "Presse-papiers"
+        case .appareilPhoto: "Appareil photo"
+        case .phototheque: "Photothèque"
         }
     }
 }
 
-struct ActionsReception: View {
-    let reception: ReceptionEntree
+struct AccessoireReception: View {
+    let contenus: [ContenuRecu]
+    let ouvrir: () -> Void
+
+    @Environment(\.tabViewBottomAccessoryPlacement) private var placement
 
     var body: some View {
-        VStack {
-            if let message = reception.message {
-                Text(message)
+        if let premier = contenus.first {
+            HStack(spacing: GrillePersillade.pas * 2) {
+                Image(systemName: "tray.and.arrow.down")
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 0) {
+                    let nombre = contenus.count
+                    if placement == .inline {
+                        Text(nombre == 1 ? "1 reçu" : "\(nombre) reçus").typographie(.precision)
+                    } else {
+                        Text(nombre == 1 ? "1 contenu reçu" : "\(nombre) contenus reçus").typographie(.bouton)
+                        Text("\(premier.libelleType), \(premier.recuLe.formatted(date: .omitted, time: .shortened))")
+                            .typographie(.precision)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                Spacer(minLength: 0)
+                Button("Ouvrir", action: ouvrir)
+                    .frame(minHeight: GrillePersillade.cible)
             }
-            if let prochain = reception.premier {
-                Button("Reprendre l’import") { reception.affiche = prochain }
-            }
-            PasteButton(supportedContentTypes: [.url, .plainText, .text]) { fournisseurs in
-                Task { await reception.coller(fournisseurs) }
-            }
+            .padding(.horizontal, GrillePersillade.marge)
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         }
-        .padding()
     }
 }

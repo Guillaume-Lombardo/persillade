@@ -1,6 +1,9 @@
 import CoreGraphics
 import Foundation
+import ImageIO
+import OSLog
 import PersilladeCore
+import UniformTypeIdentifiers
 
 struct DemandePlanche: Hashable, Sendable {
     let planche: Planche
@@ -36,11 +39,14 @@ struct DemandePlanche: Hashable, Sendable {
 actor RenduPlanche {
     typealias Dessin = @Sendable (DemandePlanche) async throws -> CGImage
 
-    static let partage = RenduPlanche()
+    static let partage = RenduPlanche { demande in
+        guard demande.cadrage == .vignette else { return try dessiner(demande) }
+        return try imageVignette(demande)
+    }
     static let limiteOctets = 24_000_000
 
     enum Erreur: Error {
-        case espaceCouleur, contexte, image
+        case espaceCouleur, contexte, image, encodage
     }
 
     private final class Cle: NSObject {
@@ -95,7 +101,62 @@ actor RenduPlanche {
         return image
     }
 
+    func preparerVignettes(_ planche: Planche, echelle: Double) async {
+        for sombre in [false, true] {
+            guard
+                let demande = DemandePlanche(
+                    planche: planche, cadrage: .vignette, largeur: 112, hauteur: 96, echelle: echelle, sombre: sombre)
+            else { continue }
+            do {
+                _ = try await image(demande)
+            } catch is CancellationError {
+                return
+            } catch {
+                Self.journal.error("Préparation d’une vignette impossible : \(error.localizedDescription)")
+            }
+        }
+    }
+
     func vider() { cache.removeAllObjects() }
+
+    private static let journal = Logger(subsystem: "xyz.g1lom.persillade", category: "Motif")
+
+    private static func imageVignette(_ demande: DemandePlanche) throws -> CGImage {
+        let dossier = URL.cachesDirectory.appending(path: "Vignettes")
+        let variante = [
+            String(Planche.versionMoteur), String(demande.largeurPixels), String(demande.hauteurPixels),
+            String(demande.echelle), String(demande.sombre), String(demande.contrasteAccru),
+        ].joined(separator: "-")
+        let fichier = dossier.appending(path: "\(demande.planche.id.uuidString)-\(variante).png.cache")
+        let empreinte = withUnsafeBytes(of: demande.planche.empreinteIngredients.bigEndian) { Data($0) }
+        do {
+            let donnees = try Data(contentsOf: fichier)
+            if donnees.starts(with: empreinte),
+                let source = CGImageSourceCreateWithData(Data(donnees.dropFirst(empreinte.count)) as CFData, nil),
+                let image = CGImageSourceCreateImageAtIndex(
+                    source, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary),
+                image.width == demande.largeurPixels, image.height == demande.hauteurPixels
+            {
+                return image
+            }
+        } catch let erreur as CocoaError where erreur.code == .fileReadNoSuchFile {
+        } catch {
+            journal.error("Lecture d’une vignette impossible : \(error.localizedDescription)")
+        }
+        let image = try dessiner(demande)
+        do {
+            let png = NSMutableData()
+            guard let destination = CGImageDestinationCreateWithData(png, UTType.png.identifier as CFString, 1, nil)
+            else { throw Erreur.encodage }
+            CGImageDestinationAddImage(destination, image, nil)
+            guard CGImageDestinationFinalize(destination) else { throw Erreur.encodage }
+            try FileManager.default.createDirectory(at: dossier, withIntermediateDirectories: true)
+            try (empreinte + (png as Data)).write(to: fichier, options: .atomic)
+        } catch {
+            journal.error("Écriture d’une vignette impossible : \(error.localizedDescription)")
+        }
+        return image
+    }
 
     private func inscrire(
         _ attente: CheckedContinuation<CGImage, any Error>, pour demande: DemandePlanche, consommateur: UUID
