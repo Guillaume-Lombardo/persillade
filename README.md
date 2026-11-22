@@ -17,14 +17,21 @@ swift test --package-path Paquets/PersilladeCore
   set -e
   simulateur=$(xcrun simctl create "Persillade Tests" com.apple.CoreSimulator.SimDeviceType.iPhone-15-Pro com.apple.CoreSimulator.SimRuntime.iOS-27-0)
   trap 'xcrun simctl delete "$simulateur"' EXIT
+  xcodebuild -scheme Persillade -destination "platform=iOS Simulator,id=$simulateur" \
+    -derivedDataPath .build/DerivedData build-for-testing
+  xcrun simctl boot "$simulateur"
   bash .github/scripts/preparer-phototheque-test.sh "$simulateur"
   xcodebuild -scheme Persillade -destination "platform=iOS Simulator,id=$simulateur" \
-    -derivedDataPath .build/DerivedData -parallel-testing-enabled NO build test
+    -derivedDataPath .build/DerivedData -parallel-testing-enabled NO test-without-building
 )
 xcodebuild -scheme Persillade -destination 'generic/platform=iOS' \
   -derivedDataPath .build/DerivedData CODE_SIGNING_ALLOWED=NO build
 git ls-files -z '*.swift' | xargs -0 swift format lint --strict
 ```
+
+Dans la CI, le job `app` attend la fin du démarrage d’un iPhone 17 sous iOS 27.0
+avant de lancer les tests. En cas d’échec, le rapport `.xcresult` est conservé
+trois jours si Xcode a pu le produire.
 
 ## Installation sur iPhone
 
