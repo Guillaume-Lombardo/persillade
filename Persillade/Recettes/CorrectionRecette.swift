@@ -47,7 +47,7 @@ struct CorrectionRecette: View {
     @Environment(\.colorSchemeContrast) private var contraste
     @Environment(\.accessibilityReduceMotion) private var mouvementReduit
     @FocusState private var saisie: Champ?
-    @ScaledMetric(relativeTo: .title2) private var colonnePesee = GrillePersillade.colonnePesee
+    private var colonnesIngredient = ColonnesIngredient()
     @State private var formulaire: FormulaireRecette
     @State private var ingredientOuvert: UUID?
     @State private var confirmerQuitter = false
@@ -538,10 +538,18 @@ struct CorrectionRecette: View {
             } else {
                 HStack(spacing: GrillePersillade.pas) {
                     VStack(alignment: .leading, spacing: 0) {
+                        let texte = ligne.quantite.texte
+                        let mesure = try? ligne.quantite.valider()
+                        let uniteAffichee =
+                            if let (nombre, unite) = mesure, let nombre {
+                                nombre.composantesAffichage(unite: unite).unite
+                            } else {
+                                ligne.quantite.unite?.libelleLecturePersillade
+                            }
                         LigneArticle(
                             nom: ligne.nomVide ? "Nom manquant" : ligne.nom,
-                            quantite: ligne.quantite.texte.isEmpty ? nil : ligne.quantite.texte,
-                            unite: ligne.quantite.texte.isEmpty ? nil : ligne.quantite.unite?.libelleLecturePersillade,
+                            quantite: texte.isEmpty ? nil : texte,
+                            unite: texte.isEmpty ? nil : uniteAffichee,
                             precision: ligne.note,
                             ouvrir: { montrer(champ, dans: defilement) },
                             hauteurSimple: GrillePersillade.ingredient, fondEtFilet: false)
@@ -555,7 +563,7 @@ struct CorrectionRecette: View {
                                 .labelStyle(StylePastilleCorrection())
                             }
                             .buttonStyle(.plain)
-                            .padding(.leading, taille.isAccessibilitySize ? GrillePersillade.marge : colonnePesee)
+                            .padding(.leading, colonnesIngredient.debutNom)
                             .frame(minHeight: GrillePersillade.cible)
                         }
                     }

@@ -332,9 +332,10 @@ struct IngredientsRecette: View {
         case .success(let quantites):
             ForEach(recette.ingredients.indices, id: \.self) { index in
                 let ingredient = recette.ingredients[index]
+                let mesure = quantites[index]?.composantesAffichage(unite: ingredient.unite)
                 LigneArticle(
-                    nom: ingredient.nom, quantite: quantites[index]?.texteFrancais,
-                    unite: ingredient.unite?.libelleLecturePersillade, precision: mention(ingredient))
+                    nom: ingredient.nom, quantite: mesure?.nombre,
+                    unite: mesure?.unite, precision: mention(ingredient))
             }
         case .failure:
             Text("Impossible de calculer les quantités pour ces portions.")

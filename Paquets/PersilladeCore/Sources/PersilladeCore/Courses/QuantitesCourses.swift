@@ -70,6 +70,20 @@ func arrondirPourCourses(_ quantite: Quantite, unite: Unite) throws -> Quantite 
 
 /// Formate une quantité telle quelle, y compris un complément de Rappels.
 public func formaterQuantiteCourses(_ quantite: Quantite, unite: Unite) throws -> String {
+    let affichage = try mesureAffichableCourses(quantite, unite: unite)
+    if affichage.unite == .piece { return affichage.valeur.texteFrancais }
+    return "\(affichage.valeur.texteFrancais) \(affichage.unite.symboleCourses)"
+}
+
+public func composantesQuantiteCourses(_ quantite: Quantite, unite: Unite?) throws -> (
+    nombre: String, unite: String?
+) {
+    guard let unite else { return quantite.composantesAffichage(unite: nil) }
+    let affichage = try mesureAffichableCourses(quantite, unite: unite)
+    return affichage.valeur.composantesAffichage(unite: affichage.unite)
+}
+
+private func mesureAffichableCourses(_ quantite: Quantite, unite: Unite) throws -> (valeur: Quantite, unite: Unite) {
     let canonique = unite.canoniqueCourses
     let valeur = try convertir(quantite, unite, canonique) ?? quantite
 
@@ -77,8 +91,7 @@ public func formaterQuantiteCourses(_ quantite: Quantite, unite: Unite) throws -
     if canonique == .g || canonique == .ml, valeur >= Quantite(1_000), valeur.denominateur == 1 {
         let superieure = canonique == .g ? Unite.kg : .l
         let reduite = try Quantite(numerateur: valeur.numerateur, denominateur: 1_000)
-        return "\(reduite.texteFrancais) \(superieure.symboleCourses)"
+        return (reduite, superieure)
     }
-    if canonique == .piece { return valeur.texteFrancais }
-    return "\(valeur.texteFrancais) \(canonique.symboleCourses)"
+    return (valeur, canonique)
 }

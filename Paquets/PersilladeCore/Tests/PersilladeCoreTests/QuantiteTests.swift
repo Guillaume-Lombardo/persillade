@@ -34,6 +34,39 @@ func refuseLesFormatsInvalides(texte: String) {
     #expect(unTiers.texteFrancais == "1/3")
 }
 
+@Test(
+    arguments: [
+        ("1", Unite.autre("gousse"), "1", "gousse"),
+        ("4", .autre("gousse"), "4", "gousses"),
+        ("1/3", .autre("pincées"), "1/3", "pincée"),
+        ("4/3", .autre("pincée"), "4/3", "pincées"),
+        ("1,5", .autre("tranche"), "1,5", "tranches"),
+        ("2", .autre("BOÎTE"), "2", "BOÎTES"),
+        ("1,6", .kg, "1,6", "kg"),
+        ("600", .ml, "600", "ml"),
+        ("20", .cl, "20", "cl"),
+        ("8", .piece, "8", nil),
+        ("8", nil, "8", nil),
+    ] as [(String, Unite?, String, String?)])
+func affichageExactEnColonnes(texte: String, unite: Unite?, nombre: String, libelle: String?) throws {
+    let affichage = try Quantite(texte: texte).composantesAffichage(unite: unite)
+    #expect(affichage.nombre == nombre)
+    #expect(affichage.unite == libelle)
+}
+
+@Test(
+    arguments: [
+        ("1600", Unite.g, "1,6", "kg"),
+        ("1000", .ml, "1", "l"),
+        ("1000,5", .g, "1000,5", "g"),
+        ("1,25", .autre("gousse"), "1,25", "gousses"),
+    ])
+func affichageCoursesEnColonnes(texte: String, unite: Unite, nombre: String, libelle: String) throws {
+    let affichage = try composantesQuantiteCourses(Quantite(texte: texte), unite: unite)
+    #expect(affichage.nombre == nombre)
+    #expect(affichage.unite == libelle)
+}
+
 @Test func bornesReduitesEtDepassements() throws {
     let petit = try Quantite(numerateur: 1, denominateur: 1 << 62)
     #expect(try Quantite(texte: petit.texteFrancais) == petit)

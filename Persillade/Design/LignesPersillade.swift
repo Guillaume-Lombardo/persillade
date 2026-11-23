@@ -19,6 +19,22 @@ extension Unite {
     }
 }
 
+struct ColonnesIngredient: DynamicProperty {
+    static let espacement: CGFloat = GrillePersillade.pas
+
+    @Environment(\.dynamicTypeSize) private var taille
+    @ScaledMetric(relativeTo: .title2) private var largeurNombre: CGFloat = 68
+    @ScaledMetric(relativeTo: .body) private var largeurUnite: CGFloat = 60
+
+    var empilees: Bool { taille >= .accessibility3 }
+    var nombre: CGFloat { min(largeurNombre, 98) }
+    var unite: CGFloat { min(largeurUnite, 88) }
+    var largeur: CGFloat { nombre + Self.espacement + unite }
+    var debutNom: CGFloat {
+        empilees ? GrillePersillade.marge : GrillePersillade.marge + largeur + GrillePersillade.gouttiere
+    }
+}
+
 private struct CadreColonnePesee: ViewModifier {
     let aligne: Bool
     @ScaledMetric(relativeTo: .title2) private var largeur = GrillePersillade.colonnePesee
@@ -82,7 +98,7 @@ struct BandeauRayon: View {
     let categorie: Categorie
     var nombre: Int?
 
-    @Environment(\.dynamicTypeSize) private var taille
+    private var colonnes = ColonnesIngredient()
     @Environment(\.colorSchemeContrast) private var contraste
 
     var body: some View {
@@ -91,7 +107,7 @@ struct BandeauRayon: View {
                 .font(.system(size: 19, weight: .semibold))
                 .symbolRenderingMode(.monochrome)
                 .foregroundStyle(contraste == .increased ? CouleurPersillade.encre.couleur : categorie.teinteRayon)
-                .modifier(CadreColonnePesee(aligne: !taille.isAccessibilitySize))
+                .frame(width: colonnes.empilees ? nil : colonnes.largeur, alignment: .trailing)
                 .accessibilityHidden(true)
             Text(categorie.rawValue).typographie(.rayon)
             Spacer(minLength: 0)
@@ -100,10 +116,9 @@ struct BandeauRayon: View {
                     .foregroundStyle(CouleurPersillade.encre2.couleur)
             }
         }
-        .padding(.trailing, GrillePersillade.marge)
-        .padding(.leading, taille.isAccessibilitySize ? GrillePersillade.marge : 0)
+        .padding(.horizontal, GrillePersillade.marge)
         .padding(.vertical, GrillePersillade.pas)
-        .frame(minHeight: GrillePersillade.rayon)
+        .frame(maxWidth: .infinity, minHeight: GrillePersillade.rayon)
         .foregroundStyle(CouleurPersillade.encre.couleur)
         .background(CouleurPersillade.page2.couleur)
         .accessibilityElement(children: .combine)
@@ -136,6 +151,7 @@ struct LigneArticle: View {
     var fondEtFilet = true
 
     @Environment(\.dynamicTypeSize) private var taille
+    private var colonnes = ColonnesIngredient()
 
     var body: some View {
         HStack(spacing: GrillePersillade.pas) {
@@ -170,8 +186,7 @@ struct LigneArticle: View {
                 .accessibilityShowsLargeContentViewer { Label(libelle, systemImage: symbole) }
             }
         }
-        .padding(.trailing, GrillePersillade.marge)
-        .padding(.leading, taille.isAccessibilitySize ? GrillePersillade.marge : 0)
+        .padding(.horizontal, GrillePersillade.marge)
         .background(fondEtFilet ? CouleurPersillade.page.couleur : .clear)
         .overlay(alignment: .bottom) {
             if fondEtFilet {
@@ -190,24 +205,32 @@ struct LigneArticle: View {
 
     private var contenu: some View {
         VStack(alignment: .leading, spacing: GrillePersillade.pas) {
-            if taille.isAccessibilitySize {
-                contenuVertical
+            if colonnes.empilees {
+                ColonnePesee(quantite: quantite, unite: unite, alignee: false)
+                libelle
             } else {
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .firstTextBaseline, spacing: 0) {
-                        ColonnePesee(quantite: quantite, unite: unite)
-                        libelle.fixedSize(horizontal: true, vertical: false)
-                            .padding(.leading, GrillePersillade.gouttiere)
+                HStack(alignment: .firstTextBaseline, spacing: GrillePersillade.gouttiere) {
+                    HStack(alignment: .firstTextBaseline, spacing: ColonnesIngredient.espacement) {
+                        Text(quantite ?? "")
+                            .typographie(.quantite)
+                            .fontWidth(.compressed)
+                            .multilineTextAlignment(.trailing)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(width: colonnes.nombre, alignment: .trailing)
+                        Text(unite ?? "")
+                            .typographie(.unite)
+                            .fontWidth(.compressed)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(width: colonnes.unite, alignment: .leading)
                     }
-                    .fixedSize(horizontal: true, vertical: false)
-                    contenuVertical
+                    .foregroundStyle(CouleurPersillade.encre.couleur)
+                    libelle.fixedSize(horizontal: false, vertical: true)
                 }
             }
             if let precisionPleineLargeur {
                 Text(precisionPleineLargeur)
                     .typographie(.precision)
                     .foregroundStyle(CouleurPersillade.encre2.couleur)
-                    .padding(.leading, taille.isAccessibilitySize ? 0 : GrillePersillade.marge)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -218,14 +241,6 @@ struct LigneArticle: View {
         )
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
-    }
-
-    private var contenuVertical: some View {
-        VStack(alignment: .leading, spacing: GrillePersillade.pas) {
-            ColonnePesee(quantite: quantite, unite: unite, alignee: false)
-            libelle
-        }
-        .padding(.leading, taille.isAccessibilitySize ? 0 : GrillePersillade.marge)
     }
 
     private var libelle: some View {

@@ -141,6 +141,39 @@ public struct Quantite: Codable, Comparable, Hashable, Sendable {
         return texte
     }
 
+    public func composantesAffichage(unite: Unite?) -> (nombre: String, unite: String?) {
+        let libelle: String? =
+            switch unite {
+            case nil, .piece: nil
+            case .g: "g"
+            case .kg: "kg"
+            case .ml: "ml"
+            case .cl: "cl"
+            case .l: "l"
+            case .cac: "c.\u{00A0}à\u{00A0}c."
+            case .cas: "c.\u{00A0}à\u{00A0}s."
+            case .autre(let nom): accorder(nom)
+            }
+        return (texteFrancais, libelle)
+    }
+
+    private static let unitesAccordees: Set<String> = [
+        "baton", "boite", "botte", "bouquet", "brin", "feuille", "filet", "gousse", "goutte",
+        "paquet", "pincee", "poignee", "pot", "sachet", "tasse", "tranche", "verre",
+    ]
+
+    private func accorder(_ nom: String) -> String {
+        let libelle = nom.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalise = libelle.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil)
+        let estPluriel = normalise.hasSuffix("s")
+        let singulier = estPluriel ? String(normalise.dropLast()) : normalise
+        guard Self.unitesAccordees.contains(singulier) else { return nom }
+
+        let base = estPluriel ? String(libelle.dropLast()) : libelle
+        if self <= Quantite(1) { return base }
+        return base + (base == base.uppercased() ? "S" : "s")
+    }
+
     // Deux produits d'Int64 à dénominateur positif et leur somme tiennent dans Int128.
     public static func + (gauche: Self, droite: Self) throws -> Self {
         let a = Int128(gauche.numerateur) * Int128(droite.denominateur)

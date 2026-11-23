@@ -209,6 +209,7 @@ struct OngletCourses: View {
                 } header: {
                     BandeauRayon(categorie: rayon.categorie, nombre: rayon.lignes.count)
                         .listRowInsets(EdgeInsets())
+                        .listRowBackground(CouleurPersillade.page2.couleur)
                 }
             }
         }
@@ -289,10 +290,11 @@ struct OngletCourses: View {
         let choisir = etat.destinationId == nil
         let renvoyer = etat.liste.envoyee
         let libelle =
-            choisir ? "Choisir une liste" : renvoyer ? "Renvoyer" : "Envoyer \(etat.liste.lignesAEnvoyer.count)"
+            choisir ? "Choisir une liste" : renvoyer ? "Renvoyer" : "Envoyer (\(etat.liste.lignesAEnvoyer.count))"
         return BoutonActionPersillade(
             libelle, symbole: choisir ? "checklist" : renvoyer ? "arrow.clockwise" : "arrow.up",
-            progression: envoiEnCours ? session.progressionEnvoi ?? 0 : nil, pleineLargeur: true
+            progression: envoiEnCours ? session.progressionEnvoi ?? 0 : nil, pleineLargeur: true,
+            surUneLigne: !choisir && !renvoyer
         ) {
             if choisir { preparerDestinations() } else { envoyer() }
         }
