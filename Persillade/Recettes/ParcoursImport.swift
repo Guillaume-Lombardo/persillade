@@ -48,9 +48,8 @@ struct ParcoursImport: View {
             contenuEtape.navigationBarTitleDisplayMode(.inline)
         }
         .tint(CouleurPersillade.persil.couleur)
-        .presentationDetents(
-            enSaisie || (taille >= .accessibility3 && etape != .destination) ? [.large] : [.medium, .large]
-        )
+        .presentationDetents(enSaisie || taille >= .accessibility3 ? [.large] : [.medium, .large])
+        .presentationBackground(CouleurPersillade.page.couleur)
         .interactiveDismissDisabled(occupation || etape == .lecture || enSaisie)
         .alert(
             "Import de la recette",
@@ -85,7 +84,7 @@ struct ParcoursImport: View {
         case .destination:
             if let recu {
                 destination(recu)
-                    .navigationTitle("Destination")
+                    .navigationTitle("Contenu reçu")
                     .toolbar { boutonFermer }
             }
         case .lecture:
@@ -141,15 +140,23 @@ struct ParcoursImport: View {
     private func destination(_ contenu: ContenuRecu) -> some View {
         let position = reception.contenus.firstIndex { $0.id == contenu.id }
         let suivant = reception.contenus.first { $0.id != contenu.id }
+        let apercu = contenu.type == .image ? "Photo de la recette" : contenu.texteRecu
         return ScrollView {
             VStack(alignment: .leading, spacing: GrillePersillade.pas * 3) {
                 if let position, reception.contenus.count > 1 {
                     Text("\(position + 1) sur \(reception.contenus.count)").typographie(.precision)
                 }
-                Text(contenu.texteRecu)
+                if let hote = lienRecu?.host(percentEncoded: false) {
+                    Label(hote, systemImage: "link")
+                        .typographie(.section)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityLabel("Site source : \(hote)")
+                        .accessibilityIdentifier("hote-destination")
+                }
+                Text(apercu)
                     .lineLimit(taille.isAccessibilitySize ? 2 : 3)
-                    .typographie(.section)
-                    .accessibilityAddTraits(.isHeader)
+                    .typographie(.texte)
+                    .accessibilityLabel(contenu.type == .url ? "Adresse du lien : \(apercu)" : apercu)
                     .accessibilityIdentifier("apercu-destination")
                 if texteDeRepli != nil {
                     Label("Texte collé disponible", systemImage: "doc.text")
@@ -160,10 +167,6 @@ struct ParcoursImport: View {
                 )
                 .typographie(.precision)
                 .foregroundStyle(CouleurPersillade.encre2.couleur)
-                Button("Abandonner", role: .destructive) { confirmerAbandon = true }
-                    .frame(minHeight: GrillePersillade.cible)
-                    .tint(CouleurPersillade.tomate.couleur)
-                    .disabled(occupation)
                 if let suivant {
                     Text(
                         "Ensuite : \(suivant.libelleType), \(suivant.recuLe.formatted(date: .omitted, time: .shortened))"
@@ -173,19 +176,29 @@ struct ParcoursImport: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(GrillePersillade.marge)
+            .padding(.horizontal, GrillePersillade.marge)
+            .padding(.vertical, GrillePersillade.pas)
         }
-        .barreAction {
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: GrillePersillade.pas) {
-                BoutonActionPersillade("Recette") { etape = .lecture }
-                    .accessibilityIdentifier("import-destination-recette")
-                if let importerArticles {
-                    Button("Articles de courses") { importerArticles(contenu) }
-                        .buttonStyle(.glass)
-                        .controlSize(.large)
+                CommandeRecettes(titre: "Recette", symbole: "text.book.closed", principale: true) {
+                    etape = .lecture
                 }
+                .accessibilityIdentifier("import-destination-recette")
+                if let importerArticles {
+                    CommandeRecettes(titre: "Articles de courses", symbole: "basket") { importerArticles(contenu) }
+                }
+                CommandeRecettes(titre: "Abandonner", role: .destructive) {
+                    confirmerAbandon = true
+                }
+                .tint(CouleurPersillade.tomate.couleur)
+                .accessibilityIdentifier("import-destination-abandonner")
             }
             .disabled(occupation)
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+            .padding(.horizontal, GrillePersillade.margeBarre)
+            .padding(.vertical, GrillePersillade.pas)
+            .background(CouleurPersillade.page.couleur)
         }
         .confirmationDialog("Abandonner ce contenu ?", isPresented: $confirmerAbandon, titleVisibility: .visible) {
             Button("Abandonner", role: .destructive) { Task { await abandonner(contenu) } }

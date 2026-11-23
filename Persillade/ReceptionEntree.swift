@@ -103,7 +103,7 @@ extension ContenuRecu {
         switch type {
         case .url: "Lien"
         case .texte: "Texte"
-        case .image: "Image"
+        case .image: "Photo"
         }
     }
 
@@ -122,6 +122,7 @@ struct AccessoireReception: View {
     let ouvrir: () -> Void
 
     @Environment(\.tabViewBottomAccessoryPlacement) private var placement
+    @Environment(\.dynamicTypeSize) private var taille
 
     var body: some View {
         if let premier = contenus.first {
@@ -130,19 +131,25 @@ struct AccessoireReception: View {
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 0) {
                     let nombre = contenus.count
-                    if placement == .inline {
+                    if placement == .inline || taille.isAccessibilitySize {
                         Text(nombre == 1 ? "1 reçu" : "\(nombre) reçus").typographie(.precision)
                     } else {
                         Text(nombre == 1 ? "1 contenu reçu" : "\(nombre) contenus reçus").typographie(.bouton)
+                    }
+                    if placement != .inline {
                         Text("\(premier.libelleType), \(premier.recuLe.formatted(date: .omitted, time: .shortened))")
                             .typographie(.precision)
                     }
                 }
                 .accessibilityElement(children: .combine)
                 Spacer(minLength: 0)
-                Button("Ouvrir", action: ouvrir)
-                    .frame(minHeight: GrillePersillade.cible)
-                    .accessibilityIdentifier("ouvrir-contenu-recu")
+                Button(action: ouvrir) {
+                    Text("Ouvrir").typographie(.bouton)
+                        .frame(minHeight: GrillePersillade.cible)
+                }
+                .buttonStyle(.glassProminent)
+                .controlSize(.regular)
+                .accessibilityIdentifier("ouvrir-contenu-recu")
             }
             .padding(.horizontal, GrillePersillade.marge)
             .dynamicTypeSize(...DynamicTypeSize.accessibility1)

@@ -144,11 +144,11 @@ struct FicheRecette: View {
                     commandeSemaine(portions)
                 } else {
                     ViewThatFits(in: .horizontal) {
-                        HStack(spacing: GrillePersillade.pas * 2) {
-                            commandeSemaine(portions).fixedSize(horizontal: true, vertical: false)
+                        CommandesFicheHorizontales {
+                            commandeSemaine(portions).fixedSize()
                             commandeCuisine
                         }
-                        HStack(spacing: GrillePersillade.pas * 2) {
+                        VStack(spacing: GrillePersillade.pas * 2) {
                             commandeSemaine(portions)
                             commandeCuisine
                         }
@@ -295,6 +295,29 @@ struct FicheRecette: View {
     }
 }
 
+private struct CommandesFicheHorizontales: Layout {
+    private let espacement = GrillePersillade.pas * 2
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let minimum = subviews.map { $0.sizeThatFits(.unspecified).width }.max() ?? 0
+        let largeur = proposal.width ?? 0
+        let colonne = largeur.isFinite ? max(minimum, (largeur - espacement) / 2) : minimum
+        let taille = ProposedViewSize(width: colonne, height: nil)
+        let hauteur = subviews.map { $0.sizeThatFits(taille).height }.max() ?? 0
+        return CGSize(width: colonne * 2 + espacement, height: hauteur)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let colonne = (bounds.width - espacement) / 2
+        for (index, bouton) in subviews.enumerated() {
+            bouton.place(
+                at: CGPoint(x: bounds.minX + CGFloat(index) * (colonne + espacement), y: bounds.midY),
+                anchor: .leading, proposal: ProposedViewSize(width: colonne, height: nil)
+            )
+        }
+    }
+}
+
 struct IngredientsRecette: View {
     let recette: Recette
     let portions: Int
@@ -311,16 +334,29 @@ struct IngredientsRecette: View {
                 let ingredient = recette.ingredients[index]
                 LigneArticle(
                     nom: ingredient.nom, quantite: quantites[index]?.texteFrancais,
-                    unite: ingredient.unite?.libelleLecturePersillade)
+                    unite: ingredient.unite?.libelleLecturePersillade, precision: mention(ingredient))
             }
         case .failure:
             Text("Impossible de calculer les quantités pour ces portions.")
                 .foregroundStyle(CouleurPersillade.tomate.couleur)
                 .padding(GrillePersillade.marge)
             ForEach(recette.ingredients.indices, id: \.self) { index in
-                LigneArticle(nom: recette.ingredients[index].nom)
+                let ingredient = recette.ingredients[index]
+                LigneArticle(nom: ingredient.nom, precision: mention(ingredient))
             }
         }
     }
 
+    private func mention(_ ingredient: Ingredient) -> String? {
+        let mentions =
+            #/
+            (?i)\b(?: au\h+go[uû]t | selon\h+(?:le\h+)?go[uû]t | [aà]\h+discr[eé]tion |
+                (?:une|1)\h+pinc[eé]e | quantit[ée]\h+suffisante )\b | \bq\.?\h*s\b\.?
+            /#
+        guard ingredient.quantite == nil, let match = ingredient.texteOrigine.firstMatch(of: mentions) else {
+            return nil
+        }
+        let libelle = String(match.output)
+        return ingredient.nom.localizedCaseInsensitiveContains(libelle) ? nil : libelle
+    }
 }

@@ -98,10 +98,17 @@ private struct Racine: View {
                 dossier = URL.temporaryDirectory.appending(path: "Courses-\(id.uuidString)")
                 moteur = nil
                 if !processus.arguments.contains("-courses-eventkit") {
-                    rappels = MagasinRappelsMemoire(destinations: [
+                    let memoire = MagasinRappelsMemoire(destinations: [
                         .init(id: "maison", titre: "Maison", compte: "Sur mon iPhone", modifiable: true),
                         .init(id: "archive", titre: "Archives", compte: "Sur mon iPhone", modifiable: false),
                     ])
+                    if processus.arguments.contains("-courses-envoi-echec") {
+                        rappels = RappelsAvecEchecsPonctuels(memoire: memoire, titres: ["œufs 4", "farine 1,5 kg"])
+                    } else if processus.arguments.contains("-courses-envoi-echec-partiel") {
+                        rappels = RappelsAvecEchecsPonctuels(memoire: memoire, titres: ["farine 1,5 kg"])
+                    } else {
+                        rappels = memoire
+                    }
                 }
             }
         #endif
@@ -109,7 +116,8 @@ private struct Racine: View {
         _suivi = State(initialValue: SuiviBrouillonCorrection(dossier: dossier))
         _reception = State(initialValue: ReceptionEntree(dossier: dossier))
         _bibliotheque = State(initialValue: bibliotheque)
-        _courses = State(initialValue: SessionCourses(bibliotheque: bibliotheque))
+        _courses = State(
+            initialValue: SessionCourses(bibliotheque: bibliotheque, preferences: dossier == nil ? .standard : nil))
         extracteur = Extracteur(
             telechargeur: TelechargeurURLSession(), moteurIA: moteur, lecteurImage: LecteurImageVision())
         repliConsenti = dossier == nil ? ReglagesFournisseur.partage.repliConsenti : nil
@@ -139,9 +147,7 @@ private struct Racine: View {
         }
         .disabled(!brouillonCharge)
         .tint(CouleurPersillade.persil.couleur)
-        .tabViewBottomAccessory(
-            isEnabled: onglet == .recettes && chemin.isEmpty && feuille == nil && !reception.contenus.isEmpty
-        ) {
+        .tabViewBottomAccessory(isEnabled: accessoireReceptionVisible) {
             AccessoireReception(contenus: reception.contenus, ouvrir: ouvrirPremier)
         }
         .task(id: phase) {
@@ -234,14 +240,20 @@ private struct Racine: View {
                     })
             }
             .presentationDetents([.large])
+            .presentationBackground(CouleurPersillade.page.couleur)
         case .reglages:
             Reglages()
         }
     }
 
+    private var accessoireReceptionVisible: Bool {
+        onglet == .recettes && chemin.isEmpty && feuille == nil && !reception.contenus.isEmpty
+    }
+
     private func recettes(chemin: Binding<[UUID]>, recherche: Bool = false) -> some View {
         OngletRecettes(
             chemin: chemin, bibliotheque: bibliotheque, rechercheActive: recherche, messageReception: reception.message,
+            accessoireReceptionVisible: !recherche && accessoireReceptionVisible,
             coller: { feuille = .importation(nil) }, ecrire: { feuille = .correction(.init()) },
             prendrePhoto: { feuille = .photo(.appareilPhoto) },
             choisirPhoto: { feuille = .photo(.phototheque) },
@@ -371,3 +383,28 @@ private struct Racine: View {
         }
     }
 }
+
+#if DEBUG
+    private actor RappelsAvecEchecsPonctuels: MagasinRappels {
+        let memoire: MagasinRappelsMemoire
+        private var titres: Set<String>
+
+        init(memoire: MagasinRappelsMemoire, titres: Set<String>) {
+            self.memoire = memoire
+            self.titres = titres
+        }
+
+        func destinations() async throws -> [DestinationRappels] {
+            try await memoire.destinations()
+        }
+
+        func lire(destinationId: String) async throws -> [RappelCourses] {
+            try await memoire.lire(destinationId: destinationId)
+        }
+
+        func ajouter(titre: String, destinationId: String) async throws -> RappelCourses {
+            if titres.remove(titre) != nil { throw CauseEchecEnvoi.ecriture }
+            return try await memoire.ajouter(titre: titre, destinationId: destinationId)
+        }
+    }
+#endif

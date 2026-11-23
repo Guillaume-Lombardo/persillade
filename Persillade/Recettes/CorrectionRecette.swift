@@ -44,8 +44,10 @@ struct CorrectionRecette: View {
     @Environment(SuiviBrouillonCorrection.self) private var suivi
     @Environment(\.scenePhase) private var phase
     @Environment(\.dynamicTypeSize) private var taille
+    @Environment(\.colorSchemeContrast) private var contraste
     @Environment(\.accessibilityReduceMotion) private var mouvementReduit
     @FocusState private var saisie: Champ?
+    @ScaledMetric(relativeTo: .title2) private var colonnePesee = GrillePersillade.colonnePesee
     @State private var formulaire: FormulaireRecette
     @State private var ingredientOuvert: UUID?
     @State private var confirmerQuitter = false
@@ -55,6 +57,7 @@ struct CorrectionRecette: View {
     @State private var erreurEcriture = false
     @State private var erreurAbandon = false
     @State private var sourceOuverte: Bool?
+    @State private var photoAgrandie = false
     @State private var suppression: Suppression?
 
     init(
@@ -99,8 +102,10 @@ struct CorrectionRecette: View {
                             systemImage: "exclamationmark.circle"
                         )
                         .foregroundStyle(CouleurPersillade.tomate.couleur)
+                        .ligneDeCorrection()
                         Button("Réessayer") { suivi.programmer(brouillon) }
                             .disabled(enregistrant || enregistree)
+                            .ligneDeCorrection()
                     }
                 }
                 if erreurEcriture {
@@ -118,12 +123,14 @@ struct CorrectionRecette: View {
                         }
                     }
                     .id("erreur-ecriture")
+                    .ligneDeCorrection()
                 }
                 if let erreurValidation {
                     Section {
                         Label(erreurValidation, systemImage: "exclamationmark.circle")
                             .typographie(.alerte)
                             .foregroundStyle(CouleurPersillade.tomate.couleur)
+                            .ligneDeCorrection()
                     }
                 }
                 if donnees.photoSansTexte {
@@ -135,41 +142,43 @@ struct CorrectionRecette: View {
                         .typographie(.alerte)
                         .foregroundStyle(CouleurPersillade.tomate.couleur)
                         .accessibilityIdentifier("photo-sans-texte")
+                        .ligneDeCorrection()
                     }
                     .listRowBackground(CouleurPersillade.page2.couleur)
                 }
                 if let photo, let image = UIImage(data: photo) {
                     Section {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 136)
-                            .accessibilityLabel("Photo de la recette")
-                            .accessibilityIdentifier("photo-correction")
+                        Button {
+                            photoAgrandie = true
+                        } label: {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 136)
+                                .overlay(alignment: .bottomTrailing) {
+                                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                        .padding(GrillePersillade.pas * 2)
+                                        .background(CouleurPersillade.page.couleur, in: .circle)
+                                }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Agrandir la photo de la recette")
+                        .accessibilityIdentifier("photo-correction")
+                        .ligneDeCorrection()
                     }
                     .listRowBackground(CouleurPersillade.page2.couleur)
-                }
-                if donnees.cause != nil || !alertes.isEmpty {
-                    Section { bandeau(defilement) }
                 }
                 if !source.isEmpty && saisie == nil {
                     Section { panneauSource(defilement) }
                 }
+                if donnees.cause != nil || !alertes.isEmpty {
+                    Section { bandeau(defilement) }
+                }
 
                 Group {
                     Section {
-                        VStack(alignment: .leading, spacing: GrillePersillade.pas * 2) {
-                            TextField(
-                                "Titre de la recette", text: $formulaire.titre,
-                                prompt: Text("Titre de la recette").foregroundStyle(CouleurPersillade.encre2.couleur)
-                            )
-                            .typographie(.recette)
-                            .frame(minHeight: GrillePersillade.cible)
-                            .focused($saisie, equals: .titre)
-                            .accessibilityIdentifier("titre-correction")
-                        }
-                        .id(Champ.titre)
+                        champTitre.id(Champ.titre)
                         champPortions(defilement).id(Champ.portions)
                     }
                     sectionIngredients(defilement)
@@ -177,12 +186,14 @@ struct CorrectionRecette: View {
                     if suppression != nil {
                         Section {
                             Button("Annuler la suppression", action: restaurer)
+                                .ligneDeCorrection()
                         }
                     }
                 }
                 .disabled(enregistree || enregistrant)
             }
             .listStyle(.plain)
+            .environment(\.defaultMinListRowHeight, GrillePersillade.ingredient)
             .scrollContentBackground(.hidden)
             .foregroundStyle(CouleurPersillade.encre.couleur)
             .background(CouleurPersillade.page.couleur)
@@ -198,7 +209,7 @@ struct CorrectionRecette: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Fermer") {
+                    Button("Fermer", systemImage: "xmark") {
                         if enregistree {
                             fermer()
                         } else if repris || formulaire != initial || erreurEcriture {
@@ -207,11 +218,13 @@ struct CorrectionRecette: View {
                             abandonner()
                         }
                     }
+                    .labelStyle(.iconOnly)
                     .disabled(enregistrant)
                     .accessibilityIdentifier("fermer-correction")
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(enregistree ? "Réessayer" : "Enregistrer") { sauvegarder(defilement) }
+                        .buttonStyle(.glassProminent)
                         .disabled(enregistrant)
                         .accessibilityIdentifier("enregistrer-correction")
                 }
@@ -234,6 +247,27 @@ struct CorrectionRecette: View {
             .sensoryFeedback(.success, trigger: alertes.isEmpty) { _, vide in vide }
         }
         .tint(CouleurPersillade.persil.couleur)
+        .sheet(isPresented: $photoAgrandie) {
+            if let photo, let image = UIImage(data: photo) {
+                NavigationStack {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .accessibilityLabel("Photo de la recette")
+                        .accessibilityIdentifier("photo-correction-agrandie")
+                        .navigationTitle("Photo de la recette")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Fermer", systemImage: "xmark") { photoAgrandie = false }
+                                    .labelStyle(.iconOnly)
+                            }
+                        }
+                }
+                .presentationBackground(CouleurPersillade.page.couleur)
+            }
+        }
         .interactiveDismissDisabled()
         .onChange(of: formulaire, initial: true) { precedent, _ in
             if (brouillonNecessaire || precedent != initial) && !enregistrant && !enregistree {
@@ -266,30 +300,75 @@ struct CorrectionRecette: View {
         }
     }
 
+    private var champTitre: some View {
+        let afficherSurPlusieursLignes = taille.isAccessibilitySize && saisie != .titre && !formulaire.titreVide
+        return VStack(alignment: .leading, spacing: GrillePersillade.pas) {
+            Text("Titre").typographie(.precision)
+                .foregroundStyle(CouleurPersillade.encre2.couleur)
+                .accessibilityHidden(true)
+            ZStack(alignment: .leading) {
+                if afficherSurPlusieursLignes {
+                    Text(formulaire.titre).typographie(.recette)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityHidden(true)
+                        .allowsHitTesting(false)
+                }
+                TextField(
+                    "Titre de la recette", text: $formulaire.titre,
+                    prompt: Text("Titre de la recette").foregroundStyle(CouleurPersillade.encre2.couleur)
+                )
+                .typographie(.recette)
+                .foregroundStyle(afficherSurPlusieursLignes ? .clear : CouleurPersillade.encre.couleur)
+                .frame(minHeight: GrillePersillade.cible)
+                .focused($saisie, equals: .titre)
+                .accessibilityIdentifier("titre-correction")
+            }
+            .cadreChampCorrection()
+            .contentShape(.rect)
+            .simultaneousGesture(TapGesture().onEnded { saisie = .titre })
+        }
+        .padding(.vertical, GrillePersillade.pas * 2)
+        .ligneDeCorrection()
+    }
+
     private func champPortions(_ defilement: ScrollViewProxy) -> some View {
         VStack(alignment: .leading, spacing: GrillePersillade.pas * 2) {
-            Text("Portions").typographie(.section)
-            TextField(
-                "Portions", text: $formulaire.portions,
-                prompt: Text("4").foregroundStyle(CouleurPersillade.encre2.couleur)
-            )
-            .typographie(.quantite)
-            .frame(minHeight: GrillePersillade.cible)
-            .keyboardType(.numberPad)
-            .focused($saisie, equals: .portions)
-            .accessibilityIdentifier("portions-correction")
-            if formulaire.portions.isEmpty {
-                PastilleAVerifier(libelle: "Absent du texte, 4 par défaut")
-                Button("Garder 4") {
-                    withAnimation(.easeInOut(duration: mouvementReduit ? 0.2 : 0.25)) {
-                        formulaire.portions = "4"
-                    }
-                    saisie = nil
-                    if let suivant = alertes.first { montrer(suivant, dans: defilement) }
-                }
+            HStack(spacing: GrillePersillade.gouttiere) {
+                Text("Portions").typographie(.section)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .accessibilityHidden(true)
+                TextField(
+                    "Portions", text: $formulaire.portions,
+                    prompt: Text("4").foregroundStyle(CouleurPersillade.encre2.couleur)
+                )
+                .typographie(.quantite)
+                .multilineTextAlignment(.trailing)
                 .frame(minHeight: GrillePersillade.cible)
+                .cadreChampCorrection()
+                .keyboardType(.numberPad)
+                .focused($saisie, equals: .portions)
+                .accessibilityIdentifier("portions-correction")
+            }
+            if formulaire.portions.isEmpty {
+                let disposition =
+                    taille.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: GrillePersillade.pas * 2))
+                    : AnyLayout(HStackLayout(spacing: GrillePersillade.pas * 2))
+                disposition {
+                    PastilleAVerifier(libelle: "Absent du texte, 4 par défaut")
+                        .labelStyle(StylePastilleCorrection())
+                    boutonVerification("Garder 4") {
+                        withAnimation(.easeInOut(duration: mouvementReduit ? 0.2 : 0.25)) {
+                            formulaire.portions = "4"
+                        }
+                        saisie = nil
+                        if let suivant = alertes.first { montrer(suivant, dans: defilement) }
+                    }
+                }
             }
         }
+        .padding(.vertical, GrillePersillade.pas * 2)
+        .ligneDeCorrection()
         .listRowBackground(
             formulaire.portions.isEmpty ? CouleurPersillade.beurreFond.couleur : CouleurPersillade.page.couleur)
     }
@@ -300,16 +379,24 @@ struct CorrectionRecette: View {
                 Label(libelle(cause), systemImage: "exclamationmark.circle")
                     .typographie(.alerte)
             }
-            if !alertes.isEmpty {
-                let nombre = alertes.count
-                Text(nombre == 1 ? "1 point à vérifier" : "\(nombre) points à vérifier")
-                    .typographie(.alerte)
-            }
             if let premier = alertes.first {
-                Button("Suivant") { montrer(premier, dans: defilement) }
-                    .frame(minHeight: GrillePersillade.cible)
+                let nombre = alertes.count
+                let disposition =
+                    taille.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: GrillePersillade.pas))
+                    : AnyLayout(HStackLayout(spacing: GrillePersillade.pas * 2))
+                disposition {
+                    Label(
+                        nombre == 1 ? "1 point à vérifier" : "\(nombre) points à vérifier",
+                        systemImage: "exclamationmark.circle.fill"
+                    )
+                    .typographie(.alerte)
+                    .labelStyle(StylePastilleCorrection())
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    boutonVerification("Suivant") { montrer(premier, dans: defilement) }
+                }
             } else if donnees.cause != nil {
-                Button(donnees.cause == .contenuTropLong ? "Voir le texte" : "Suivant") {
+                boutonVerification(donnees.cause == .contenuTropLong ? "Voir le texte" : "Suivant") {
                     if donnees.cause == .contenuTropLong {
                         sourceOuverte = true
                         defilement.scrollTo("texte-recu", anchor: .top)
@@ -319,12 +406,31 @@ struct CorrectionRecette: View {
                         montrer(.titre, dans: defilement)
                     }
                 }
-                .frame(minHeight: GrillePersillade.cible)
             }
         }
+        .padding(.vertical, GrillePersillade.pas)
+        .ligneDeCorrection()
         .foregroundStyle(CouleurPersillade.surBeurre.couleur)
         .tint(CouleurPersillade.surBeurre.couleur)
         .listRowBackground(CouleurPersillade.beurre.couleur)
+    }
+
+    private func boutonVerification(_ libelle: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(libelle).typographie(.bouton)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, GrillePersillade.marge)
+                .padding(.vertical, GrillePersillade.pas)
+                .frame(minHeight: GrillePersillade.cible)
+                .foregroundStyle(CouleurPersillade.surBeurre.couleur)
+                .background(CouleurPersillade.beurre.couleur, in: .capsule)
+                .overlay {
+                    Capsule()
+                        .strokeBorder(CouleurPersillade.surBeurre.couleur, lineWidth: contraste == .increased ? 2 : 1)
+                }
+                .contentShape(.capsule)
+        }
+        .buttonStyle(StyleBoutonPersillade())
     }
 
     private func libelle(_ cause: CauseExtraction) -> String {
@@ -346,11 +452,15 @@ struct CorrectionRecette: View {
         VoletTexteRecu(
             source: source, debut: donnees.debutExtrait, ingredients: formulaire.ingredients,
             ouvert: Binding(
-                get: { sourceOuverte ?? (photo == nil && !taille.isAccessibilitySize) },
+                get: {
+                    sourceOuverte
+                        ?? (!taille.isAccessibilitySize && formulaire.ingredients.contains { $0.citation != nil })
+                },
                 set: { sourceOuverte = $0 })
         ) { id in
             montrer(.ingredient(id), dans: defilement)
         }
+        .ligneDeCorrection()
         .listRowBackground(CouleurPersillade.page2.couleur)
         .id("texte-recu")
     }
@@ -361,15 +471,19 @@ struct CorrectionRecette: View {
                 ligneIngredient($ligne, defilement: defilement)
             }
             .reorderable()
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
             Button("Ajouter un ingrédient", systemImage: "plus") {
                 let ligne = LigneIngredientCorrection(.init(nom: "", texteOrigine: ""))
                 formulaire.ingredients.append(ligne)
                 montrer(.ingredient(ligne.id), dans: defilement)
             }
             .frame(minHeight: GrillePersillade.cible)
+            .ligneDeCorrection()
         } header: {
             Text("Ingrédients").typographie(.section)
         }
+        .listSectionSeparator(.hidden)
     }
 
     private func ligneIngredient(
@@ -391,6 +505,7 @@ struct CorrectionRecette: View {
                     }
                     TextField("Nom de l’ingrédient", text: liaison.nom)
                         .frame(minHeight: GrillePersillade.cible)
+                        .cadreChampCorrection()
                         .focused($saisie, equals: champ)
                         .submitLabel(.next)
                         .onSubmit { terminerLigne(ligne.id, dans: defilement) }
@@ -401,8 +516,7 @@ struct CorrectionRecette: View {
                         ChampNomUnite(nom: liaison.quantite.autre).focused($saisie, equals: .unite(ligne.id))
                     }
                     HStack {
-                        Button("Suivant") { terminerLigne(ligne.id, dans: defilement) }
-                            .frame(minHeight: GrillePersillade.cible)
+                        boutonVerification("Suivant") { terminerLigne(ligne.id, dans: defilement) }
                         Spacer()
                         Button("Supprimer l’ingrédient", systemImage: "trash", role: .destructive) {
                             supprimer(champ)
@@ -412,6 +526,7 @@ struct CorrectionRecette: View {
                         .frame(width: GrillePersillade.cible, height: GrillePersillade.cible)
                     }
                 }
+                .padding(.horizontal, GrillePersillade.marge)
                 .padding(.vertical, GrillePersillade.pas * 2)
             } else {
                 HStack(spacing: GrillePersillade.pas) {
@@ -421,16 +536,19 @@ struct CorrectionRecette: View {
                             quantite: ligne.quantite.texte.isEmpty ? nil : ligne.quantite.texte,
                             unite: ligne.quantite.texte.isEmpty ? nil : ligne.quantite.unite?.libelleLecturePersillade,
                             precision: ligne.note,
-                            ouvrir: { montrer(champ, dans: defilement) })
+                            ouvrir: { montrer(champ, dans: defilement) },
+                            hauteurSimple: GrillePersillade.ingredient, fondEtFilet: false)
                         if ligne.aVerifier {
                             Button {
                                 montrer(champ, dans: defilement)
                             } label: {
                                 PastilleAVerifier(
-                                    libelle: ligne.nomVide ? "Corriger le nom" : "Ligne non comprise · Corriger")
+                                    libelle: ligne.nomVide ? "Corriger le nom" : "Ligne non comprise · Corriger"
+                                )
+                                .labelStyle(StylePastilleCorrection())
                             }
                             .buttonStyle(.plain)
-                            .padding(.leading, GrillePersillade.marge)
+                            .padding(.leading, taille.isAccessibilitySize ? GrillePersillade.marge : colonnePesee)
                             .frame(minHeight: GrillePersillade.cible)
                         }
                     }
@@ -438,10 +556,8 @@ struct CorrectionRecette: View {
                 }
             }
         }
+        .overlay(alignment: .bottom) { filetCorrection }
         .id(champ)
-        .listRowInsets(
-            ingredientOuvert == ligne.id ? EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16) : .init()
-        )
         .listRowBackground(ligne.aVerifier ? CouleurPersillade.beurreFond.couleur : CouleurPersillade.page.couleur)
         .swipeActions(allowsFullSwipe: false) {
             Button("Supprimer", systemImage: "trash", role: .destructive) { supprimer(champ) }
@@ -455,11 +571,15 @@ struct CorrectionRecette: View {
                 let champ = Champ.etape(ligne.id)
                 HStack {
                     TextField("Étape", text: $ligne.texte, axis: .vertical)
-                        .lineLimit(1...6)
+                        .lineLimit(taille.isAccessibilitySize ? nil : 6)
                         .focused($saisie, equals: champ)
                         .frame(minHeight: GrillePersillade.cible)
+                        .cadreChampCorrection()
+                        .accessibilityIdentifier("texte-etape-correction")
                     poignee(champ)
                 }
+                .padding(.horizontal, GrillePersillade.marge)
+                .overlay(alignment: .bottom) { filetCorrection }
                 .id(champ)
                 .swipeActions(allowsFullSwipe: false) {
                     Button("Supprimer", systemImage: "trash", role: .destructive) { supprimer(champ) }
@@ -467,15 +587,23 @@ struct CorrectionRecette: View {
                 .accessibilityActions { actionsOrdre(champ) }
             }
             .reorderable()
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
             Button("Ajouter une étape", systemImage: "plus") {
                 let ligne = LigneEtapeCorrection(texte: "")
                 formulaire.etapes.append(ligne)
                 montrer(.etape(ligne.id), dans: defilement)
             }
             .frame(minHeight: GrillePersillade.cible)
+            .ligneDeCorrection()
         } header: {
             Text("Étapes").typographie(.section)
         }
+        .listSectionSeparator(.hidden)
+    }
+
+    private var filetCorrection: some View {
+        CouleurPersillade.trait.couleur.frame(height: GrillePersillade.filet)
     }
 
     private func poignee(_ champ: Champ) -> some View {
@@ -668,6 +796,29 @@ struct CorrectionRecette: View {
             break
         }
         suppression = nil
+    }
+}
+
+private struct StylePastilleCorrection: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: GrillePersillade.pas * 2) {
+            configuration.icon.accessibilityHidden(true)
+            configuration.title
+        }
+    }
+}
+
+extension View {
+    fileprivate func ligneDeCorrection() -> some View {
+        padding(.horizontal, GrillePersillade.marge)
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+    }
+
+    fileprivate func cadreChampCorrection() -> some View {
+        padding(.horizontal, GrillePersillade.pas * 3)
+            .padding(.vertical, GrillePersillade.pas)
+            .background(CouleurPersillade.page2.couleur, in: .rect(cornerRadius: 8))
     }
 }
 

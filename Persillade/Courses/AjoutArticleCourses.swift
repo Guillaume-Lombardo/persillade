@@ -40,6 +40,7 @@ struct AjoutArticleCourses: View {
                             etat.liste.envoyee && !ligne.cochee ? PresentationEnvoi(etat: etat, ligne: ligne) : nil
                         LigneArticle(
                             nom: ligne.libelle.lowercased(), quantite: quantite.nombre, unite: quantite.unite,
+                            precisionPleineLargeur: quantite.precision,
                             exclu: ligne.cochee, marque: statut?.marque, ouvrir: { detail = ligne }
                         )
                         .listRowInsets(EdgeInsets())
@@ -69,10 +70,18 @@ struct AjoutArticleCourses: View {
                             VStack(alignment: .leading) { choix }
                         }
                     }
+                    Text("Nom et quantité")
+                        .typographie(.texte)
+                        .foregroundStyle(CouleurPersillade.encre.couleur)
+                        .accessibilityHidden(true)
                     TextField(
-                        taille.isAccessibilitySize ? "Article" : "Nom et quantité", text: $saisie, axis: .vertical
+                        "Nom et quantité", text: $saisie,
+                        prompt: Text("2 pommes").foregroundStyle(CouleurPersillade.encre2.couleur), axis: .vertical
                     )
-                    .textFieldStyle(.roundedBorder)
+                    .typographie(.texte)
+                    .foregroundStyle(CouleurPersillade.encre.couleur)
+                    .padding(GrillePersillade.pas * 3)
+                    .background(CouleurPersillade.page2.couleur, in: .rect(cornerRadius: 8))
                     .accessibilityLabel("Nom et quantité")
                     .focused($saisieActive)
                     .accessibilityIdentifier("ajout-saisie-courses")

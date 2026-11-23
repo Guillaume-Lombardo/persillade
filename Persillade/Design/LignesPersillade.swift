@@ -11,8 +11,8 @@ extension Unite {
         case .ml: "ml"
         case .cl: "cl"
         case .l: "l"
-        case .cac: "c. à c."
-        case .cas: "c. à s."
+        case .cac: "c.\u{00A0}à\u{00A0}c."
+        case .cas: "c.\u{00A0}à\u{00A0}s."
         case .piece: "pièce"
         case .autre(let libelle): libelle
         }
@@ -123,6 +123,7 @@ struct LigneArticle: View {
     var quantite: String?
     var unite: String?
     var precision: String?
+    var precisionPleineLargeur: String?
     var exclu = false
     var marque: Marque?
     var afficherMarque = true
@@ -130,6 +131,8 @@ struct LigneArticle: View {
     var identifiantOuverture: String?
     var basculerExclusion: (() -> Void)?
     var retirer: (() -> Void)?
+    var hauteurSimple = GrillePersillade.article
+    var fondEtFilet = true
 
     @Environment(\.dynamicTypeSize) private var taille
 
@@ -168,22 +171,24 @@ struct LigneArticle: View {
         }
         .padding(.trailing, GrillePersillade.marge)
         .padding(.leading, taille.isAccessibilitySize ? GrillePersillade.marge : 0)
-        .background(CouleurPersillade.page.couleur)
+        .background(fondEtFilet ? CouleurPersillade.page.couleur : .clear)
         .overlay(alignment: .bottom) {
-            CouleurPersillade.trait.couleur.frame(height: GrillePersillade.filet)
+            if fondEtFilet {
+                CouleurPersillade.trait.couleur.frame(height: GrillePersillade.filet)
+            }
         }
     }
 
     private var valeurAccessibilite: String {
         let quantiteAffichee = [quantite, unite].compactMap { $0 }.joined(separator: " ")
-        return [quantiteAffichee, precision, exclu ? "Ne sera pas envoyé" : marque?.libelle]
+        return [quantiteAffichee, precision, precisionPleineLargeur, exclu ? "Ne sera pas envoyé" : marque?.libelle]
             .compactMap { $0 }
             .filter { !$0.isEmpty }
             .joined(separator: ", ")
     }
 
     private var contenu: some View {
-        Group {
+        VStack(alignment: .leading, spacing: GrillePersillade.pas) {
             if taille.isAccessibilitySize {
                 contenuVertical
             } else {
@@ -197,10 +202,19 @@ struct LigneArticle: View {
                     contenuVertical
                 }
             }
+            if let precisionPleineLargeur {
+                Text(precisionPleineLargeur)
+                    .typographie(.precision)
+                    .foregroundStyle(CouleurPersillade.encre2.couleur)
+                    .padding(.leading, taille.isAccessibilitySize ? 0 : GrillePersillade.marge)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, taille.isAccessibilitySize ? 8 : 2)
-        .frame(minHeight: precision == nil && !exclu ? GrillePersillade.article : GrillePersillade.ingredientAnnote)
+        .frame(
+            minHeight: precision == nil && precisionPleineLargeur == nil && !exclu
+                ? hauteurSimple : GrillePersillade.ingredientAnnote
+        )
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
     }

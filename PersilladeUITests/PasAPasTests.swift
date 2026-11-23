@@ -14,6 +14,7 @@
                 Ingrédients :
                 2 œufs
                 250 g de farine
+                Lait, au goût
 
                 Préparation :
                 1. Mélangez la farine et les œufs.
@@ -46,6 +47,8 @@
             let portions = app.staticTexts["portions-cuisine"]
             XCTAssertTrue(portions.waitForExistence(timeout: 5))
             XCTAssertEqual(portions.label, "Quantités pour 4 portions. Étapes prévues pour 4.")
+            let mention = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "au goût")).firstMatch
+            XCTAssertTrue(mention.isHittable)
             joindre("cuisine-ingredients-clair")
             try app.performAccessibilityAudit(for: [.sufficientElementDescription, .trait])
             toucher(app.buttons["fermer-ingredients-cuisine"])

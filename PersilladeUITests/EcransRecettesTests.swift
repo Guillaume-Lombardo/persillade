@@ -18,6 +18,34 @@
             """
 
         @MainActor
+        func testInstructionsRecettesVidesVisiblesEtDefilables() throws {
+            let explication = "Importez une première recette. Depuis Safari ou Messages : Partager, puis Persillade."
+            for (nom, arguments) in [("clair", []), ("sombre", ["-recettes-sombre"])] {
+                let app = lancer(arguments: arguments)
+                let message = app.staticTexts[explication]
+                let coller = app.buttons["Coller un lien ou un texte"]
+                XCTAssertTrue(message.waitForExistence(timeout: 5))
+                XCTAssertLessThanOrEqual(message.frame.maxY, coller.frame.minY - 4, nom)
+                joindre("recettes-vide-\(nom)")
+                try auditer(app)
+                app.terminate()
+            }
+
+            let app = lancer(arguments: ["-recettes-ax5"])
+            let message = app.staticTexts[explication]
+            let coller = app.buttons["Coller un lien ou un texte"]
+            XCTAssertTrue(message.waitForExistence(timeout: 5))
+            let bordActions = coller.frame.minY - 4
+            for _ in 0..<4 {
+                if message.frame.maxY <= bordActions + 0.5 { break }
+                app.scrollViews.firstMatch.swipeUp(velocity: .slow)
+            }
+            XCTAssertTrue(message.isHittable)
+            XCTAssertLessThanOrEqual(message.frame.maxY, bordActions + 0.5)
+            try auditer(app)
+        }
+
+        @MainActor
         func testCollageCorrectionPortionsEtRelance() throws {
             let app = lancer()
             joindre("recettes-vide-clair")
@@ -25,9 +53,10 @@
             coller(app)
             joindre("destination-clair")
             try auditer(app)
-            XCTAssertTrue(app.navigationBars["Destination"].exists)
-            app.navigationBars["Destination"].buttons["Fermer"].tap()
-            XCTAssertTrue(app.buttons["Ouvrir"].waitForExistence(timeout: 5))
+            verifierActionsDestination(app)
+            app.navigationBars["Contenu reçu"].buttons["Fermer"].tap()
+            verifierPlancheAvecReception(app, doitDefiler: false)
+            joindre("contenu-recu-clair")
             app.tabBars.firstMatch.buttons["Semaine"].tap()
             XCTAssertFalse(app.buttons["Ouvrir"].exists)
             app.tabBars.firstMatch.buttons["Recettes"].tap()
@@ -37,12 +66,19 @@
             XCTAssertEqual(app.textFields["titre-correction"].value as? String, "Crêpes maison")
             XCTAssertTrue(app.staticTexts["Absent du texte, 4 par défaut"].exists)
             XCTAssertTrue(app.buttons["Texte reçu"].exists)
+            let oeufs = app.buttons["œufs"]
+            let farine = app.buttons["farine"]
+            XCTAssertTrue(oeufs.exists && farine.exists)
+            XCTAssertEqual(farine.frame.midY - oeufs.frame.midY, 46, accuracy: 2)
             joindre("Correction-clair")
             try auditer(app)
 
             enregistrer(app)
             XCTAssertEqual(app.staticTexts["titre-fiche"].label, "Crêpes maison")
             XCTAssertEqual(app.staticTexts["nombre-portions"].label, "4 portions")
+            XCTAssertTrue(
+                app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "au goût")).firstMatch.exists)
+            verifierLargeurActionCuisine(app)
             joindre("Fiche-clair")
             try auditer(app)
 
@@ -177,11 +213,28 @@
                 let apercu = app.staticTexts["apercu-destination"]
                 XCTAssertTrue(apercu.exists, nom)
                 XCTAssertLessThan(apercu.frame.height, nom == "AX3" ? 145 : 115, nom)
-                XCTAssertTrue(app.buttons["import-destination-recette"].isHittable, nom)
-                XCTAssertTrue(app.buttons["Articles de courses"].isHittable, nom)
+                verifierActionsDestination(app)
                 joindre("Destination-longue-\(nom)")
                 app.terminate()
             }
+        }
+
+        @MainActor
+        func testDestinationLienPresenteHoteAvantApercu() throws {
+            let lien = "https://cuisine.exemple.test/recettes/crepes-maison"
+            let app = lancer(texte: lien)
+            coller(app)
+            let hote = app.staticTexts["hote-destination"]
+            let apercu = app.staticTexts["apercu-destination"]
+            XCTAssertTrue(hote.exists)
+            XCTAssertEqual(hote.label, "Site source : cuisine.exemple.test")
+            XCTAssertEqual(apercu.label, "Adresse du lien : \(lien)")
+            XCTAssertLessThan(hote.frame.maxY, apercu.frame.minY)
+            verifierActionsDestination(app)
+            joindre("Destination-lien-clair")
+            try auditer(app)
+            app.buttons["import-destination-abandonner"].tap()
+            XCTAssertTrue(app.staticTexts["Abandonner ce contenu ?"].waitForExistence(timeout: 5))
         }
 
         @MainActor
@@ -272,13 +325,23 @@
                 joindre("recettes-vide-\(nom)")
                 try auditer(app)
                 coller(app)
+                verifierActionsDestination(app)
                 joindre("destination-\(nom)")
+                try auditer(app)
+                app.navigationBars["Contenu reçu"].buttons["Fermer"].tap()
+                let ouvrir = app.buttons["ouvrir-contenu-recu"]
+                XCTAssertTrue(ouvrir.wait(for: \.isHittable, toEqual: true, timeout: 5))
+                joindre("contenu-recu-\(nom)")
+                verifierPlancheAvecReception(app, doitDefiler: nom.hasPrefix("AX"))
+                if nom == "AX5" { joindre("contenu-recu-defile-AX5") }
+                ouvrir.tap()
                 ouvrirCorrection(app)
                 if nom.hasPrefix("AX") {
                     XCTAssertFalse(
                         app.descendants(matching: .any).matching(identifier: "extrait-source").firstMatch.exists, nom)
                 }
                 joindre("Correction-\(nom)")
+                try auditer(app)
                 enregistrer(app)
                 joindre("Fiche-\(nom)")
                 let action = app.buttons["Ajouter à la semaine"]
@@ -286,6 +349,7 @@
                 XCTAssertTrue(action.exists, nom)
                 XCTAssertTrue(cuisiner.exists, nom)
                 XCTAssertGreaterThanOrEqual(action.frame.height, 44, nom)
+                verifierLargeurActionCuisine(app)
                 let derniere = app.staticTexts.containing(
                     NSPredicate(format: "label CONTAINS %@", "Servez les crêpes")
                 ).firstMatch
@@ -297,7 +361,12 @@
                 XCTAssertLessThanOrEqual(derniere.frame.maxY, action.frame.minY, nom)
                 XCTAssertEqual(action.frame.minX - app.frame.minX, 21, accuracy: 2, nom)
                 XCTAssertEqual(app.frame.maxX - cuisiner.frame.maxX, 21, accuracy: 2, nom)
-                XCTAssertEqual(action.frame.midY, cuisiner.frame.midY, accuracy: 2, nom)
+                if cuisiner.frame.minY >= action.frame.maxY {
+                    XCTAssertEqual(action.frame.width, cuisiner.frame.width, accuracy: 2, nom)
+                } else {
+                    XCTAssertEqual(action.frame.midY, cuisiner.frame.midY, accuracy: 2, nom)
+                    XCTAssertGreaterThanOrEqual(cuisiner.frame.width, 100, nom)
+                }
                 joindre("Fiche-dernière-ligne-\(nom)")
                 try auditer(app)
 
@@ -305,8 +374,23 @@
                 let suivante = app.buttons["suivante-cuisine"]
                 XCTAssertTrue(suivante.waitForExistence(timeout: 5))
                 XCTAssertEqual(suivante.label, "Suivante")
+                let ingredients = app.buttons["ingredients-cuisine"]
+                XCTAssertTrue(ingredients.isHittable)
+                if nom == "AX5" {
+                    XCTAssertGreaterThan(ingredients.frame.width, app.buttons["precedente-cuisine"].frame.width)
+                }
                 joindre("cuisine-\(nom)")
                 try auditer(app)
+                ingredients.tap()
+                let mention = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "au goût")).firstMatch
+                for _ in 0..<4 {
+                    if mention.isHittable { break }
+                    app.scrollViews.firstMatch.swipeUp(velocity: .slow)
+                }
+                XCTAssertTrue(mention.isHittable, nom)
+                joindre("cuisine-ingredients-\(nom)")
+                app.buttons["fermer-ingredients-cuisine"].tap()
+                XCTAssertTrue(suivante.wait(for: \.isHittable, toEqual: true, timeout: 5))
                 if nom == "AX5" {
                     for _ in 1..<5 { suivante.tap() }
                     XCTAssertTrue(suivante.wait(for: \.label, toEqual: "Terminer", timeout: 5))
@@ -314,6 +398,42 @@
                 }
                 app.terminate()
             }
+        }
+
+        @MainActor
+        func testCorrectionTitreLongEtDerniereActionAX5() throws {
+            let titre = "Çà, gâteau façon pâtissière à l'œuf poché"
+            let etapeLongue = String(
+                repeating: "Servez les crêpes encore chaudes avec la garniture de votre choix. ", count: 3
+            ).trimmingCharacters(in: .whitespaces)
+            let texte = Self.recette
+                .replacingOccurrences(of: "Crêpes maison", with: titre)
+                .replacingOccurrences(of: "Servez les crêpes encore chaudes.", with: etapeLongue)
+            let app = lancer(arguments: ["-recettes-ax5"], texte: texte)
+            coller(app)
+            ouvrirCorrection(app)
+            let champ = app.textFields["titre-correction"]
+            XCTAssertTrue(champ.waitForExistence(timeout: 5))
+            XCTAssertEqual(champ.value as? String, titre)
+            joindre("Correction-titre-long-AX5")
+
+            let ajouter = app.buttons["Ajouter une étape"]
+            let etape = app.descendants(matching: .any).matching(identifier: "texte-etape-correction").matching(
+                NSPredicate(format: "value == %@", etapeLongue)
+            ).firstMatch
+            let debut = app.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.86))
+            let fin = app.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.25))
+            var hauteur: CGFloat = 0
+            for _ in 0..<12 {
+                if etape.exists { hauteur = max(hauteur, etape.frame.height) }
+                if ajouter.isHittable { break }
+                debut.press(forDuration: 0.05, thenDragTo: fin, withVelocity: .fast, thenHoldForDuration: 0.1)
+            }
+            XCTAssertTrue(ajouter.isHittable)
+            XCTAssertGreaterThan(hauteur, app.frame.height / 2)
+            XCTAssertTrue(app.buttons["enregistrer-correction"].isHittable)
+            joindre("Correction-derniere-action-AX5")
+            try auditer(app)
         }
 
         @MainActor
@@ -334,8 +454,12 @@
 
             let appareil = XCUIDevice.shared
             appareil.orientation = .landscapeLeft
-            defer { appareil.orientation = .portrait }
             let fenetre = app.windows.firstMatch
+            defer {
+                appareil.orientation = .portrait
+                let portrait = NSPredicate { _, _ in fenetre.frame.height > fenetre.frame.width }
+                wait(for: [XCTNSPredicateExpectation(predicate: portrait, object: fenetre)], timeout: 8)
+            }
             let paysage = NSPredicate { _, _ in fenetre.frame.width > fenetre.frame.height }
             wait(for: [XCTNSPredicateExpectation(predicate: paysage, object: fenetre)], timeout: 8)
             let cuisiner = app.buttons["ouvrir-cuisine"]
@@ -364,6 +488,7 @@
                 "PERSILLADE_TEST_SESSION": UUID().uuidString,
                 "PERSILLADE_TEST_PRESSE_PAPIERS": texte ?? Self.recette,
             ]
+            XCUIDevice.shared.orientation = .portrait
             app.launch()
             XCTAssertTrue(app.buttons["Coller un lien ou un texte"].waitForExistence(timeout: 8), app.debugDescription)
             return app
@@ -379,7 +504,44 @@
             let prete = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: continuer)
             XCTAssertEqual(XCTWaiter.wait(for: [prete], timeout: 5), .completed, app.debugDescription)
             continuer.tap()
-            XCTAssertTrue(app.navigationBars["Destination"].waitForExistence(timeout: 5), app.debugDescription)
+            XCTAssertTrue(app.navigationBars["Contenu reçu"].waitForExistence(timeout: 5), app.debugDescription)
+        }
+
+        @MainActor
+        private func verifierActionsDestination(_ app: XCUIApplication) {
+            let recette = app.buttons["import-destination-recette"]
+            let articles = app.buttons["Articles de courses"]
+            let abandonner = app.buttons["import-destination-abandonner"]
+            for action in [recette, articles, abandonner] {
+                XCTAssertTrue(action.wait(for: \.isHittable, toEqual: true, timeout: 5))
+                XCTAssertEqual(action.frame.width, recette.frame.width, accuracy: 1)
+                XCTAssertGreaterThanOrEqual(action.frame.height, 44)
+            }
+            XCTAssertLessThanOrEqual(app.staticTexts["apercu-destination"].frame.maxY, recette.frame.minY)
+            XCTAssertLessThan(recette.frame.maxY, articles.frame.minY)
+            XCTAssertLessThan(articles.frame.maxY, abandonner.frame.minY)
+        }
+
+        @MainActor
+        private func verifierPlancheAvecReception(_ app: XCUIApplication, doitDefiler: Bool) {
+            let titre = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "est vide.")).firstMatch
+            let message = app.staticTexts[
+                "Importez une première recette. Depuis Safari ou Messages : Partager, puis Persillade."]
+            let coller = app.buttons["Coller un lien ou un texte"]
+            XCTAssertTrue(app.buttons["ouvrir-contenu-recu"].wait(for: \.isHittable, toEqual: true, timeout: 5))
+            XCTAssertTrue(titre.waitForExistence(timeout: 5))
+            XCTAssertTrue(message.waitForExistence(timeout: 5))
+            if doitDefiler {
+                for _ in 0..<5 {
+                    if message.isHittable, message.frame.maxY <= coller.frame.minY { break }
+                    app.scrollViews.firstMatch.swipeUp(velocity: .slow)
+                }
+            } else {
+                XCTAssertTrue(titre.isHittable)
+                XCTAssertLessThanOrEqual(titre.frame.maxY, message.frame.minY)
+            }
+            XCTAssertTrue(message.isHittable)
+            XCTAssertLessThanOrEqual(message.frame.maxY, coller.frame.minY)
         }
 
         @MainActor
@@ -392,6 +554,13 @@
         private func enregistrer(_ app: XCUIApplication) {
             app.navigationBars["Correction"].buttons["Enregistrer"].tap()
             XCTAssertTrue(app.staticTexts["titre-fiche"].waitForExistence(timeout: 8), app.debugDescription)
+        }
+
+        @MainActor
+        private func verifierLargeurActionCuisine(_ app: XCUIApplication) {
+            let semaine = app.buttons["Ajouter à la semaine"]
+            let cuisiner = app.buttons["ouvrir-cuisine"]
+            XCTAssertGreaterThanOrEqual(cuisiner.frame.width + 1, semaine.frame.width)
         }
 
         @MainActor

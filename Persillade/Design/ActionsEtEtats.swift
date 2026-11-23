@@ -9,6 +9,7 @@ struct BoutonActionPersillade: View {
     let symbole: String?
     let progression: Double?
     let pleineLargeur: Bool
+    let secondaire: Bool
     let action: () -> Void
 
     @Environment(\.dansBarreAction) private var dansBarre
@@ -17,17 +18,18 @@ struct BoutonActionPersillade: View {
 
     init(
         _ libelle: String, symbole: String? = nil, progression: Double? = nil,
-        pleineLargeur: Bool = false, action: @escaping () -> Void
+        pleineLargeur: Bool = false, secondaire: Bool = false, action: @escaping () -> Void
     ) {
         self.libelle = libelle
         self.symbole = symbole
         self.progression = progression
         self.pleineLargeur = pleineLargeur
+        self.secondaire = secondaire
         self.action = action
     }
 
     var body: some View {
-        if symbole == nil, !pleineLargeur, actif, progression == nil {
+        if !secondaire, symbole == nil, !pleineLargeur, actif, progression == nil {
             Button(action: action) {
                 libelleAction
                     .frame(maxWidth: dansBarre ? .infinity : nil)
@@ -42,7 +44,9 @@ struct BoutonActionPersillade: View {
     }
 
     private var boutonCapsule: some View {
-        Button(action: action) {
+        let accentue = !secondaire && (actif || progression != nil)
+        let encre: CouleurPersillade = accentue ? .surPersil : actif && secondaire ? .encre : .encre2
+        return Button(action: action) {
             libelleAction
                 .opacity(progression == nil ? 1 : 0)
                 .overlay {
@@ -56,13 +60,8 @@ struct BoutonActionPersillade: View {
                 .padding(.vertical, 6)
                 .frame(minHeight: 52)
                 .frame(maxWidth: pleineLargeur || dansBarre ? .infinity : nil)
-                .foregroundStyle(
-                    actif || progression != nil ? CouleurPersillade.surPersil.couleur : CouleurPersillade.encre2.couleur
-                )
-                .background(
-                    actif || progression != nil ? CouleurPersillade.persil.couleur : CouleurPersillade.page2.couleur,
-                    in: .capsule
-                )
+                .foregroundStyle(encre.couleur)
+                .background((accentue ? CouleurPersillade.persil : .page2).couleur, in: .capsule)
                 .contentShape(.capsule)
         }
         .buttonStyle(StyleBoutonPersillade())

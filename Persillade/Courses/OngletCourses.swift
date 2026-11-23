@@ -60,6 +60,10 @@ struct OngletCourses: View {
                     Menu("Plus d’options", systemImage: "ellipsis") {
                         Button("Nouvelle liste", systemImage: "plus.rectangle") { nouvelleListe() }
                             .disabled(session.occupee || session.etat == nil)
+                        if session.etat?.liste.lignes.isEmpty == true {
+                            Button("Articles d’un message", systemImage: "text.bubble", action: importerMessage)
+                                .disabled(session.occupee)
+                        }
                         Button("Ouvrir Rappels", systemImage: "checklist", action: ouvrirRappels)
                         Button("Remettre les articles exclus", systemImage: "plus.circle", action: remettreExclus)
                             .disabled(session.occupee || session.etat?.liste.lignes.contains(where: \.cochee) != true)
@@ -73,7 +77,10 @@ struct OngletCourses: View {
                 Button("Annuler", role: .cancel) {}
             } message: {
                 Text(
-                    "Les \(session.etat?.liste.lignes.count ?? 0) lignes seront perdues dans Persillade. Rappels ne change pas."
+                    """
+                    Les \(session.etat?.liste.lignes.count ?? 0) lignes seront perdues dans Persillade. \
+                    Rappels ne change pas. Les articles déjà achetés seront redemandés.
+                    """
                 )
             }
             .confirmationDialog(
@@ -142,10 +149,28 @@ struct OngletCourses: View {
         let toutTraite = statuts.values.allSatisfy(\.traitee)
         return List {
             if etat.liste.envoyee {
+                let bandeauCompact = etat.destinationVerrouillee && taille.isAccessibilitySize
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Au magasin, cochez dans Rappels.").typographie(.texte)
-                    Button("Ouvrir Rappels", systemImage: "arrow.up.forward", action: ouvrirRappels)
-                        .buttonStyle(.borderless)
+                    if etat.destinationVerrouillee {
+                        Label(session.titreDestination ?? "Liste Rappels", systemImage: "lock.fill")
+                            .typographie(.precision)
+                            .accessibilityLabel("Liste Rappels verrouillée")
+                            .accessibilityValue(session.titreDestination ?? "Liste Rappels")
+                            .accessibilityIdentifier("courses-liste-verrouillee")
+                    }
+                    if !bandeauCompact {
+                        Text("Au magasin, cochez dans Rappels.").typographie(.texte)
+                    }
+                    Button(action: ouvrirRappels) {
+                        if bandeauCompact {
+                            Text("Ouvrir Rappels")
+                        } else {
+                            Label("Ouvrir Rappels", systemImage: "arrow.up.forward")
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    .typographie(bandeauCompact ? .precision : .texte)
+                    .accessibilityHint(bandeauCompact ? "Au magasin, cochez dans Rappels." : "")
                 }
                 .listRowSeparator(.hidden)
                 .listRowBackground(CouleurPersillade.page2.couleur)
@@ -201,6 +226,7 @@ struct OngletCourses: View {
         let quantite = PresentationQuantite(ligne: ligne)
         return LigneArticle(
             nom: ligne.libelle.lowercased(), quantite: quantite.nombre, unite: quantite.unite,
+            precisionPleineLargeur: quantite.precision,
             exclu: ligne.cochee, marque: statut?.marque, afficherMarque: afficherMarque,
             ouvrir: { if !session.occupee { feuille = .detail(ligne.id) } },
             identifiantOuverture: "article-\(ligne.nomNormalise)",
@@ -211,15 +237,22 @@ struct OngletCourses: View {
     }
 
     private func barre(_ etat: EtatCourses) -> some View {
-        HStack(spacing: GrillePersillade.pas * 2) {
-            menuAjout
+        Group {
             if etat.liste.lignes.isEmpty {
-                BoutonActionPersillade("Ajouter un article", symbole: "plus") { feuille = .ajout }
-            } else {
-                if etat.destinationId != nil {
-                    destinationActuelle(etat)
+                BoutonActionPersillade("Ajouter un article", symbole: "plus", pleineLargeur: true) { feuille = .ajout }
+            } else if etat.destinationVerrouillee {
+                HStack(spacing: GrillePersillade.pas * 2) {
+                    menuAjout
+                    actionEnvoi(etat)
                 }
-                actionEnvoi(etat)
+            } else {
+                DispositionActionsCourses {
+                    menuAjout
+                    if etat.destinationId != nil {
+                        destinationActuelle
+                    }
+                    actionEnvoi(etat)
+                }
             }
         }
         .disabled(session.occupee)
@@ -241,18 +274,15 @@ struct OngletCourses: View {
         .accessibilityShowsLargeContentViewer { Label("Ajouter", systemImage: "plus") }
     }
 
-    private func destinationActuelle(_ etat: EtatCourses) -> some View {
-        let titre = session.destination?.titre ?? "Liste Rappels"
-        let symbole = etat.destinationVerrouillee ? "lock.fill" : "checklist"
-        let libelle = etat.destinationVerrouillee ? "Liste Rappels verrouillée" : "Liste Rappels"
+    private var destinationActuelle: some View {
+        let titre = session.titreDestination ?? "Liste Rappels"
         return Button(action: preparerDestinations) {
-            LabelActionCourses(libelle: titre, symbole: symbole)
+            LabelActionCourses(libelle: titre, symbole: "checklist")
         }
         .buttonStyle(StyleBoutonPersillade())
-        .accessibilityLabel(libelle)
+        .accessibilityLabel("Liste Rappels")
         .accessibilityValue(titre)
-        .accessibilityShowsLargeContentViewer { Label(titre, systemImage: symbole) }
-        .disabled(etat.destinationVerrouillee)
+        .accessibilityShowsLargeContentViewer { Label(titre, systemImage: "checklist") }
     }
 
     private func actionEnvoi(_ etat: EtatCourses) -> some View {
@@ -262,7 +292,7 @@ struct OngletCourses: View {
             choisir ? "Choisir une liste" : renvoyer ? "Renvoyer" : "Envoyer \(etat.liste.lignesAEnvoyer.count)"
         return BoutonActionPersillade(
             libelle, symbole: choisir ? "checklist" : renvoyer ? "arrow.clockwise" : "arrow.up",
-            progression: envoiEnCours ? session.progressionEnvoi ?? 0 : nil
+            progression: envoiEnCours ? session.progressionEnvoi ?? 0 : nil, pleineLargeur: true
         ) {
             if choisir { preparerDestinations() } else { envoyer() }
         }
