@@ -4,7 +4,74 @@ import PersilladeCore
 import PersilladePlateforme
 import Testing
 
+@Suite(.serialized)
 struct BancExtractionTests {
+    @Test(arguments: [nil as String?, "DESSERTS"])
+    func titreAuDessusDesEtapesSurUnePageTournee(surtitre: String?) async throws {
+        let image = try PageCorpusExtraction.rendre(
+            "CLAFOUTIS\n\n2 œufs\n200 g de farine\n\n1. Mélanger le tout.\n2. Servir frais.",
+            manuscrite: false, rotation: 90, enteteADroite: true, surtitre: surtitre)
+        let contenu = ContenuRecu(type: .image, contenu: image, origine: .phototheque)
+        let resultat = try await Extracteur(lecteurImage: LecteurImageVision()).extraire(contenu, cible: .recette)
+        let recette = try #require(resultat.recette)
+        let lignes = resultat.texteSource.components(separatedBy: .newlines)
+        if let surtitre { #expect(lignes.first?.uppercased() == surtitre) }
+        let titreLu = try #require(lignes.dropFirst(surtitre == nil ? 0 : 1).first)
+        #expect(titreLu.uppercased().hasPrefix("CLAFOU"))
+        #expect(recette.titre == titreLu, "\(resultat.texteSource)")
+        #expect(recette.ingredients.count == 2)
+        #expect(recette.etapes.count == 2)
+    }
+
+    @Test(arguments: [nil as String?, "DESSERTS"])
+    func titreImprimeCommencantParUnNombre(surtitre: String?) async throws {
+        let image = try PageCorpusExtraction.rendre(
+            "4 QUARTS\n200 g de farine\n3 œufs\n1. Mélanger le tout.\n2. Cuire au four.",
+            manuscrite: false, surtitre: surtitre)
+        let contenu = ContenuRecu(type: .image, contenu: image, origine: .phototheque)
+        let resultat = try await Extracteur(lecteurImage: LecteurImageVision()).extraire(contenu, cible: .recette)
+        let recette = try #require(resultat.recette)
+        #expect(recette.titre == "4 QUARTS", "\(resultat.texteSource)")
+        #expect(recette.ingredients.count == 2)
+        #expect(recette.ingredients.first?.quantite == Quantite(200))
+        #expect(recette.etapes.count == 2)
+    }
+
+    @Test func titreNumeriqueRapprocheAuDessusDesEtapes() async throws {
+        let image = try PageCorpusExtraction.rendre(
+            "4 QUARTS\n\n2 œufs\n200 g de farine\n\n1. Mélanger le tout.\n2. Servir frais.",
+            manuscrite: false, rotation: 90, enteteADroite: true, surtitre: "DESSERTS", enteteRapprochee: true)
+        let contenu = ContenuRecu(type: .image, contenu: image, origine: .phototheque)
+        let resultat = try await Extracteur(lecteurImage: LecteurImageVision()).extraire(contenu, cible: .recette)
+        let recette = try #require(resultat.recette)
+        #expect(recette.titre == "4 QUARTS", "\(resultat.texteSource)")
+        #expect(recette.ingredients.count == 2)
+        #expect(recette.etapes.count == 2)
+    }
+
+    @Test(arguments: [0, 90, 180, 270])
+    func pageImprimeeDeuxColonnes(rotation: Int) async throws {
+        let (corpus, cas) = try Self.chargerCorpus()
+        let fiche = try #require(cas.first { $0.id == "photo-06" })
+        let entree = try fiche.lire(dans: corpus, rotation: rotation)
+        let depart = ContinuousClock.now
+        let resultat = try await Extracteur(lecteurImage: LecteurImageVision()).extraire(
+            entree.contenu, cible: .recette)
+        let recette = try #require(resultat.recette)
+        let corrections = try fiche.corrections(recette)
+        print("Page en deux colonnes, \(rotation)° : \(depart.duration(to: .now)), \(corrections) corrections")
+        #expect(resultat.moteur == .structure)
+        let titre = recette.titre.filter { !$0.isWhitespace }.lowercased()
+        #expect(titre == fiche.titre.filter { !$0.isWhitespace }.lowercased())
+        #expect(recette.portions == fiche.portions)
+        #expect(recette.ingredients.count == fiche.ingredients.count, "\(resultat.texteSource)")
+        #expect(recette.etapes.count == fiche.etapes.count, "\(resultat.texteSource)")
+        let alternative = recette.ingredients.first { $0.quantite == Quantite(6) }
+        #expect(
+            alternative?.nom.lowercased().replacingOccurrences(of: "’", with: "'")
+                == "abricots ou 12 oreillons d'abricots au sirop")
+    }
+
     @available(iOS 27.0, macOS 27.0, *)
     @Test(
         .enabled(
@@ -17,14 +84,7 @@ struct BancExtractionTests {
         let disponibilite = indisponibilite.map { String(describing: $0) } ?? "disponible"
         let contexte = indisponibilite == nil ? String(SystemLanguageModel.default.contextSize) : "—"
 
-        #if SWIFT_PACKAGE
-            let paquet = Bundle.module
-        #else
-            let paquet = Bundle(for: RessourcesBancExtraction.self)
-        #endif
-        let corpus = try #require(paquet.url(forResource: "CorpusExtraction", withExtension: nil))
-        let cas = try JSONDecoder().decode(
-            [CasExtraction].self, from: Data(contentsOf: corpus.appending(path: "attendus.json")))
+        let (corpus, cas) = try Self.chargerCorpus()
         var rapport = [
             "# Banc d’extraction",
             "",
@@ -63,6 +123,18 @@ struct BancExtractionTests {
             ?? URL.temporaryDirectory.appending(path: "extraction.md")
         try markdown.write(to: destination, atomically: true, encoding: .utf8)
         print(markdown)
+    }
+
+    private static func chargerCorpus() throws -> (URL, [CasExtraction]) {
+        #if SWIFT_PACKAGE
+            let paquet = Bundle.module
+        #else
+            let paquet = Bundle(for: RessourcesBancExtraction.self)
+        #endif
+        let corpus = try #require(paquet.url(forResource: "CorpusExtraction", withExtension: nil))
+        let cas = try JSONDecoder().decode(
+            [CasExtraction].self, from: Data(contentsOf: corpus.appending(path: "attendus.json")))
+        return (corpus, cas)
     }
 
     @available(iOS 27.0, macOS 27.0, *)
@@ -109,11 +181,12 @@ private struct CasExtraction: Decodable {
 
     struct IngredientAttendu: Decodable {
         let nom: String
-        let quantite: String
-        let unite: Unite
+        let quantite: String?
+        let unite: Unite?
 
         func champ() throws -> ChampIngredient {
-            ChampIngredient(nom: normaliserNom(nom), quantite: try Quantite(texte: quantite), unite: unite)
+            ChampIngredient(
+                nom: normaliserNom(nom), quantite: try quantite.map { try Quantite(texte: $0) }, unite: unite)
         }
     }
 
@@ -130,8 +203,9 @@ private struct CasExtraction: Decodable {
     let ingredients: [IngredientAttendu]
     let etapes: [String]
     let jsonLD: Bool?
+    let rotation: Int?
 
-    func lire(dans corpus: URL) throws -> EntreeBanc {
+    func lire(dans corpus: URL, rotation: Int? = nil) throws -> EntreeBanc {
         let fichier = corpus.appending(path: id).appendingPathExtension(type == .web ? "html" : "txt")
         let source = try String(contentsOf: fichier, encoding: .utf8)
         switch type {
@@ -144,7 +218,8 @@ private struct CasExtraction: Decodable {
             return EntreeBanc(
                 contenu: ContenuRecu(type: .texte, contenu: Data(source.utf8), origine: .pressePapiers))
         case .imprime, .manuscrit:
-            let image = try PageCorpusExtraction.rendre(source, manuscrite: type == .manuscrit)
+            let image = try PageCorpusExtraction.rendre(
+                source, manuscrite: type == .manuscrit, rotation: rotation ?? self.rotation ?? 0)
             return EntreeBanc(contenu: ContenuRecu(type: .image, contenu: image, origine: .phototheque))
         }
     }
