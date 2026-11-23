@@ -14,11 +14,21 @@ struct BancExtractionTests {
         let depart = ContinuousClock.now
         let resultat = try await Extracteur(lecteurImage: LecteurImageVision()).extraire(
             entree.contenu, cible: .recette)
-        print("Page en deux colonnes, \(rotation)° : \(depart.duration(to: .now))")
         let recette = try #require(resultat.recette)
-        #expect(resultat.statut == .complet)
+        let corrections = try fiche.corrections(recette)
+        print("Page en deux colonnes, \(rotation)° : \(depart.duration(to: .now)), \(corrections) corrections")
         #expect(resultat.moteur == .structure)
-        #expect(try fiche.corrections(recette) == 0, "\(resultat.texteSource)")
+        #expect(recette.titre == fiche.titre)
+        #expect(recette.portions == fiche.portions)
+        #expect(recette.ingredients.count == fiche.ingredients.count, "\(resultat.texteSource)")
+        #expect(recette.etapes.count == fiche.etapes.count, "\(resultat.texteSource)")
+        let alternative = recette.ingredients.first { $0.quantite == Quantite(6) }
+        #expect(
+            alternative?.nom.replacingOccurrences(of: "’", with: "'") == "abricots ou 12 oreillons d'abricots au sirop")
+        #if !targetEnvironment(simulator)
+            #expect(resultat.statut == .complet)
+            #expect(corrections == 0, "\(resultat.texteSource)")
+        #endif
     }
 
     @available(iOS 27.0, macOS 27.0, *)

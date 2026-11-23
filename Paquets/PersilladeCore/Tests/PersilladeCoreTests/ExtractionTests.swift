@@ -594,6 +594,13 @@ func photoEcarteLesDureesDesIngredients(duree: String) async throws {
     #expect(recette.etapes == ["Filtrer le mélange.", "Cuire au four."])
 }
 
+@Test(arguments: ["Une fois le lait tiède, incorporer la levure.", "Peser le sucre : 200 g"])
+func photoReconnaitUneEtapeAvecUneQuantite(texte: String) async throws {
+    let recette = try await recetteLueSurPhoto("Cake\nIngrédients\n2 œufs\n1. \(texte)\n2. Cuire au four.")
+    #expect(recette.ingredients.map(\.nom) == ["œufs"])
+    #expect(recette.etapes == [texte, "Cuire au four."])
+}
+
 @Test(arguments: [
     "6 abricots\nou 12 oreillons d'abricots au sirop", "6 abricots\nOU 12 oreillons d'abricots au sirop",
     "6 abricots ou 12 oreillons\nd'abricots au sirop",
