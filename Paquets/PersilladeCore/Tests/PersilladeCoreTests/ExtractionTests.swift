@@ -80,10 +80,12 @@ func lignesIngredients(_ cas: CasIngredient) throws {
         ])
 }
 
-@Test func laQuantiteDuChocolatVautPourLesDeuxChoix() throws {
-    let ingredient = AnalyseIngredient.analyser("200 g de chocolat noir ou au lait")
+@Test(arguments: ["200 g de chocolat noir ou au lait", "200 g de chocolat noir ou au lait."])
+func laQuantiteDuChocolatVautPourLesDeuxChoix(ligne: String) throws {
+    let ingredient = AnalyseIngredient.analyser(ligne)
     #expect(ingredient.nom == "chocolat noir")
     #expect(ingredient.quantite == Quantite(200))
+    #expect(ingredient.texteOrigine == ligne)
     #expect(
         ingredient.alternatives == [
             try AlternativeIngredient(nom: "chocolat au lait", quantite: Quantite(200), unite: .g)
@@ -93,6 +95,7 @@ func lignesIngredients(_ cas: CasIngredient) throws {
 @Test(arguments: [
     ("sel ou poivre", "sel ou poivre"),
     ("1,6 kg pommes de terre bintje ou charlotte", "pommes de terre bintje ou charlotte"),
+    ("200 g de beurre ou un peu d’huile", "beurre ou un peu d’huile"),
 ])
 func conserveLesPrecisionsSansSecondeQuantite(ligne: String, nom: String) {
     let ingredient = AnalyseIngredient.analyser(ligne)
@@ -100,17 +103,43 @@ func conserveLesPrecisionsSansSecondeQuantite(ligne: String, nom: String) {
     #expect(ingredient.alternatives.isEmpty)
 }
 
-@Test func regroupeLesCitationsAlternativesDuMoteur() async throws {
+@Test(arguments: [
+    ["6 abricots", "12 oreillons d’abricots au sirop"],
+    ["6 abricots", "6 abricots ou 12 oreillons d’abricots au sirop", "12 oreillons d’abricots au sirop"],
+])
+func regroupeLesCitationsAlternativesDuMoteur(citations: [String]) async throws {
     let texte = """
         Clafoutis maison
         Pour ce dessert, prenez 6 abricots ou 12 oreillons d’abricots au sirop.
         """
-    let moteur = MoteurBouchon(
-        .reponse { _ in PropositionExtraction(ingredients: ["6 abricots", "12 oreillons d’abricots au sirop"]) })
+    let moteur = MoteurBouchon(.reponse { _ in PropositionExtraction(ingredients: citations) })
     let resultat = try await Extracteur(moteurIA: moteur).extraire(texteRecu(texte), cible: .recette)
     let ingredients = try #require(resultat.recette?.ingredients)
     #expect(ingredients.map(\.nom) == ["abricots"])
     #expect(ingredients.first?.alternatives.first?.nom == "oreillons d’abricots au sirop")
+}
+
+@Test func leTexteColleRattacheUneAlternativeSurLaLigneSuivante() async throws {
+    let texte = """
+        Clafoutis maison
+        Ingrédients :
+        6 abricots
+        ou 12 oreillons d’abricots au sirop
+        150 g de sucre
+        Préparation :
+        Mélangez puis cuisez.
+        """
+    let resultat = try await Extracteur().extraire(texteRecu(texte), cible: .recette)
+    let ingredients = try #require(resultat.recette?.ingredients)
+    #expect(ingredients.map(\.nom) == ["abricots", "sucre"])
+    #expect(ingredients.first?.alternatives.first?.quantite == Quantite(12))
+}
+
+@Test func laSaisieDArticleGardeLeLibelleComplet() {
+    let article = AnalyseIngredient.analyserArticle("200 g de chocolat noir ou au lait")
+    #expect(article.nom == "chocolat noir ou au lait")
+    #expect(article.quantite == Quantite(200))
+    #expect(article.alternatives.isEmpty)
 }
 
 @Test(arguments: [

@@ -153,14 +153,18 @@ struct AnalyseTexteRecette {
                 continue
             }
 
-            if photo, mesurePrecedente == nil, section == .ingredients, ligne.correspond(Self.suiteIngredientPhoto),
+            if mesurePrecedente == nil, section == .ingredients,
+                ligne.correspond(photo ? Self.suiteIngredientPhoto : #"(?i)^ou\h+"#),
                 let precedent = recette.ingredients.last, precedent.quantite != nil
             {
-                let textePrecedent = retirerPuce(precedent.texteOrigine).remplacer(Self.numeroEtapePhoto, par: "")
-                recette.ingredients[recette.ingredients.count - 1] = AnalyseIngredient.analyser(
-                    textePrecedent + " " + ligne)
-                dernierIndice = index
-                continue
+                let numero = photo ? Self.numeroEtapePhoto : Self.numeroEtape
+                let textePrecedent = retirerPuce(precedent.texteOrigine).remplacer(numero, par: "")
+                let raccord = AnalyseIngredient.analyser(textePrecedent + " " + ligne)
+                if photo || raccord.alternatives.count > precedent.alternatives.count {
+                    recette.ingredients[recette.ingredients.count - 1] = raccord
+                    dernierIndice = index
+                    continue
+                }
             }
 
             var ingredient: BrouillonIngredient

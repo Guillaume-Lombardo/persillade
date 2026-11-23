@@ -441,21 +441,24 @@
                 coller(app)
                 ouvrirCorrection(app)
                 let correction = app.buttons["abricots"]
-                defilerPourVoir(correction, dans: app)
+                defilerPourVoir(correction, dans: app, auDessusDe: app.frame.maxY - 12)
                 XCTAssertTrue((correction.value as? String)?.contains(mention) == true, nom)
                 joindre("alternatives-correction-\(nom)")
 
                 enregistrer(app)
                 let fiche = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", mention)).firstMatch
-                defilerPourVoir(fiche, dans: app)
+                let ajouterSemaine = app.buttons["Ajouter à la semaine"]
+                defilerPourVoir(fiche, dans: app, auDessusDe: ajouterSemaine.frame.minY - 8)
                 joindre("alternatives-fiche-\(nom)")
-                app.buttons["Ajouter à la semaine"].tap()
+                ajouterSemaine.tap()
                 XCTAssertTrue(app.buttons["Retirer de la semaine"].waitForExistence(timeout: 5))
                 app.navigationBars.firstMatch.buttons.firstMatch.tap()
                 app.tabBars.firstMatch.buttons["Semaine"].tap()
                 app.buttons["Faire la liste"].tap()
                 let course = app.buttons["article-abricot"]
-                defilerPourVoir(course, dans: app)
+                let ajouterCourse = app.buttons["Ajouter"]
+                XCTAssertTrue(ajouterCourse.waitForExistence(timeout: 5))
+                defilerPourVoir(course, dans: app, auDessusDe: ajouterCourse.frame.minY)
                 XCTAssertTrue((course.value as? String)?.contains(mention) == true, nom)
                 XCTAssertFalse(
                     app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "article-oreillon"))
@@ -510,13 +513,17 @@
         }
 
         @MainActor
-        private func defilerPourVoir(_ element: XCUIElement, dans app: XCUIApplication) {
-            let debut = app.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.77))
+        private func defilerPourVoir(
+            _ element: XCUIElement, dans app: XCUIApplication, auDessusDe limite: CGFloat = .greatestFiniteMagnitude
+        ) {
+            let debut = app.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.62))
             let fin = app.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.35))
-            for _ in 0..<8 where !element.isHittable {
+            for _ in 0..<8 {
+                if element.isHittable, element.frame.maxY <= limite { return }
                 debut.press(forDuration: 0.05, thenDragTo: fin, withVelocity: .slow, thenHoldForDuration: 0.05)
             }
             XCTAssertTrue(element.isHittable, app.debugDescription)
+            XCTAssertLessThanOrEqual(element.frame.maxY, limite)
         }
 
         @MainActor

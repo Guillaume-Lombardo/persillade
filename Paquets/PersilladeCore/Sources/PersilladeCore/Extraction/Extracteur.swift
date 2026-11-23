@@ -394,17 +394,27 @@ private struct AncragesExtraction {
     }
 
     func citationsIngredients(_ propositions: [String]) throws -> [String] {
-        let plages = try plagesDeCitations(propositions).sorted { $0.lowerBound < $1.lowerBound }
+        let plages = try plagesDeCitations(propositions).sorted {
+            if $0.lowerBound == $1.lowerBound { return $0.upperBound > $1.upperBound }
+            return $0.lowerBound < $1.lowerBound
+        }
         var regroupees: [Range<String.Index>] = []
         for plage in plages {
             try verifierEcheance()
-            if let precedente = regroupees.last, precedente.upperBound <= plage.lowerBound,
-                String(source[precedente.upperBound..<plage.lowerBound]).correspond(#"(?i)^\h+ou\h+$"#)
-            {
-                let candidate = precedente.lowerBound..<plage.upperBound
-                if !AnalyseIngredient.analyser(String(source[candidate])).alternatives.isEmpty {
-                    regroupees[regroupees.count - 1] = candidate
+            if let precedente = regroupees.last {
+                if plage.upperBound <= precedente.upperBound,
+                    !AnalyseIngredient.analyser(String(source[precedente])).alternatives.isEmpty
+                {
                     continue
+                }
+                if precedente.upperBound <= plage.lowerBound,
+                    String(source[precedente.upperBound..<plage.lowerBound]).correspond(#"(?i)^\h+ou\h+$"#)
+                {
+                    let candidate = precedente.lowerBound..<plage.upperBound
+                    if !AnalyseIngredient.analyser(String(source[candidate])).alternatives.isEmpty {
+                        regroupees[regroupees.count - 1] = candidate
+                        continue
+                    }
                 }
             }
             regroupees.append(plage)
@@ -461,7 +471,7 @@ private struct AncragesExtraction {
 }
 
 private func article(_ texte: String, id: UUID) -> ArticleExtrait? {
-    let ingredient = AnalyseIngredient.analyserChoix(texte)
+    let ingredient = AnalyseIngredient.analyserArticle(texte)
     guard !ingredient.ligneNonComprise, !ingredient.nom.isEmpty else { return nil }
     return ArticleExtrait(nom: ingredient.nom, quantite: ingredient.quantite, unite: ingredient.unite, messageID: id)
 }

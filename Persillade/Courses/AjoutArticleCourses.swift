@@ -18,7 +18,7 @@ struct AjoutArticleCourses: View {
 
     let session: SessionCourses
 
-    private var analyse: BrouillonIngredient { AnalyseIngredient.analyser(saisie) }
+    private var analyse: BrouillonIngredient { AnalyseIngredient.analyserArticle(saisie) }
     private var nomValide: Bool { !normaliserNom(quantiteModifiee?.nom ?? analyse.nom).isEmpty }
     private var rayon: Categorie { categorie ?? categorieParDefaut(normaliserNom(analyse.nom)) }
 

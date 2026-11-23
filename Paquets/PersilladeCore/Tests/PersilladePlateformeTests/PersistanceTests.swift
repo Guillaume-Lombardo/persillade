@@ -77,7 +77,8 @@ import Testing
     #expect(try await magasin.lire([String].self, cle: "liste", version: 2) == ["Poivre"])
 }
 
-@Test func lesCoursesAnterieuresReprennentSansAlternative() async throws {
+@Test(arguments: Array(1..<EtatCourses.versionSchemaCourante))
+func lesCoursesAnterieuresReprennentSansAlternative(versionPrecedente: Int) async throws {
     let dossier = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
     try FileManager.default.createDirectory(at: dossier, withIntermediateDirectories: true)
     defer { try! FileManager.default.removeItem(at: dossier) }
@@ -94,7 +95,6 @@ import Testing
     var lignes = try #require(liste["lignes"] as? [[String: Any]])
     lignes[0].removeValue(forKey: "alternatives")
     liste["lignes"] = lignes
-    let versionPrecedente = EtatCourses.versionSchemaCourante - 1
     liste["version_schema"] = versionPrecedente
     document["liste"] = liste
     enveloppe["version_schema"] = versionPrecedente
