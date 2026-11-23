@@ -109,7 +109,8 @@ private struct Racine: View {
         _suivi = State(initialValue: SuiviBrouillonCorrection(dossier: dossier))
         _reception = State(initialValue: ReceptionEntree(dossier: dossier))
         _bibliotheque = State(initialValue: bibliotheque)
-        _courses = State(initialValue: SessionCourses(bibliotheque: bibliotheque))
+        _courses = State(
+            initialValue: SessionCourses(bibliotheque: bibliotheque, preferences: dossier == nil ? .standard : nil))
         extracteur = Extracteur(
             telechargeur: TelechargeurURLSession(), moteurIA: moteur, lecteurImage: LecteurImageVision())
         repliConsenti = dossier == nil ? ReglagesFournisseur.partage.repliConsenti : nil

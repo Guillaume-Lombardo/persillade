@@ -252,7 +252,7 @@ struct OngletCourses: View {
     }
 
     private func destinationActuelle(_ etat: EtatCourses) -> some View {
-        let titre = session.destination?.titre ?? "Liste Rappels"
+        let titre = session.titreDestination ?? "Liste Rappels"
         let symbole = etat.destinationVerrouillee ? "lock.fill" : "checklist"
         let libelle = etat.destinationVerrouillee ? "Liste Rappels verrouillée" : "Liste Rappels"
         return Button(action: preparerDestinations) {

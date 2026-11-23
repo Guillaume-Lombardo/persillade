@@ -82,6 +82,7 @@ struct AjoutArticleCourses: View {
                     .foregroundStyle(CouleurPersillade.encre.couleur)
                     .padding(GrillePersillade.pas * 3)
                     .background(CouleurPersillade.page2.couleur, in: .rect(cornerRadius: 8))
+                    .accessibilityLabel("Nom et quantité")
                     .focused($saisieActive)
                     .accessibilityIdentifier("ajout-saisie-courses")
                     BoutonActionPersillade("Ajouter", symbole: "plus", pleineLargeur: true, action: ajouter)

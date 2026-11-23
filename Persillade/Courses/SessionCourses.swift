@@ -1,3 +1,4 @@
+import Foundation
 import OSLog
 import PersilladeCore
 import SwiftUI
@@ -5,7 +6,9 @@ import SwiftUI
 @MainActor
 @Observable
 final class SessionCourses {
+    private static let cleTitreDestination = "titreDestinationCourses"
     private let bibliotheque: BibliothequeRecettes
+    private let preferences: UserDefaults?
     var envoi: EnvoiCourses { bibliotheque.envoiCourses }
     #if DEBUG
         private var preparerEssai = false
@@ -21,8 +24,14 @@ final class SessionCourses {
 
     var destination: DestinationRappels? { destinations.first { $0.id == etat?.destinationId } }
 
-    init(bibliotheque: BibliothequeRecettes) {
+    var titreDestination: String? {
+        guard let id = etat?.destinationId else { return nil }
+        return destination?.titre ?? preferences?.dictionary(forKey: Self.cleTitreDestination)?[id] as? String
+    }
+
+    init(bibliotheque: BibliothequeRecettes, preferences: UserDefaults?) {
         self.bibliotheque = bibliotheque
+        self.preferences = preferences
         #if DEBUG
             preparerEssai = ProcessInfo.processInfo.arguments.contains("-courses-recettes")
         #endif
@@ -125,11 +134,18 @@ final class SessionCourses {
 
     func chargerDestinations() async throws {
         destinations = try await envoi.destinations()
+        memoriserTitreDestination()
     }
 
     func choisirDestination(_ id: String) async throws {
         try await envoi.choisirDestination(id)
         try await relire()
+        memoriserTitreDestination()
+    }
+
+    private func memoriserTitreDestination() {
+        guard let destination else { return }
+        preferences?.set([destination.id: destination.titre], forKey: Self.cleTitreDestination)
     }
 
     func envoyer(_ ids: [UUID]? = nil) async throws -> RapportEnvoi {

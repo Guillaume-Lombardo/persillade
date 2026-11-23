@@ -239,8 +239,8 @@ struct BilanEnvoiCourses: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(titre).typographie(.fiche)
                     .accessibilityAddTraits(.isHeader)
-                if let destination = session.destination {
-                    Label(destination.titre, systemImage: "checklist")
+                if let destination = session.titreDestination {
+                    Label(destination, systemImage: "checklist")
                         .typographie(.texte)
                 }
                 if let cause = rapport.causeGenerale {
@@ -395,7 +395,7 @@ struct BilanEnvoiCourses: View {
     }
 
     private func explication(_ cause: CauseEchecEnvoi) -> String {
-        let liste = session.destination?.titre
+        let liste = session.titreDestination
         return switch cause {
         case .accesRefuse: AccesRappels.consigne
         case .listeIntrouvable:
