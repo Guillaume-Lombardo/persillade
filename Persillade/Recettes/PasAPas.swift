@@ -13,7 +13,9 @@ struct PasAPas: View {
     @Environment(\.dynamicTypeSize) private var taille
     @Environment(\.scenePhase) private var phase
     @Environment(\.accessibilityReduceTransparency) private var transparenceReduite
-    @AppStorage("cuisine.ensuite") private var ensuite = false
+    @ScaledMetric(relativeTo: .largeTitle) private var tailleNombreEtapes = 24.0
+    @ScaledMetric(relativeTo: .title3) private var tailleAction = 20.0
+    @AppStorage("cuisine.ensuite") private var ensuite = true
     @State private var ensuiteAccessible = false
     @State private var session: SessionCuisine
     @State private var ingredientsVisibles = false
@@ -71,51 +73,62 @@ struct PasAPas: View {
         .sheet(isPresented: $ingredientsVisibles) {
             IngredientsCuisine(recette: recette, portions: portions)
                 .environment(\.dynamicTypeSize, taille)
-                .presentationDetents([.large])
+                .presentationDetents([.medium, .large])
+                .presentationBackground(CouleurPersillade.page.couleur)
         }
     }
 
     private var consignes: some View {
-        ScrollViewReader { defilement in
-            ScrollView {
-                VStack(alignment: .leading, spacing: GrillePersillade.marge) {
-                    Text("\(session.position) sur \(session.etapes.count)")
-                        .typographie(.etape)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.5)
-                        .accessibilityLabel(positionAnnoncee)
-                        .accessibilityAddTraits(.isHeader)
-                        .accessibilityIdentifier("position-cuisine")
-                        .id("debut")
+        GeometryReader { cadre in
+            ScrollViewReader { defilement in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: GrillePersillade.marge) {
+                        indicateurEtape.id("debut")
 
-                    Text(session.etapeCourante)
-                        .typographie(.consigne(session.etapeCourante.count))
-                        .accessibilityIdentifier("consigne-cuisine")
-                        .id(session.position)
-                        .transition(.opacity)
+                        Text(session.etapeCourante)
+                            .typographie(.consigne(session.etapeCourante.count))
+                            .accessibilityIdentifier("consigne-cuisine")
+                            .id(session.position)
+                            .transition(.opacity)
 
-                    if let suivante = session.etapeSuivante {
-                        Rectangle().frame(height: GrillePersillade.filet).accessibilityHidden(true)
-                        apercu(suivante)
+                        if let suivante = session.etapeSuivante {
+                            Spacer(minLength: 0)
+                            VStack(alignment: .leading, spacing: 0) {
+                                Rectangle().frame(height: GrillePersillade.filet).accessibilityHidden(true)
+                                apercu(suivante)
+                            }
+                        }
                     }
+                    .frame(
+                        maxWidth: .infinity, minHeight: max(0, cadre.size.height - GrillePersillade.marge * 2),
+                        alignment: .topLeading
+                    )
+                    .padding(GrillePersillade.marge)
+                    .contentShape(.rect)
                 }
-                .padding(GrillePersillade.marge)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(.rect)
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 32).onEnded { geste in
+                        let horizontal = geste.translation.width
+                        guard abs(horizontal) > max(44, abs(geste.translation.height) * 1.5) else { return }
+                        changerEtape(versSuivante: horizontal < 0)
+                    }
+                )
+                .onChange(of: session.position) { defilement.scrollTo("debut", anchor: .top) }
             }
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 32).onEnded { geste in
-                    let horizontal = geste.translation.width
-                    guard abs(horizontal) > max(44, abs(geste.translation.height) * 1.5) else { return }
-                    if horizontal > 0 {
-                        changerEtape(versSuivante: false)
-                    } else {
-                        changerEtape(versSuivante: true)
-                    }
-                }
-            )
-            .onChange(of: session.position) { defilement.scrollTo("debut", anchor: .top) }
         }
+    }
+
+    private var indicateurEtape: some View {
+        let police: Font =
+            taille.isAccessibilitySize
+            ? .system(.title2, weight: .heavy)
+            : .system(size: tailleNombreEtapes, weight: .heavy).width(.condensed)
+        let total = Text("sur \(session.etapes.count)").font(police)
+        return Text("\(session.position) \(total)")
+            .typographie(.etape)
+            .accessibilityLabel(positionAnnoncee)
+            .accessibilityAddTraits(.isHeader)
+            .accessibilityIdentifier("position-cuisine")
     }
 
     private func apercu(_ consigne: String) -> some View {
@@ -153,10 +166,17 @@ struct PasAPas: View {
             .disabled(session.position == 1)
             .opacity(session.position == 1 ? 0.5 : 1)
 
-            boutonSecondaire(
-                "Ingrédients", symbole: "list.bullet", identifiant: "ingredients-cuisine",
-                iconeSeule: taille.isAccessibilitySize
-            ) { ingredientsVisibles = true }
+            ViewThatFits(in: .horizontal) {
+                if !taille.isAccessibilitySize {
+                    boutonSecondaire(
+                        "Ingrédients", symbole: "list.bullet", identifiant: "ingredients-cuisine", iconeSeule: false
+                    ) { ingredientsVisibles = true }
+                    .fixedSize()
+                }
+                boutonSecondaire(
+                    "Ingrédients", symbole: "list.bullet", identifiant: "ingredients-cuisine", iconeSeule: true
+                ) { ingredientsVisibles = true }
+            }
 
             Button {
                 if derniereEtape {
@@ -167,10 +187,18 @@ struct PasAPas: View {
                 }
             } label: {
                 ViewThatFits(in: .horizontal) {
-                    Label(action, systemImage: symbole).fixedSize()
-                    Image(systemName: symbole)
+                    if !taille.isAccessibilitySize {
+                        HStack(spacing: GrillePersillade.pas * 2) {
+                            Text(action)
+                            Image(systemName: symbole).accessibilityHidden(true)
+                        }
+                        .fixedSize()
+                    }
+                    Text(action)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .font(.headline)
+                .font(.system(size: min(tailleAction, 32), weight: .semibold))
                 .padding(.horizontal, GrillePersillade.pas * 2)
                 .frame(minWidth: cible, maxWidth: .infinity, minHeight: cible)
                 .background(encre, in: .capsule)
@@ -199,7 +227,7 @@ struct PasAPas: View {
             }
             .padding(.horizontal, GrillePersillade.pas * 2)
             .frame(minWidth: GrillePersillade.cibleCuisine, minHeight: GrillePersillade.cibleCuisine)
-            .background(encre.opacity(transparenceReduite ? 0.14 : 0), in: .capsule)
+            .background(encre.opacity(0.14), in: .capsule)
             .glassEffect(transparenceReduite ? .identity : .regular.tint(couleurFond).interactive(), in: .capsule)
             .environment(\.colorScheme, apparenceDuFond)
             .contentShape(.capsule)
@@ -250,7 +278,7 @@ private struct IngredientsCuisine: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Pour \(portions) ; les étapes sont rédigées pour \(recette.portions)")
+                    Text("Quantités pour \(libellePortions(portions)). Étapes prévues pour \(recette.portions).")
                         .typographie(.texte)
                         .padding(GrillePersillade.marge)
                         .accessibilityIdentifier("portions-cuisine")
@@ -264,7 +292,7 @@ private struct IngredientsCuisine: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .background(CouleurPersillade.page.couleur)
+            .background(CouleurPersillade.page.couleur.ignoresSafeArea())
             .foregroundStyle(CouleurPersillade.encre.couleur)
             .navigationTitle("Ingrédients")
             .navigationBarTitleDisplayMode(.inline)
@@ -275,5 +303,9 @@ private struct IngredientsCuisine: View {
                 }
             }
         }
+    }
+
+    private func libellePortions(_ nombre: Int) -> String {
+        nombre == 1 ? "1 portion" : "\(nombre) portions"
     }
 }

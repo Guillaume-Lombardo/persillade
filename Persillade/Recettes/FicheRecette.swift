@@ -38,6 +38,7 @@ struct FicheRecette: View {
                 ProgressView("Lecture de la recette")
             }
         }
+        .background(CouleurPersillade.page.couleur.ignoresSafeArea())
         .toolbarVisibility(.hidden, for: .tabBar)
         .navigationBarTitleDisplayMode(.inline)
         .task(id: bibliotheque.revision) {
@@ -60,22 +61,34 @@ struct FicheRecette: View {
     private func contenu(_ recette: Recette, planche: Planche) -> some View {
         let portions = choisie ?? portionsLocales ?? recette.portions
         let sombre = apparence == .dark
+        let couleurFond = Color(motif: planche.fond.couleur(sombre: sombre))
+        let couleurTexte = Color(motif: planche.fond.encre(sombre: sombre))
         let couleurBarre: ColorScheme =
             sombre || planche.fond == .persil || planche.fond == .aubergine ? .dark : .light
         return ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 0) {
-                    EnTeteMotif(planche: planche).frame(height: 210)
-                    Text(recette.titre)
-                        .typographie(.fiche)
-                        .foregroundStyle(Color(motif: planche.fond.encre(sombre: sombre)))
-                        .accessibilityAddTraits(.isHeader)
-                        .accessibilityIdentifier("titre-fiche")
-                        .padding(GrillePersillade.marge)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    VStack(alignment: .leading, spacing: GrillePersillade.pas) {
+                        Text(recette.titre)
+                            .typographie(.fiche)
+                            .accessibilityAddTraits(.isHeader)
+                            .accessibilityIdentifier("titre-fiche")
+                        if let url = recette.urlSource {
+                            Link(destination: url) {
+                                Label(url.host(percentEncoded: false) ?? url.absoluteString, systemImage: "link")
+                                    .typographie(.texte)
+                            }
+                            .accessibilityHint("Ouvre la source de la recette")
+                        }
+                    }
+                    .foregroundStyle(couleurTexte)
+                    .tint(couleurTexte)
+                    .padding(.horizontal, GrillePersillade.marge)
+                    EnTeteMotif(planche: planche).frame(height: 238)
                 }
-                .background(Color(motif: planche.fond.couleur(sombre: sombre)))
-                .onScrollVisibilityChange(threshold: 0.1) { enteteVisible = $0 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(couleurFond)
+                .onScrollVisibilityChange(threshold: 0.01) { enteteVisible = $0 }
                 blocPortions(portions)
                 if !recette.ingredients.isEmpty {
                     titreSection("Ingrédients")
@@ -84,21 +97,23 @@ struct FicheRecette: View {
                 if !recette.etapes.isEmpty {
                     titreSection("Étapes")
                     ForEach(Array(recette.etapes.enumerated()), id: \.offset) { index, texte in
-                        Text("\(index + 1). \(texte)")
-                            .typographie(.texte)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(GrillePersillade.marge)
+                        ligneEtape(index + 1, texte: texte)
                     }
                 }
-                if let url = recette.urlSource {
-                    Link(destination: url) { Label("Ouvrir la source", systemImage: "link") }
-                        .padding(GrillePersillade.marge)
-                }
             }
+            .padding(.bottom, GrillePersillade.marge)
+            .background(CouleurPersillade.page.couleur)
         }
         .foregroundStyle(CouleurPersillade.encre.couleur)
-        .background(CouleurPersillade.page.couleur)
+        .background(alignment: .top) {
+            if enteteVisible {
+                couleurFond.frame(height: 128).ignoresSafeArea(edges: .top)
+            }
+        }
+        .toolbarBackground(enteteVisible ? couleurFond : CouleurPersillade.page.couleur, for: .navigationBar)
+        .toolbarBackgroundVisibility(.visible, for: .navigationBar)
         .toolbarColorScheme(enteteVisible ? couleurBarre : nil, for: .navigationBar)
+        .tint(enteteVisible ? couleurTexte : CouleurPersillade.persil.couleur)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
@@ -110,8 +125,8 @@ struct FicheRecette: View {
                 }
             }
         }
-        .confirmationDialog("Supprimer cette recette ?", isPresented: $confirmerSuppression, titleVisibility: .visible)
-        {
+        .alert("Supprimer cette recette ?", isPresented: $confirmerSuppression) {
+            Button("Annuler", role: .cancel) {}
             Button("Supprimer", role: .destructive) {
                 Task {
                     if await bibliotheque.supprimer(id) {
@@ -121,26 +136,39 @@ struct FicheRecette: View {
                 }
             }
         } message: {
-            Text("Retirée aussi de la semaine.")
+            if choisie != nil { Text("Retirée aussi de la semaine.") }
         }
-        .barreAction {
-            VStack(spacing: GrillePersillade.pas) {
-                if !recette.etapes.isEmpty {
-                    BoutonActionPersillade(
-                        positionCuisine > 0 ? "Reprendre à l’étape \(positionCuisine)" : "Cuisiner"
-                    ) {
-                        if positionCuisine == 0 { positionCuisine = 1 }
-                        cuisiner = true
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            Group {
+                if recette.etapes.isEmpty {
+                    commandeSemaine(portions)
+                } else {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: GrillePersillade.pas * 2) {
+                            commandeSemaine(portions).fixedSize(horizontal: true, vertical: false)
+                            commandeCuisine
+                        }
+                        HStack(spacing: GrillePersillade.pas * 2) {
+                            commandeSemaine(portions)
+                            commandeCuisine
+                        }
                     }
-                    .accessibilityIdentifier("ouvrir-cuisine")
                 }
-                BoutonActionPersillade(choisie == nil ? "Ajouter à la semaine" : "Retirer de la semaine") {
-                    Task {
-                        if choisie != nil { portionsLocales = portions }
-                        await bibliotheque.choisir(id, portions: choisie == nil ? portions : nil)
+            }
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+            .tint(CouleurPersillade.persil.couleur)
+            .padding(.horizontal, GrillePersillade.margeBarre)
+            .padding(.vertical, GrillePersillade.marge)
+            .background(alignment: .top) {
+                CouleurPersillade.page.couleur.ignoresSafeArea(edges: .bottom)
+                    .overlay(alignment: .top) {
+                        LinearGradient(
+                            colors: [.clear, CouleurPersillade.page.couleur], startPoint: .top, endPoint: .bottom
+                        )
+                        .frame(height: GrillePersillade.marge)
+                        .offset(y: -GrillePersillade.marge)
+                        .allowsHitTesting(false)
                     }
-                }
-                .disabled(!bibliotheque.selectionDisponible || bibliotheque.operationSemaine)
             }
         }
         .fullScreenCover(isPresented: $cuisiner) {
@@ -156,31 +184,67 @@ struct FicheRecette: View {
         .animation(mouvementReduit ? .easeInOut(duration: 0.2) : .default, value: portions)
     }
 
-    private func blocPortions(_ portions: Int) -> some View {
-        VStack(alignment: .leading, spacing: GrillePersillade.pas) {
-            ViewThatFits(in: .horizontal) {
-                HStack { commandesPortions(portions) }.fixedSize()
-                VStack(alignment: .leading) { commandesPortions(portions) }
+    private func commandeSemaine(_ portions: Int) -> some View {
+        let titre = choisie == nil ? "Ajouter à la semaine" : "Retirer de la semaine"
+        return CommandeRecettes(titre: titre) {
+            Task {
+                if choisie != nil { portionsLocales = portions }
+                await bibliotheque.choisir(id, portions: choisie == nil ? portions : nil)
             }
-            Text(choisie == nil ? "Affichage seul, la recette ne change pas" : "Dans la semaine")
-                .typographie(.precision)
-                .foregroundStyle(CouleurPersillade.encre2.couleur)
-                .accessibilityIdentifier("etat-portions")
+        }
+        .disabled(!bibliotheque.selectionDisponible || bibliotheque.operationSemaine)
+    }
+
+    private var commandeCuisine: some View {
+        CommandeRecettes(
+            titre: positionCuisine > 0 ? "Reprendre à l’étape \(positionCuisine)" : "Cuisiner",
+            symbole: taille < .xxxLarge ? "frying.pan.fill" : nil, principale: true
+        ) {
+            if positionCuisine == 0 { positionCuisine = 1 }
+            cuisiner = true
+        }
+        .accessibilityIdentifier("ouvrir-cuisine")
+    }
+
+    private func blocPortions(_ portions: Int) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack {
+                legendePortions(portions).fixedSize()
+                Spacer(minLength: GrillePersillade.pas * 2)
+                commandesPortions(portions)
+            }
+            VStack(alignment: .trailing, spacing: GrillePersillade.pas) {
+                legendePortions(portions).frame(maxWidth: .infinity, alignment: .leading)
+                commandesPortions(portions)
+            }
         }
         .padding(GrillePersillade.marge)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(CouleurPersillade.page2.couleur)
     }
 
-    @ViewBuilder private func commandesPortions(_ portions: Int) -> some View {
-        Text(portions == 1 ? "1 portion" : "\(portions) portions")
-            .typographie(.quantite)
-            .contentTransition(mouvementReduit ? .opacity : .numericText())
-            .accessibilityIdentifier("nombre-portions")
-        HStack {
+    private func legendePortions(_ portions: Int) -> some View {
+        VStack(alignment: .leading, spacing: GrillePersillade.pas) {
+            Text(portions == 1 ? "1 portion" : "\(portions) portions")
+                .typographie(.quantite)
+                .contentTransition(mouvementReduit ? .opacity : .numericText())
+                .accessibilityIdentifier("nombre-portions")
+            Text(choisie == nil ? "Affichage seul, la recette ne change pas" : "Dans la semaine")
+                .typographie(.precision)
+                .foregroundStyle(CouleurPersillade.encre2.couleur)
+                .accessibilityIdentifier("etat-portions")
+        }
+    }
+
+    private func commandesPortions(_ portions: Int) -> some View {
+        HStack(spacing: 0) {
             boutonPortions("Diminuer les portions", symbole: "minus", valeur: portions > 1 ? portions - 1 : nil)
+            CouleurPersillade.trait.couleur
+                .frame(width: GrillePersillade.filet, height: GrillePersillade.marge)
+                .accessibilityHidden(true)
             boutonPortions("Augmenter les portions", symbole: "plus", valeur: portions < Int.max ? portions + 1 : nil)
         }
+        .background(CouleurPersillade.page.couleur, in: .capsule)
     }
 
     private func boutonPortions(_ nom: String, symbole: String, valeur: Int?) -> some View {
@@ -197,10 +261,29 @@ struct FicheRecette: View {
                 .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .foregroundStyle(CouleurPersillade.persil.couleur)
+        .foregroundStyle(valeur == nil ? CouleurPersillade.encre2.couleur : CouleurPersillade.persil.couleur)
         .accessibilityLabel(nom)
         .accessibilityShowsLargeContentViewer { Label(nom, systemImage: symbole) }
         .disabled(valeur == nil || bibliotheque.operationSemaine)
+    }
+
+    private func ligneEtape(_ position: Int, texte: String) -> some View {
+        let disposition =
+            taille.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: GrillePersillade.pas))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: GrillePersillade.gouttiere))
+        return disposition {
+            ColonnePesee(quantite: position.formatted(), unite: nil)
+            Text(texte).typographie(.texte)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.leading, taille.isAccessibilitySize ? GrillePersillade.marge : 0)
+        .padding(.trailing, GrillePersillade.marge)
+        .padding(.vertical, GrillePersillade.pas * 3)
+        .overlay(alignment: .bottom) {
+            CouleurPersillade.trait.couleur.frame(height: GrillePersillade.filet)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private func titreSection(_ titre: String) -> some View {

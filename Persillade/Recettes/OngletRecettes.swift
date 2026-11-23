@@ -14,6 +14,7 @@ struct OngletRecettes: View {
     let modifier: (Recette) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var mouvementReduit
+    @Environment(\.colorScheme) private var apparence
     @Namespace private var transition
     @State private var recherche = ""
     @State private var resultats: [ResumeRecette]?
@@ -28,8 +29,12 @@ struct OngletRecettes: View {
         let essai: Int
     }
 
-    private static let plancheVide = Planche(
-        id: UUID(uuid: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)), ingredients: [])
+    private var bibliothequeVide: Bool {
+        resultats?.isEmpty == true && recherche.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !erreurLecture
+    }
+
+    private var couleurPlancheVide: Color { Color(motif: Planche.Fond.rose.couleur(sombre: apparence == .dark)) }
 
     var body: some View {
         NavigationStack(path: $chemin) {
@@ -40,7 +45,19 @@ struct OngletRecettes: View {
                     contenu
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(CouleurPersillade.page.couleur.ignoresSafeArea())
             .navigationTitle("Recettes")
+            .navigationBarTitleDisplayMode(bibliothequeVide ? .inline : .large)
+            .toolbarBackground(
+                bibliothequeVide ? couleurPlancheVide : CouleurPersillade.page.couleur, for: .navigationBar
+            )
+            .toolbarBackgroundVisibility(bibliothequeVide ? .visible : .automatic, for: .navigationBar)
+            .tint(
+                bibliothequeVide
+                    ? Color(motif: Planche.Fond.rose.encre(sombre: apparence == .dark))
+                    : CouleurPersillade.persil.couleur
+            )
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
@@ -70,16 +87,19 @@ struct OngletRecettes: View {
                     fiche.navigationTransition(.zoom(sourceID: id, in: transition))
                 }
             }
-            .confirmationDialog(
+            .alert(
                 "Supprimer cette recette ?",
                 isPresented: Binding(get: { supprimer != nil }, set: { if !$0 { supprimer = nil } }),
-                titleVisibility: .visible, presenting: supprimer
+                presenting: supprimer
             ) { recette in
+                Button("Annuler", role: .cancel) {}
                 Button("Supprimer", role: .destructive) {
                     Task { _ = await bibliotheque.supprimer(recette.id) }
                 }
-            } message: { _ in
-                Text("Retirée aussi de la semaine.")
+            } message: { recette in
+                if bibliotheque.portionsChoisies(recette.id) != nil {
+                    Text("Retirée aussi de la semaine.")
+                }
             }
             .task(id: Chargement(recherche: recherche, revision: bibliotheque.revision, essai: essai)) {
                 await charger()
@@ -88,7 +108,7 @@ struct OngletRecettes: View {
     }
 
     @ViewBuilder private var contenu: some View {
-        Group {
+        VStack(spacing: 0) {
             if let messageReception {
                 Text(messageReception)
                     .typographie(.precision)
@@ -108,28 +128,40 @@ struct OngletRecettes: View {
                 } else if !recherche.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     ContentUnavailableView("Aucun titre ne contient « \(recherche) ».", systemImage: "magnifyingglass")
                 } else {
-                    ScrollView {
-                        EtatVide(
-                            titre: "La planche est vide.",
-                            message:
-                                "Importez une première recette. Depuis Safari ou Messages, touchez Partager, puis Persillade."
-                        ) {
-                            EnTeteMotif(planche: Self.plancheVide, cadrage: .vide).frame(height: 200)
-                        } actions: {
-                        }
-                    }
-                    .barreAction {
-                        VStack(spacing: GrillePersillade.pas) {
-                            BoutonActionPersillade("Coller un lien ou un texte", action: coller)
-                            Button("Prendre une photo", systemImage: "camera", action: prendrePhoto)
-                                .buttonStyle(.glass)
-                                .controlSize(.large)
-                        }
-                    }
+                    plancheVide
                 }
             } else {
                 ProgressView("Lecture des recettes").frame(maxHeight: .infinity)
             }
+        }
+    }
+
+    private var plancheVide: some View {
+        ScrollView {
+            EtatVide(
+                titre: "La planche\nest vide",
+                message: "Importez une première recette. Depuis Safari ou Messages : Partager, puis Persillade."
+            ) {
+                Image(decorative: "PlancheVide")
+                    .resizable()
+                    .frame(height: 352)
+            } actions: {
+            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: GrillePersillade.pas * 2) {
+                CommandeRecettes(
+                    titre: "Coller un lien ou un texte", symbole: "document.on.clipboard", principale: true,
+                    hauteurLibelle: GrillePersillade.pas * 8, action: coller)
+                CommandeRecettes(
+                    titre: "Prendre une photo", symbole: "camera",
+                    hauteurLibelle: GrillePersillade.pas * 8, action: prendrePhoto)
+            }
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+            .tint(CouleurPersillade.persil.couleur)
+            .padding(.horizontal, GrillePersillade.margeBarre)
+            .padding(.vertical, GrillePersillade.pas)
+            .background(CouleurPersillade.page.couleur)
         }
     }
 

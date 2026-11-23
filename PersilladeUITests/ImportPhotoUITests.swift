@@ -3,6 +3,43 @@
 
     final class ImportPhotoUITests: XCTestCase {
         @MainActor
+        func testRepliQuandAppareilPhotoIndisponibleOuRefuse() throws {
+            continueAfterFailure = false
+            let app = XCUIApplication()
+            app.launchArguments = ["-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"]
+            app.launchEnvironment["PERSILLADE_TEST_SESSION"] = UUID().uuidString
+            app.resetAuthorizationStatus(for: .camera)
+            app.launch()
+
+            toucher(app.buttons["Prendre une photo"])
+            let erreur = app.descendants(matching: .any)["photo-erreur"].firstMatch
+            if !erreur.waitForExistence(timeout: 3) {
+                let libelles = NSPredicate(format: "label IN %@", ["Ne pas autoriser", "Don’t Allow", "Don't Allow"])
+                let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+                let refus = springboard.buttons.matching(libelles).firstMatch
+                if refus.waitForExistence(timeout: 3) {
+                    refus.tap()
+                } else {
+                    toucher(app.alerts.buttons.matching(libelles).firstMatch)
+                }
+            }
+            XCTAssertTrue(erreur.waitForExistence(timeout: 5))
+            let choix = app.buttons["Choisir une photo"]
+            XCTAssertTrue(choix.isHittable)
+            XCTAssertGreaterThanOrEqual(choix.frame.height, 44)
+            if erreur.label == "Persillade n’a pas accès à l’appareil photo." {
+                let reglages = app.buttons["Ouvrir Réglages"]
+                XCTAssertTrue(reglages.isHittable)
+                XCTAssertLessThan(choix.frame.minY, reglages.frame.minY)
+                joindre("photo-camera-refusee-clair")
+            } else {
+                XCTAssertEqual(erreur.label, "L’appareil photo est indisponible.")
+                joindre("photo-appareil-indisponible-clair")
+            }
+            try app.performAccessibilityAudit(for: [.sufficientElementDescription, .trait])
+        }
+
+        @MainActor
         func testPhotothequeCorrectionRepriseEtEnregistrement() {
             continueAfterFailure = false
             let app = XCUIApplication()
