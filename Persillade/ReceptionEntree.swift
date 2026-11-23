@@ -103,7 +103,7 @@ extension ContenuRecu {
         switch type {
         case .url: "Lien"
         case .texte: "Texte"
-        case .image: "Image"
+        case .image: "Photo"
         }
     }
 
@@ -140,9 +140,13 @@ struct AccessoireReception: View {
                 }
                 .accessibilityElement(children: .combine)
                 Spacer(minLength: 0)
-                Button("Ouvrir", action: ouvrir)
-                    .frame(minHeight: GrillePersillade.cible)
-                    .accessibilityIdentifier("ouvrir-contenu-recu")
+                Button(action: ouvrir) {
+                    Text("Ouvrir").typographie(.bouton)
+                        .frame(minHeight: GrillePersillade.cible)
+                }
+                .buttonStyle(.glassProminent)
+                .controlSize(.regular)
+                .accessibilityIdentifier("ouvrir-contenu-recu")
             }
             .padding(.horizontal, GrillePersillade.marge)
             .dynamicTypeSize(...DynamicTypeSize.accessibility1)

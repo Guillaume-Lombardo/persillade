@@ -51,6 +51,7 @@ struct ParcoursImport: View {
         .presentationDetents(
             enSaisie || (taille >= .accessibility3 && etape != .destination) ? [.large] : [.medium, .large]
         )
+        .presentationBackground(CouleurPersillade.page.couleur)
         .interactiveDismissDisabled(occupation || etape == .lecture || enSaisie)
         .alert(
             "Import de la recette",
@@ -85,7 +86,7 @@ struct ParcoursImport: View {
         case .destination:
             if let recu {
                 destination(recu)
-                    .navigationTitle("Destination")
+                    .navigationTitle("Contenu reçu")
                     .toolbar { boutonFermer }
             }
         case .lecture:
@@ -146,10 +147,14 @@ struct ParcoursImport: View {
                 if let position, reception.contenus.count > 1 {
                     Text("\(position + 1) sur \(reception.contenus.count)").typographie(.precision)
                 }
-                Text(contenu.texteRecu)
+                if let hote = lienRecu?.host(percentEncoded: false) {
+                    Label(hote, systemImage: "link")
+                        .typographie(.section)
+                        .accessibilityAddTraits(.isHeader)
+                }
+                Text(contenu.type == .image ? "Photo de la recette" : contenu.texteRecu)
                     .lineLimit(taille.isAccessibilitySize ? 2 : 3)
-                    .typographie(.section)
-                    .accessibilityAddTraits(.isHeader)
+                    .typographie(.texte)
                     .accessibilityIdentifier("apercu-destination")
                 if texteDeRepli != nil {
                     Label("Texte collé disponible", systemImage: "doc.text")
@@ -160,10 +165,6 @@ struct ParcoursImport: View {
                 )
                 .typographie(.precision)
                 .foregroundStyle(CouleurPersillade.encre2.couleur)
-                Button("Abandonner", role: .destructive) { confirmerAbandon = true }
-                    .frame(minHeight: GrillePersillade.cible)
-                    .tint(CouleurPersillade.tomate.couleur)
-                    .disabled(occupation)
                 if let suivant {
                     Text(
                         "Ensuite : \(suivant.libelleType), \(suivant.recuLe.formatted(date: .omitted, time: .shortened))"
@@ -176,14 +177,19 @@ struct ParcoursImport: View {
             .padding(GrillePersillade.marge)
         }
         .barreAction {
-            VStack(spacing: GrillePersillade.pas) {
-                BoutonActionPersillade("Recette") { etape = .lecture }
-                    .accessibilityIdentifier("import-destination-recette")
-                if let importerArticles {
-                    Button("Articles de courses") { importerArticles(contenu) }
-                        .buttonStyle(.glass)
-                        .controlSize(.large)
+            VStack(spacing: GrillePersillade.pas * 2) {
+                CommandeRecettes(titre: "Recette", symbole: "text.book.closed", principale: true) {
+                    etape = .lecture
                 }
+                .accessibilityIdentifier("import-destination-recette")
+                if let importerArticles {
+                    CommandeRecettes(titre: "Articles de courses", symbole: "basket") { importerArticles(contenu) }
+                }
+                CommandeRecettes(titre: "Abandonner", role: .destructive) {
+                    confirmerAbandon = true
+                }
+                .tint(CouleurPersillade.tomate.couleur)
+                .accessibilityIdentifier("import-destination-abandonner")
             }
             .disabled(occupation)
         }

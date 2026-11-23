@@ -7,48 +7,52 @@ struct VoletTexteRecu: View {
     @Binding var ouvert: Bool
     let atteindre: (UUID) -> Void
 
-    @ScaledMetric(relativeTo: .footnote) private var hauteurLigne = 18.0
+    @ScaledMetric(relativeTo: .body) private var hauteurLigne = 23.0
 
     var body: some View {
         let lignes = source.components(separatedBy: .newlines)
         let parIndice = Dictionary(grouping: ingredients.filter { $0.citation != nil }) { $0.citation?.ligne }
         let plage = lignes.indices.dropFirst(max(0, debut))
-        let hauteur = plage.prefix(5).reduce(0.0) { hauteur, indice in
-            hauteur + (parIndice[indice] != nil ? max(hauteurLigne, GrillePersillade.cible) : hauteurLigne)
-        }
+        let hauteur = CGFloat(min(5, plage.count)) * hauteurLigne
         DisclosureGroup(isExpanded: $ouvert) {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(plage, id: \.self) { indice in
-                        let texte = lignes[indice]
-                        if let citations = parIndice[indice] {
-                            Text(Self.surligner(texte, citations: citations))
-                                .typographie(.precision)
-                                .tint(CouleurPersillade.encre.couleur)
-                                .frame(maxWidth: .infinity, minHeight: GrillePersillade.cible, alignment: .leading)
-                                .environment(
-                                    \.openURL,
-                                    OpenURLAction { url in
-                                        guard url.scheme == "persillade-extrait",
-                                            let id = url.host().flatMap(UUID.init(uuidString:))
-                                        else { return .discarded }
-                                        atteindre(id)
-                                        return .handled
-                                    }
-                                )
-                                .accessibilityIdentifier("extrait-source")
-                        } else {
-                            Text(texte.isEmpty ? " " : texte)
-                                .typographie(.precision)
-                                .frame(minHeight: hauteurLigne, alignment: .leading)
-                                .accessibilityHidden(texte.isEmpty)
+            ScrollViewReader { defilement in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(plage, id: \.self) { indice in
+                            let texte = lignes[indice]
+                            Group {
+                                if let citations = parIndice[indice] {
+                                    Text(Self.surligner(texte, citations: citations))
+                                        .accessibilityIdentifier("extrait-source")
+                                } else {
+                                    Text(texte.isEmpty ? " " : texte).accessibilityHidden(texte.isEmpty)
+                                }
+                            }
+                            .typographie(.texte)
+                            .frame(maxWidth: .infinity, minHeight: hauteurLigne, alignment: .leading)
+                            .id(indice)
                         }
                     }
+                    .environment(
+                        \.openURL,
+                        OpenURLAction { url in
+                            guard url.scheme == "persillade-extrait",
+                                let id = url.host().flatMap(UUID.init(uuidString:))
+                            else { return .discarded }
+                            atteindre(id)
+                            return .handled
+                        }
+                    )
+                    .tint(CouleurPersillade.encre.couleur)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxHeight: min(hauteur, 240))
+                .accessibilityIdentifier("texte-source")
+                .onAppear {
+                    if let premiere = plage.first(where: { parIndice[$0] != nil }) {
+                        defilement.scrollTo(premiere, anchor: .top)
+                    }
+                }
             }
-            .frame(maxHeight: min(hauteur, 240))
-            .accessibilityIdentifier("texte-source")
         } label: {
             Text("Texte reçu").frame(minHeight: GrillePersillade.cible)
         }

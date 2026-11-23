@@ -5,6 +5,7 @@ struct CommandeRecettes: View {
     var symbole: String?
     var principale = false
     var hauteurLibelle: CGFloat = GrillePersillade.cible
+    var role: ButtonRole?
     let action: () -> Void
 
     @Environment(\.dynamicTypeSize) private var taille
@@ -24,7 +25,7 @@ struct CommandeRecettes: View {
     }
 
     private var bouton: some View {
-        Button(action: action) {
+        Button(role: role, action: action) {
             HStack(spacing: GrillePersillade.pas * 2) {
                 if let symbole, !taille.isAccessibilitySize {
                     Image(systemName: symbole)

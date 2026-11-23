@@ -130,6 +130,8 @@ struct LigneArticle: View {
     var identifiantOuverture: String?
     var basculerExclusion: (() -> Void)?
     var retirer: (() -> Void)?
+    var hauteurSimple = GrillePersillade.article
+    var fondEtFilet = true
 
     @Environment(\.dynamicTypeSize) private var taille
 
@@ -168,9 +170,11 @@ struct LigneArticle: View {
         }
         .padding(.trailing, GrillePersillade.marge)
         .padding(.leading, taille.isAccessibilitySize ? GrillePersillade.marge : 0)
-        .background(CouleurPersillade.page.couleur)
+        .background(fondEtFilet ? CouleurPersillade.page.couleur : .clear)
         .overlay(alignment: .bottom) {
-            CouleurPersillade.trait.couleur.frame(height: GrillePersillade.filet)
+            if fondEtFilet {
+                CouleurPersillade.trait.couleur.frame(height: GrillePersillade.filet)
+            }
         }
     }
 
@@ -200,7 +204,7 @@ struct LigneArticle: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, taille.isAccessibilitySize ? 8 : 2)
-        .frame(minHeight: precision == nil && !exclu ? GrillePersillade.article : GrillePersillade.ingredientAnnote)
+        .frame(minHeight: precision == nil && !exclu ? hauteurSimple : GrillePersillade.ingredientAnnote)
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
     }

@@ -40,7 +40,7 @@
         }
 
         @MainActor
-        func testPhotothequeCorrectionRepriseEtEnregistrement() {
+        func testPhotothequeCorrectionRepriseEtEnregistrement() throws {
             continueAfterFailure = false
             let app = XCUIApplication()
             app.launchArguments = ["-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"]
@@ -55,6 +55,13 @@
             toucher(app.buttons["import-destination-recette"])
             verifierCorrection(app)
             joindre("Photo-correction")
+            let photo = app.buttons["photo-correction"]
+            toucher(photo)
+            XCTAssertTrue(app.images["photo-correction-agrandie"].waitForExistence(timeout: 5))
+            joindre("Correction-photo-agrandie")
+            try app.performAccessibilityAudit(for: [.sufficientElementDescription, .trait])
+            toucher(app.navigationBars["Photo de la recette"].buttons["Fermer"])
+            XCTAssertTrue(photo.wait(for: \.isHittable, toEqual: true, timeout: 5))
 
             toucher(app.buttons["fermer-correction"])
             toucher(app.buttons["ouvrir-contenu-recu"])
@@ -79,7 +86,7 @@
 
         @MainActor
         private func verifierCorrection(_ app: XCUIApplication) {
-            XCTAssertTrue(app.images["photo-correction"].waitForExistence(timeout: 30), app.debugDescription)
+            XCTAssertTrue(app.buttons["photo-correction"].waitForExistence(timeout: 30), app.debugDescription)
             let titre = app.textFields["titre-correction"]
             XCTAssertTrue(titre.waitForExistence(timeout: 10))
             XCTAssertEqual(titre.value as? String, "Soupe de courge")

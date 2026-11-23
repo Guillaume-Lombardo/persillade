@@ -234,6 +234,7 @@ private struct Racine: View {
                     })
             }
             .presentationDetents([.large])
+            .presentationBackground(CouleurPersillade.page.couleur)
         case .reglages:
             Reglages()
         }
