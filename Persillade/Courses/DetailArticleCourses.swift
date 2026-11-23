@@ -16,24 +16,31 @@ struct DetailArticleCourses: View {
             let nom = ligne.libelle.lowercased()
             FeuilleCourses(nom.prefix(1).uppercased() + String(nom.dropFirst())) {
                 List {
-                    HStack(spacing: GrillePersillade.pas) {
+                    let quantite = PresentationQuantite(ligne: ligne)
+                    HStack(spacing: GrillePersillade.pas * 3) {
+                        boutonQuantite("Diminuer la quantité", symbole: "minus", ligne: ligne, variation: -1)
+                            .disabled((ligne.quantite ?? Quantite(0)) <= Quantite(1))
                         Button {
                             editerQuantite = true
                         } label: {
-                            let quantite = PresentationQuantite(ligne: ligne)
-                            let texte = [quantite.nombre, quantite.unite].compactMap { $0 }.joined(separator: " ")
-                            Text(texte.isEmpty ? "Sans quantité" : texte).typographie(.fiche)
-                                .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+                            let texte = quantite.precision == nil ? "Sans quantité" : "Modifier"
+                            Text(quantite.libelle.isEmpty ? texte : quantite.libelle).typographie(.fiche)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: .infinity, minHeight: 52)
                                 .contentShape(.rect)
                         }
                         .buttonStyle(.plain)
                         .accessibilityHint("Modifier la quantité")
                         .accessibilityIdentifier("modifier-quantite-courses")
-                        boutonQuantite("Diminuer la quantité", symbole: "minus", ligne: ligne, variation: -1)
-                            .disabled((ligne.quantite ?? Quantite(0)) <= Quantite(1))
                         boutonQuantite("Augmenter la quantité", symbole: "plus", ligne: ligne, variation: 1)
                     }
                     .listRowBackground(CouleurPersillade.page.couleur)
+                    if let precision = quantite.precision {
+                        Text(precision)
+                            .typographie(.precision)
+                            .foregroundStyle(CouleurPersillade.encre2.couleur)
+                            .listRowBackground(CouleurPersillade.page.couleur)
+                    }
 
                     Picker(
                         "Rayon",
@@ -86,7 +93,7 @@ struct DetailArticleCourses: View {
                 .scrollContentBackground(.hidden)
                 .foregroundStyle(CouleurPersillade.encre.couleur)
                 .barreAction(tailleMax: .accessibility5) {
-                    HStack {
+                    DispositionActionsCourses {
                         ActionSecondaireCourses(
                             libelle: ligne.cochee ? "Remettre" : "Ne pas envoyer",
                             symbole: ligne.cochee ? "plus.circle" : "minus.circle"

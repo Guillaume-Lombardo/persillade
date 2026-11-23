@@ -71,7 +71,8 @@ import XCTest
 
             bouton("courses-renvoyer", dans: app).tap()
             XCTAssertTrue(app.staticTexts["Rien à ajouter"].waitForExistence(timeout: 10))
-            XCTAssertTrue(app.descendants(matching: .any)["Déjà là · 3"].firstMatch.waitForExistence(timeout: 10))
+            XCTAssertTrue(
+                app.descendants(matching: .any)["Aucun ajout nécessaire · 3"].firstMatch.waitForExistence(timeout: 10))
             bouton("Terminé", dans: app).tap()
 
             XCTAssertEqual(farine.value as? String, "1,5 kg, Rien à ajouter")
@@ -88,8 +89,35 @@ import XCTest
 
         @MainActor
         func testRefusRappelsAfficheLeCheminEtOuvreReglages() {
-            let app = lancer(["-courses-eventkit"])
-            app.resetAuthorizationStatus(for: .reminders)
+            let app = refuserAccesRappels()
+            joindreCapture("acces-clair")
+            bouton("Ouvrir Réglages", dans: app).tap()
+            let reglages = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
+            XCTAssertTrue(reglages.wait(for: .runningForeground, timeout: 30))
+        }
+
+        @MainActor
+        func testLibellesAccesRappelsEnSombreEtAX5() {
+            for (nom, argument) in [("sombre", "-courses-sombre"), ("AX5", "-courses-ax5")] {
+                let app = refuserAccesRappels([argument])
+                let plusTard = bouton("Plus tard", dans: app)
+                let reglages = bouton("Ouvrir Réglages", dans: app)
+                XCTAssertTrue(plusTard.isHittable)
+                XCTAssertTrue(reglages.isHittable)
+                if nom == "AX5" {
+                    XCTAssertLessThan(plusTard.frame.maxY, reglages.frame.minY)
+                    XCTAssertEqual(plusTard.frame.width, reglages.frame.width, accuracy: 2)
+                }
+                joindreCapture("acces-\(nom)")
+                plusTard.tap()
+                XCTAssertTrue(reglages.waitForNonExistence(timeout: 5))
+                app.terminate()
+            }
+        }
+
+        @MainActor
+        private func refuserAccesRappels(_ arguments: [String] = []) -> XCUIApplication {
+            let app = lancer(["-courses-eventkit"] + arguments)
             ouvrirOnglet("Semaine", dans: app)
             faireListe(dans: app)
             bouton("Choisir une liste", dans: app).tap()
@@ -103,10 +131,7 @@ import XCTest
                 NSPredicate(format: "label CONTAINS %@", "Apps → Persillade → Rappels")
             ).firstMatch
             XCTAssertTrue(chemin.waitForExistence(timeout: 10))
-            joindreCapture("Acces-Rappels-refuse")
-            bouton("Ouvrir Réglages", dans: app).tap()
-            let reglages = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
-            XCTAssertTrue(reglages.wait(for: .runningForeground, timeout: 30))
+            return app
         }
 
         @MainActor
@@ -139,6 +164,94 @@ import XCTest
         }
 
         @MainActor
+        func testCapturesActionsCourses() {
+            for (nom, arguments) in [("clair", []), ("sombre", ["-courses-sombre"]), ("AX5", ["-courses-ax5"])] {
+                let app = lancer(arguments)
+                ouvrirOnglet("Courses", dans: app)
+                let ajouter = bouton("Ajouter un article", dans: app)
+                XCTAssertFalse(app.buttons["Ajouter"].exists)
+                joindreCapture("vide-\(nom)")
+                bouton("Plus d’options", dans: app).tap()
+                bouton("Articles d’un message", dans: app).tap()
+                let fermerImport = app.navigationBars["Articles d’un message"].buttons["Fermer"]
+                XCTAssertTrue(fermerImport.wait(for: \.isHittable, toEqual: true, timeout: 5))
+                fermerImport.tap()
+                XCTAssertTrue(ajouter.wait(for: \.isHittable, toEqual: true, timeout: 5))
+                ajouter.tap()
+                let saisie = app.textFields["ajout-saisie-courses"]
+                XCTAssertTrue(saisie.wait(for: \.isHittable, toEqual: true, timeout: 10))
+                XCTAssertEqual(saisie.label, "Nom et quantité")
+                XCTAssertEqual(saisie.placeholderValue, "2 pommes")
+                XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
+                joindreCapture("ajout-initial-\(nom)")
+                app.navigationBars["Ajouter un article"].buttons["Fermer"].tap()
+
+                ouvrirOnglet("Semaine", dans: app)
+                faireListe(dans: app)
+                let oeufs = bouton("article-oeuf", dans: app)
+                oeufs.tap()
+                let moins = bouton("Diminuer la quantité", dans: app)
+                let plus = bouton("Augmenter la quantité", dans: app)
+                let valeur = bouton("modifier-quantite-courses", dans: app)
+                XCTAssertGreaterThanOrEqual(plus.frame.minX - moins.frame.maxX, 24)
+                XCTAssertLessThan(moins.frame.midX, valeur.frame.midX)
+                XCTAssertLessThan(valeur.frame.midX, plus.frame.midX)
+                XCTAssertTrue(bouton("Ne pas envoyer", dans: app).isHittable)
+                XCTAssertTrue(bouton("Retirer", dans: app).isHittable)
+                joindreCapture("detail-\(nom)")
+                app.navigationBars["Œufs"].buttons["Fermer"].tap()
+
+                bouton("Choisir une liste", dans: app).tap()
+                bouton("destination-rappels-maison", dans: app).tap()
+                bouton("courses-envoyer", dans: app).tap()
+                XCTAssertTrue(app.staticTexts["2 articles envoyés"].waitForExistence(timeout: 10))
+                XCTAssertTrue(bouton("Ouvrir Rappels", dans: app).isHittable)
+                joindreCapture("rapport-\(nom)")
+                bouton("Terminé", dans: app).tap()
+                let destination = bouton("Liste Rappels verrouillée", dans: app)
+                XCTAssertEqual(destination.value as? String, "Maison")
+                joindreCapture("courses-envoyees-\(nom)")
+                bouton("courses-renvoyer", dans: app).tap()
+                XCTAssertTrue(app.staticTexts["Rien à ajouter"].waitForExistence(timeout: 10))
+                joindreCapture("rapport-renvoi-\(nom)")
+                app.terminate()
+            }
+        }
+
+        @MainActor
+        func testDerniereBandeSemaineAuDessusDeLaBarreEnPaysage() {
+            let app = lancer()
+            ouvrirOnglet("Semaine", dans: app)
+            let appareil = XCUIDevice.shared
+            appareil.orientation = .landscapeLeft
+            let fenetre = app.windows.firstMatch
+            defer {
+                appareil.orientation = .portrait
+                let portrait = NSPredicate { _, _ in fenetre.frame.height > fenetre.frame.width }
+                wait(for: [XCTNSPredicateExpectation(predicate: portrait, object: fenetre)], timeout: 8)
+            }
+            let paysage = NSPredicate { _, _ in fenetre.frame.width > fenetre.frame.height }
+            let rotation = XCTNSPredicateExpectation(predicate: paysage, object: fenetre)
+            XCTAssertEqual(XCTWaiter.wait(for: [rotation], timeout: 8), .completed)
+            joindreCapture("semaine-paysage")
+            let faireListe = bouton("Faire la liste", dans: app)
+            let bande = bouton("Gaufres", dans: app)
+            let liste = app.collectionViews.firstMatch
+            for _ in 0..<4 {
+                if bande.isHittable, bande.frame.maxY <= faireListe.frame.minY { break }
+                let depart = liste.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
+                let arrivee = liste.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.27))
+                depart.press(forDuration: 0.05, thenDragTo: arrivee)
+            }
+            XCTAssertTrue(bande.isHittable)
+            XCTAssertLessThanOrEqual(bande.frame.maxY, faireListe.frame.minY)
+            joindreCapture("semaine-paysage-bas")
+            faireListe.tap()
+            XCTAssertTrue(app.navigationBars["Courses"].waitForExistence(timeout: 5))
+            joindreCapture("courses-paysage")
+        }
+
+        @MainActor
         func testAuditAccessibiliteSemaineEtCourses() throws {
             let app = lancer()
             ouvrirOnglet("Semaine", dans: app)
@@ -166,6 +279,8 @@ import XCTest
             continueAfterFailure = false
             let app = XCUIApplication()
             app.launchArguments = ["-courses-recettes", "-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"] + arguments
+            if arguments.contains("-courses-eventkit") { app.resetAuthorizationStatus(for: .reminders) }
+            XCUIDevice.shared.orientation = .portrait
             app.launch()
             return app
         }

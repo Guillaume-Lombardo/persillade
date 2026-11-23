@@ -117,13 +117,16 @@ struct OngletSemaine: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .barreAction(tailleMax: .accessibility5) {
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             if !etat.selection.choix.isEmpty {
                 BoutonActionPersillade(
                     etat.selectionModifieeDepuisGeneration ? "Refaire la liste" : "Faire la liste",
-                    symbole: "list.bullet"
+                    symbole: "list.bullet", pleineLargeur: true
                 ) { faireListe() }
                 .disabled(session.occupee)
+                .padding(.horizontal, GrillePersillade.margeBarre)
+                .padding(.vertical, GrillePersillade.pas * 2)
+                .background(CouleurPersillade.page.couleur)
             }
         }
     }

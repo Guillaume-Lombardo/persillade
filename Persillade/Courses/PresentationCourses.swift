@@ -4,12 +4,12 @@ import SwiftUI
 import UIKit
 
 struct PresentationQuantite {
-    var nombre: String?
-    var unite: String?
+    private(set) var nombre: String?
+    private(set) var unite: String?
+    private(set) var precision: String?
 
-    init(nombre: String?, unite: String?) {
-        self.nombre = nombre
-        self.unite = unite
+    var libelle: String {
+        [nombre, unite].compactMap { $0 }.joined(separator: " ")
     }
 
     init(_ quantite: Quantite?, _ unite: Unite?) throws {
@@ -31,7 +31,7 @@ struct PresentationQuantite {
         } catch {
             Logger(subsystem: "xyz.g1lom.persillade", category: "Courses").error(
                 "Quantité de courses illisible : \(String(describing: error), privacy: .private)")
-            self = Self(nombre: "Quantité indisponible", unite: nil)
+            precision = "Quantité indisponible"
         }
     }
 }
@@ -57,7 +57,7 @@ struct PresentationEnvoi {
             case .rienAAjouter:
                 marque = .init(libelle: "Rien à ajouter", symbole: "checkmark.circle", couleur: .encre2, discrete: true)
             case .supplement(let quantite, let unite):
-                let complement = try formaterQuantiteCourses(quantite, unite: unite)
+                let complement = try PresentationQuantite(quantite, unite).libelle
                 marque = .init(libelle: "\(complement) de plus à envoyer", symbole: "arrow.up.circle", couleur: .persil)
             case .echec:
                 marque = .init(libelle: "Échec de l’envoi", symbole: "exclamationmark.triangle.fill", couleur: .tomate)
@@ -94,26 +94,30 @@ struct LabelActionCourses: View {
     let symbole: String
     var couleur = CouleurPersillade.encre
 
-    @Environment(\.dynamicTypeSize) private var taille
     @Environment(\.isEnabled) private var actif
 
     var body: some View {
+        Label(libelle, systemImage: symbole)
+            .typographie(.bouton)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .foregroundStyle((actif ? couleur : .encre2).couleur)
+            .background(CouleurPersillade.page2.couleur, in: .capsule)
+            .contentShape(.capsule)
+    }
+}
+
+struct DispositionActionsCourses<Actions: View>: View {
+    @ViewBuilder let actions: () -> Actions
+
+    var body: some View {
         ViewThatFits(in: .horizontal) {
-            if !taille.isAccessibilitySize {
-                Label(libelle, systemImage: symbole)
-                    .typographie(.bouton)
-                    .lineLimit(1)
-                    .fixedSize()
-                    .padding(.horizontal, 14)
-            }
-            Image(systemName: symbole)
-                .font(.headline)
-                .frame(width: 52)
+            HStack(spacing: GrillePersillade.pas * 2, content: actions)
+            VStack(spacing: GrillePersillade.pas * 2, content: actions)
         }
-        .frame(minHeight: 52)
-        .foregroundStyle((actif ? couleur : .encre2).couleur)
-        .background(CouleurPersillade.page2.couleur, in: .capsule)
-        .contentShape(.capsule)
     }
 }
 
@@ -181,9 +185,9 @@ struct AccesRappels: View {
             .padding(.top, GrillePersillade.marge)
         }
         .barreAction(tailleMax: .accessibility5) {
-            HStack {
+            DispositionActionsCourses {
                 ActionSecondaireCourses(libelle: "Plus tard", symbole: "clock", action: { fermer() })
-                BoutonActionPersillade("Ouvrir Réglages", symbole: "gear", action: ouvrirReglages)
+                BoutonActionPersillade("Ouvrir Réglages", symbole: "gear", pleineLargeur: true, action: ouvrirReglages)
             }
         }
     }
@@ -257,6 +261,7 @@ struct BilanEnvoiCourses: View {
                             let quantite = PresentationQuantite(ligne: ligne)
                             LigneArticle(
                                 nom: ligne.libelle.lowercased(), quantite: quantite.nombre, unite: quantite.unite,
+                                precisionPleineLargeur: quantite.precision,
                                 marque: .init(
                                     libelle: explication(echec.cause), symbole: "exclamationmark.triangle.fill",
                                     couleur: .tomate)
@@ -281,21 +286,21 @@ struct BilanEnvoiCourses: View {
                     bandeau("Compléments", symbole: "plus.circle", nombre: rapport.complements.count)
                 }
             }
-            groupe("Déjà là", ids: rapport.ignores)
+            groupe("Aucun ajout nécessaire", ids: rapport.ignores)
             groupe("Ajoutés", ids: rapport.ajoutes)
         }
         .listStyle(.plain)
         .listSectionSpacing(0)
         .scrollContentBackground(.hidden)
         .barreAction(tailleMax: .accessibility5) {
-            HStack {
+            DispositionActionsCourses {
                 ActionSecondaireCourses(
                     libelle: "Ouvrir Rappels", symbole: "arrow.up.forward.app", action: ouvrirListeRappels
                 )
-                .layoutPriority(1)
                 BoutonActionPersillade(
                     "Terminé", symbole: "checkmark",
-                    progression: envoiEnCours ? session.progressionEnvoi ?? 0 : nil, action: terminer)
+                    progression: envoiEnCours ? session.progressionEnvoi ?? 0 : nil, pleineLargeur: true,
+                    action: terminer)
             }
             .disabled(envoiEnCours)
         }
@@ -337,7 +342,7 @@ struct BilanEnvoiCourses: View {
                 let quantite = PresentationQuantite(ligne: ligne)
                 LigneArticle(
                     nom: ligne.libelle.lowercased(), quantite: quantite.nombre, unite: quantite.unite,
-                    precision: complement ? couverture(ligne) : nil
+                    precision: complement ? couverture(ligne) : nil, precisionPleineLargeur: quantite.precision
                 )
                 .listRowInsets(EdgeInsets())
                 .listRowSeparator(.hidden)
@@ -379,8 +384,8 @@ struct BilanEnvoiCourses: View {
         do {
             guard let souhaite = try ligne.quantiteArrondie else { return nil }
             let couvert = try souhaite - complement
-            let demande = try formaterQuantiteCourses(souhaite, unite: unite)
-            let deja = try formaterQuantiteCourses(couvert, unite: unite)
+            let demande = try PresentationQuantite(souhaite, unite).libelle
+            let deja = try PresentationQuantite(couvert, unite).libelle
             return "\(demande) voulus, \(deja) déjà demandés ou achetés"
         } catch {
             Logger(subsystem: "xyz.g1lom.persillade", category: "Courses").error(
@@ -390,10 +395,14 @@ struct BilanEnvoiCourses: View {
     }
 
     private func explication(_ cause: CauseEchecEnvoi) -> String {
-        switch cause {
+        let liste = session.destination?.titre
+        return switch cause {
         case .accesRefuse: AccesRappels.consigne
-        case .listeIntrouvable: "La liste choisie n’existe plus dans Rappels."
-        case .listeNonModifiable: "La liste choisie est en lecture seule."
+        case .listeIntrouvable:
+            liste.map { "La liste « \($0) » n’existe plus dans Rappels." }
+                ?? "La liste choisie n’existe plus dans Rappels."
+        case .listeNonModifiable:
+            liste.map { "La liste « \($0) » est en lecture seule." } ?? "La liste choisie est en lecture seule."
         case .ecriture: "Rappels a refusé l’écriture."
         }
     }
