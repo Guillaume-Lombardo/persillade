@@ -13,7 +13,10 @@ final class PersilladeUITests: XCTestCase {
             onglet.tap()
             XCTAssertTrue(app.navigationBars[titre].exists)
         }
-        app.navigationBars["Courses"].buttons["Réglages"].tap()
+        app.navigationBars["Courses"].buttons["Plus d’options"].tap()
+        let reglages = app.buttons["Réglages"]
+        XCTAssertTrue(reglages.waitForExistence(timeout: 5))
+        reglages.tap()
         XCTAssertTrue(app.navigationBars["Réglages"].exists)
         app.navigationBars["Réglages"].buttons["Fermer"].tap()
         XCTAssertTrue(app.navigationBars["Courses"].exists)
@@ -37,8 +40,9 @@ final class PersilladeUITests: XCTestCase {
                 if nom == "clair" {
                     app.buttons["Ne pas envoyer Pommes de terre"].tap()
                     let articleExclu = app.buttons.matching(
-                        NSPredicate(format: "label CONTAINS %@", "Ne sera pas envoyé"))
-                    XCTAssertTrue(articleExclu.firstMatch.exists)
+                        NSPredicate(
+                            format: "label == %@ AND value CONTAINS %@", "Pommes de terre", "Ne sera pas envoyé"))
+                    XCTAssertTrue(articleExclu.firstMatch.waitForExistence(timeout: 5))
                     app.buttons["Remettre Pommes de terre"].tap()
                 }
 

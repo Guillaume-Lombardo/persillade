@@ -43,14 +43,14 @@ struct ColonnePesee: View {
         Group {
             if let quantite {
                 ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .firstTextBaseline, spacing: GrillePersillade.pas) {
+                    HStack(alignment: .firstTextBaseline, spacing: aligne ? 2 : GrillePersillade.pas * 2) {
                         nombre(quantite)
-                        libelleUnite
+                        libelleUnite(enLigne: true)
                     }
                     .fixedSize()
                     VStack(alignment: aligne ? .trailing : .leading, spacing: 0) {
                         nombre(quantite)
-                        libelleUnite
+                        libelleUnite(enLigne: false)
                     }
                 }
                 .accessibilityElement(children: .combine)
@@ -66,8 +66,13 @@ struct ColonnePesee: View {
         Text(texte).typographie(.quantite)
     }
 
-    @ViewBuilder private var libelleUnite: some View {
-        if let unite { Text(unite).typographie(.unite) }
+    @ViewBuilder private func libelleUnite(enLigne: Bool) -> some View {
+        if let unite {
+            Text(unite)
+                .typographie(.unite)
+                .fontWidth(taille.isAccessibilitySize ? .standard : alignee ? .compressed : .condensed)
+                .fixedSize(horizontal: enLigne, vertical: !enLigne)
+        }
     }
 }
 
@@ -76,11 +81,14 @@ struct BandeauRayon: View {
     var nombre: Int?
 
     @Environment(\.dynamicTypeSize) private var taille
+    @Environment(\.colorSchemeContrast) private var contraste
 
     var body: some View {
         HStack(spacing: GrillePersillade.gouttiere) {
             Image(systemName: categorie.symboleRayon)
-                .foregroundStyle(categorie.teinteRayon)
+                .font(.system(size: 19, weight: .semibold))
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(contraste == .increased ? CouleurPersillade.encre.couleur : categorie.teinteRayon)
                 .modifier(CadreColonnePesee(aligne: !taille.isAccessibilitySize))
                 .accessibilityHidden(true)
             Text(categorie.rawValue).typographie(.rayon)
@@ -102,14 +110,24 @@ struct BandeauRayon: View {
 }
 
 struct LigneArticle: View {
+    struct Marque {
+        let libelle: String
+        let symbole: String
+        let couleur: CouleurPersillade
+        var discrete = false
+    }
+
     let nom: String
     var quantite: String?
     var unite: String?
     var precision: String?
     var exclu = false
+    var marque: Marque?
+    var afficherMarque = true
     var ouvrir: (() -> Void)?
     var identifiantOuverture: String?
     var basculerExclusion: (() -> Void)?
+    var retirer: (() -> Void)?
 
     @Environment(\.dynamicTypeSize) private var taille
 
@@ -118,6 +136,14 @@ struct LigneArticle: View {
             if let ouvrir {
                 Button(action: ouvrir) { contenu }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(nom)
+                    .accessibilityValue(valeurAccessibilite)
+                    .accessibilityActions {
+                        if let retirer {
+                            Button("Détail", action: ouvrir)
+                            Button("Retirer", action: retirer)
+                        }
+                    }
                     .accessibilityIdentifier(identifiantOuverture ?? "", isEnabled: identifiantOuverture != nil)
             } else {
                 contenu
@@ -125,16 +151,17 @@ struct LigneArticle: View {
 
             if let basculerExclusion {
                 let libelle = exclu ? "Remettre" : "Ne pas envoyer"
+                let symbole = exclu ? "plus.circle" : "minus.circle"
                 Button(action: basculerExclusion) {
-                    Image(systemName: exclu ? "arrow.uturn.backward.circle" : "minus.circle")
+                    Image(systemName: symbole)
                         .font(.title3)
                         .frame(width: GrillePersillade.cible, height: GrillePersillade.cible)
                         .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(CouleurPersillade.encre2.couleur)
+                .foregroundStyle((exclu ? CouleurPersillade.persil : .encre2).couleur)
                 .accessibilityLabel("\(libelle) \(nom)")
-                .accessibilityShowsLargeContentViewer { Label(libelle, systemImage: "minus.circle") }
+                .accessibilityShowsLargeContentViewer { Label(libelle, systemImage: symbole) }
             }
         }
         .padding(.trailing, GrillePersillade.marge)
@@ -143,6 +170,14 @@ struct LigneArticle: View {
         .overlay(alignment: .bottom) {
             CouleurPersillade.trait.couleur.frame(height: GrillePersillade.filet)
         }
+    }
+
+    private var valeurAccessibilite: String {
+        let quantiteAffichee = [quantite, unite].compactMap { $0 }.joined(separator: " ")
+        return [quantiteAffichee, precision, exclu ? "Ne sera pas envoyé" : marque?.libelle]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+            .joined(separator: ", ")
     }
 
     private var contenu: some View {
@@ -162,7 +197,7 @@ struct LigneArticle: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, GrillePersillade.pas * 2)
+        .padding(.vertical, taille.isAccessibilitySize ? 8 : 2)
         .frame(minHeight: precision == nil && !exclu ? GrillePersillade.article : GrillePersillade.ingredientAnnote)
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
@@ -184,7 +219,14 @@ struct LigneArticle: View {
                 Text(precision).typographie(.precision).foregroundStyle(CouleurPersillade.encre2.couleur)
             }
             if exclu {
-                Text("Ne sera pas envoyé").typographie(.precision).foregroundStyle(CouleurPersillade.encre2.couleur)
+                Text("Ne sera pas envoyé")
+                    .typographie(.precision)
+                    .foregroundStyle(CouleurPersillade.encre2.couleur)
+                    .transition(.opacity)
+            } else if let marque, afficherMarque {
+                Label(marque.libelle, systemImage: marque.symbole)
+                    .typographie(marque.discrete ? .precision : .alerte)
+                    .foregroundStyle(marque.couleur.couleur)
             }
         }
     }

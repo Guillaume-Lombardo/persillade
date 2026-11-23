@@ -11,9 +11,9 @@ import XCTest
             faireListe(dans: app)
 
             let farine = bouton("article-farine", dans: app)
-            XCTAssertTrue(farine.label.contains("1,125"))
+            XCTAssertTrue((farine.value as? String)?.contains("1,125") == true)
             let oeufs = bouton("article-oeuf", dans: app)
-            XCTAssertTrue(oeufs.label.contains("3"))
+            XCTAssertEqual(oeufs.value as? String, "3, À envoyer")
             farine.tap()
             bouton("modifier-quantite-courses", dans: app).tap()
             let quantite = app.textFields["editeur-quantite"]
@@ -22,15 +22,15 @@ import XCTest
             quantite.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 4) + "1500")
             XCTAssertEqual(quantite.value as? String, "1500")
             bouton("Valider", dans: app).tap()
-            let fermerDetail = app.navigationBars["farine"].buttons["Fermer"]
+            let fermerDetail = app.navigationBars["Farine"].buttons["Fermer"]
             XCTAssertTrue(fermerDetail.waitForExistence(timeout: 10))
             fermerDetail.tap()
             XCTAssertTrue(farine.waitForExistence(timeout: 10))
-            XCTAssertTrue(farine.label.contains("1,5"))
+            XCTAssertTrue((farine.value as? String)?.contains("1,5") == true)
 
             bouton("Ne pas envoyer œufs", dans: app).tap()
             let remettre = bouton("Remettre œufs", dans: app)
-            XCTAssertTrue(oeufs.label.contains("Ne sera pas envoyé"))
+            XCTAssertTrue((oeufs.value as? String)?.contains("Ne sera pas envoyé") == true)
             remettre.tap()
             XCTAssertTrue(app.buttons["Ne pas envoyer œufs"].waitForExistence(timeout: 10))
         }
@@ -47,9 +47,13 @@ import XCTest
             XCTAssertFalse(archives.isEnabled)
             maison.tap()
             bouton("courses-envoyer", dans: app).tap()
-            XCTAssertTrue(app.staticTexts["2 rappels écrits"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.staticTexts["2 articles envoyés"].waitForExistence(timeout: 10))
             bouton("Terminé", dans: app).tap()
-            XCTAssertTrue(app.buttons["Liste Rappels verrouillée"].waitForExistence(timeout: 10))
+            let destination = bouton("Liste Rappels verrouillée", dans: app)
+            XCTAssertEqual(destination.value as? String, "Maison")
+            let farine = bouton("article-farine", dans: app)
+            XCTAssertEqual(farine.value as? String, "1,5 kg, Envoyé")
+            XCTAssertFalse(app.staticTexts["Envoyé"].exists)
 
             bouton("Ajouter", dans: app).tap()
             bouton("Ajouter un article", dans: app).tap()
@@ -58,15 +62,19 @@ import XCTest
             saisie.tap()
             saisie.typeText("2 bananes")
             bouton("ajout-valider-courses", dans: app).tap()
-            XCTAssertTrue(app.staticTexts["Envoyé"].waitForExistence(timeout: 10))
-            let fermerAjout = app.navigationBars["Ajouter un article"].buttons["Fermer"]
-            XCTAssertTrue(fermerAjout.waitForExistence(timeout: 10))
-            fermerAjout.tap()
+            XCTAssertTrue(app.staticTexts["Article ajouté"].waitForExistence(timeout: 10))
+            let bananesEnvoyees = app.buttons.matching(
+                NSPredicate(format: "label == %@ AND value CONTAINS %@", "bananes", "Envoyé")
+            ).firstMatch
+            XCTAssertTrue(bananesEnvoyees.waitForExistence(timeout: 10))
+            bouton("Terminé", dans: app).tap()
 
             bouton("courses-renvoyer", dans: app).tap()
-            XCTAssertTrue(app.staticTexts["0 rappels écrits"].waitForExistence(timeout: 10))
-            XCTAssertTrue(app.staticTexts["Aucun ajout nécessaire"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.staticTexts["Rien à ajouter"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.descendants(matching: .any)["Déjà là · 3"].firstMatch.waitForExistence(timeout: 10))
             bouton("Terminé", dans: app).tap()
+
+            XCTAssertEqual(farine.value as? String, "1,5 kg, Rien à ajouter")
 
             ouvrirOnglet("Semaine", dans: app)
             bouton("Augmenter les portions de Crêpes", dans: app).tap()
@@ -75,7 +83,7 @@ import XCTest
             bouton("Remplacer", dans: app).tap()
             XCTAssertTrue(app.navigationBars["Courses"].waitForExistence(timeout: 10))
             XCTAssertTrue(app.buttons["article-banane"].waitForNonExistence(timeout: 10))
-            XCTAssertTrue(bouton("article-farine", dans: app).label.contains("1,625"))
+            XCTAssertTrue((bouton("article-farine", dans: app).value as? String)?.contains("1,625") == true)
         }
 
         @MainActor
@@ -86,6 +94,11 @@ import XCTest
                 let app = lancer(arguments)
                 ouvrirOnglet("Semaine", dans: app)
                 XCTAssertTrue(app.buttons["Faire la liste"].waitForExistence(timeout: 10), nom)
+                if nom == "AX5" {
+                    let moins = bouton("Diminuer les portions de Crêpes", dans: app)
+                    let plus = bouton("Augmenter les portions de Crêpes", dans: app)
+                    XCTAssertGreaterThanOrEqual(plus.frame.minX - moins.frame.maxX, 24)
+                }
                 joindreCapture("Semaine-\(nom)")
                 faireListe(dans: app)
                 XCTAssertTrue(app.buttons["Choisir une liste"].waitForExistence(timeout: 5), nom)
@@ -108,6 +121,14 @@ import XCTest
             ouvrirOnglet("Semaine", dans: app)
             XCTAssertTrue(app.buttons["Faire la liste"].waitForExistence(timeout: 10))
             XCTAssertEqual(bouton("Augmenter les portions de Crêpes", dans: app).value as? String, "4 portions")
+            let recette = bouton("Crêpes", dans: app)
+            recette.coordinate(withNormalizedOffset: CGVector(dx: 0.90, dy: 0.5)).tap()
+            let titre = app.staticTexts["titre-fiche"]
+            XCTAssertTrue(titre.waitForExistence(timeout: 5))
+            XCTAssertEqual(titre.label, "Crêpes")
+            app.navigationBars.firstMatch.buttons.firstMatch.tap()
+            ouvrirOnglet("Semaine", dans: app)
+            XCTAssertTrue(app.buttons["Faire la liste"].waitForExistence(timeout: 5))
             let audits: XCUIAccessibilityAuditType = [
                 .contrast, .elementDetection, .hitRegion, .sufficientElementDescription,
             ]

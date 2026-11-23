@@ -34,6 +34,25 @@ struct EnvoiCoursesTests {
         }
     }
 
+    @Test func lesRappelsSuiventLOrdreDesRayonsEtDesArticlesAffiches() async throws {
+        let (envoi, rappels) = scenario()
+        try await envoi.choisirDestination("courses")
+        try await envoi.modifier { liste, _ in
+            for nom in ["sel", "pommes", "œufs", "carottes", "poires"] {
+                try liste.ajouter(ArticleCourses(nom: nom))
+            }
+            let poires = try #require(liste.lignes.first { $0.libelle == "poires" })
+            try liste.cocher(poires.id, cochee: true)
+        }
+        let etat = try await envoi.lire()
+        let ordre = etat.liste.rayons.flatMap(\.lignes).filter { !$0.cochee }
+        #expect(ordre.map(\.libelle) == ["carottes", "pommes", "œufs", "sel"])
+        let rapport = try await envoi.envoyer(lignes: Array(etat.liste.lignes.map(\.id).reversed()))
+        #expect(rapport.ajoutes == ordre.map(\.id))
+        #expect(try await rappels.lire(destinationId: "courses").map(\.titre) == ordre.map(\.libelle))
+        try nettoyer()
+    }
+
     @Test func premierEnvoiCouvertFixeLeSeuilPuisLaCocheCompte() async throws {
         let (envoi, rappels) = scenario(["lait 2 l"])
         try await envoi.choisirDestination("courses")

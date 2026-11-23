@@ -2,11 +2,14 @@ import PersilladeCore
 import SwiftUI
 
 struct AjoutArticleCourses: View {
+    @Environment(\.dismiss) private var fermer
+    @Environment(\.dynamicTypeSize) private var taille
     @State private var saisie = ""
     @State private var quantiteModifiee: ArticleCourses?
     @State private var categorie: Categorie?
     @State private var editerQuantite = false
     @State private var ajouts: [UUID] = []
+    @State private var articleAjoute = false
     @State private var detail: LigneCourses?
     @State private var exclus: [UUID] = []
     @State private var confirmerRemise = false
@@ -20,28 +23,44 @@ struct AjoutArticleCourses: View {
     private var rayon: Categorie { categorie ?? categorieParDefaut(normaliserNom(analyse.nom)) }
 
     var body: some View {
-        FeuilleCourses("Ajouter un article") {
+        FeuilleCourses("Ajouter un article", afficherFermer: !articleAjoute) {
             List {
+                if articleAjoute {
+                    Label("Article ajouté", systemImage: "checkmark.circle")
+                        .typographie(.precision)
+                        .foregroundStyle(CouleurPersillade.encre2.couleur)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(CouleurPersillade.page.couleur)
+                }
                 if let etat = session.etat {
                     let ids = Set(ajouts.compactMap { etat.liste.ligne(id: $0)?.id })
                     ForEach(etat.liste.lignes.filter { ids.contains($0.id) }) { ligne in
                         let quantite = PresentationQuantite(ligne: ligne)
-                        VStack(alignment: .leading) {
-                            LigneArticle(
-                                nom: ligne.libelle, quantite: quantite.nombre, unite: quantite.unite,
-                                exclu: ligne.cochee, ouvrir: { detail = ligne })
-                            if etat.liste.envoyee, !ligne.cochee {
-                                let statut = PresentationEnvoi(etat: etat, ligne: ligne)
-                                statut.marque
-                                if echecEnvoi.contains(ligne.id) || statut.echec {
-                                    Button("Réessayer") { envoyer([ligne.id]) }
-                                }
-                            }
+                        let statut =
+                            etat.liste.envoyee && !ligne.cochee ? PresentationEnvoi(etat: etat, ligne: ligne) : nil
+                        LigneArticle(
+                            nom: ligne.libelle.lowercased(), quantite: quantite.nombre, unite: quantite.unite,
+                            exclu: ligne.cochee, marque: statut?.marque, ouvrir: { detail = ligne }
+                        )
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        if echecEnvoi.contains(ligne.id) || statut?.echec == true {
+                            Button("Réessayer") { envoyer([ligne.id]) }
+                                .listRowBackground(CouleurPersillade.page.couleur)
                         }
                     }
                 }
             }
             .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .toolbar {
+                if articleAjoute {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Terminé") { fermer() }
+                            .disabled(session.occupee)
+                    }
+                }
+            }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(alignment: .leading, spacing: 8) {
                     if nomValide {
@@ -50,18 +69,20 @@ struct AjoutArticleCourses: View {
                             VStack(alignment: .leading) { choix }
                         }
                     }
-                    TextField("Nom et quantité", text: $saisie, axis: .vertical)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($saisieActive)
-                        .accessibilityIdentifier("ajout-saisie-courses")
-                    ActionPrincipaleCourses("Ajouter", action: ajouter)
+                    TextField(
+                        taille.isAccessibilitySize ? "Article" : "Nom et quantité", text: $saisie, axis: .vertical
+                    )
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel("Nom et quantité")
+                    .focused($saisieActive)
+                    .accessibilityIdentifier("ajout-saisie-courses")
+                    BoutonActionPersillade("Ajouter", symbole: "plus", pleineLargeur: true, action: ajouter)
                         .disabled(!nomValide)
                         .accessibilityIdentifier("ajout-valider-courses")
                 }
-                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                 .padding(.horizontal, GrillePersillade.marge)
                 .padding(.vertical, 8)
-                .background(.regularMaterial)
+                .background(CouleurPersillade.page.couleur)
                 .disabled(session.occupee)
             }
             .task { saisieActive = true }
@@ -69,7 +90,10 @@ struct AjoutArticleCourses: View {
                 quantiteModifiee = nil
                 categorie = nil
             }
-            .sheet(item: $detail) { DetailArticleCourses(id: $0.id, session: session) }
+            .sheet(item: $detail) {
+                DetailArticleCourses(id: $0.id, session: session)
+                    .environment(\.dynamicTypeSize, taille)
+            }
             .sheet(isPresented: $editerQuantite) {
                 let quantite = quantiteModifiee == nil ? analyse.quantite : quantiteModifiee?.quantite
                 let unite = quantiteModifiee == nil ? analyse.unite : quantiteModifiee?.unite
@@ -87,7 +111,8 @@ struct AjoutArticleCourses: View {
                     }
                     .erreurCourses(session)
                 }
-                .presentationDetents([.medium, .large])
+                .environment(\.dynamicTypeSize, taille)
+                .presentationDetents(taille.isAccessibilitySize ? [.large] : [.medium, .large])
             }
             .confirmationDialog(
                 "Remettre les articles exclus ?", isPresented: $confirmerRemise, titleVisibility: .visible
@@ -144,6 +169,7 @@ struct AjoutArticleCourses: View {
                     return (effets, (creeesOuCompletees.isEmpty ? concernees : creeesOuCompletees).map(\.id))
                 }
                 ajouts.append(contentsOf: lignes.filter { !ajouts.contains($0) })
+                articleAjoute = true
                 saisie = ""
                 exclus = effets.decochagePropose
                 if !exclus.isEmpty { confirmerRemise = true }

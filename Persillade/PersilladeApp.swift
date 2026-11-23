@@ -125,7 +125,6 @@ private struct Racine: View {
                 )
                 .erreurCourses(courses)
             }
-            .badge(bibliotheque.selection.choix.count)
             Tab("Courses", systemImage: "basket.fill", value: .courses) {
                 OngletCourses(session: courses, reglages: { feuille = .reglages }, extracteur: extracteur)
                     .erreurCourses(courses)
@@ -160,7 +159,7 @@ private struct Racine: View {
                 .tint(CouleurPersillade.persil.couleur)
         }
         .alert(
-            "Persillade",
+            bibliotheque.erreur ?? "",
             isPresented: Binding(
                 get: { bibliotheque.erreur != nil }, set: { if !$0 { bibliotheque.erreur = nil } })
         ) {
@@ -168,8 +167,6 @@ private struct Racine: View {
                 Button("Réessayer") { Task { await actualiserCourses() } }
             }
             Button("OK", role: .cancel) {}
-        } message: {
-            Text(bibliotheque.erreur ?? "")
         }
     }
 
