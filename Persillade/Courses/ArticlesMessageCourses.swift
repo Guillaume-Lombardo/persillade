@@ -1,9 +1,9 @@
 import PersilladeCore
 import SwiftUI
 
-struct ArticlesMessageCourses: View {
-    private struct Proposition: Identifiable {
-        let id = UUID()
+struct FormulaireMessage: Codable, Equatable, Sendable {
+    struct Proposition: Codable, Equatable, Identifiable, Sendable {
+        var id = UUID()
         var nom: String
         var quantite: Quantite?
         var unite: Unite?
@@ -13,13 +13,34 @@ struct ArticlesMessageCourses: View {
         var article: ArticleCourses? { try? ArticleCourses(nom: nom, quantite: quantite, unite: unite) }
     }
 
+    struct Edition: Codable, Equatable, Sendable {
+        let id: UUID
+        var saisie: SaisieQuantite
+    }
+
+    let sourceId: UUID
+    let texteDerive: String?
+    let cause: CauseExtraction?
+    var propositions: [Proposition]
+    var edition: Edition?
+
+    private enum CodingKeys: String, CodingKey {
+        case sourceId, cause, propositions, edition
+        case texteDerive = "texte"
+    }
+}
+
+struct ArticlesMessageCourses: View {
+    @Environment(SuiviBrouillonCorrection.self) private var suivi
+    @Environment(\.scenePhase) private var phase
     @Environment(\.dismiss) private var fermer
     @Environment(\.dynamicTypeSize) private var taille
     @State private var contenu: ContenuRecu?
     @State private var saisie = ""
-    @State private var resultat: ResultatExtraction?
-    @State private var propositions: [Proposition] = []
-    @State private var edition: UUID?
+    @State private var formulaire: FormulaireMessage?
+    @State private var confirmerAbandon = false
+    @State private var clotureEnCours = false
+    @State private var conserverSourceEnCours = false
     @State private var extraireEnCours = false
     @State private var lireMessage = false
     @State private var confirmerIntegration = false
@@ -32,20 +53,27 @@ struct ArticlesMessageCourses: View {
 
     let session: SessionCourses
     let extracteur: Extracteur
-    private let retirerReception: (() async throws -> Void)?
+    let reception: ReceptionEntree
+    let receptionTraitee: () -> Void
 
     init(
-        session: SessionCourses, contenu: ContenuRecu? = nil, extracteur: Extracteur,
-        retirerReception: (() async throws -> Void)? = nil
+        session: SessionCourses, contenu: ContenuRecu?, extracteur: Extracteur, reception: ReceptionEntree,
+        brouillon: FormulaireMessage?, integre: Bool, receptionTraitee: @escaping () -> Void
     ) {
         self.session = session
         self.extracteur = extracteur
+        self.reception = reception
+        self.receptionTraitee = receptionTraitee
         _contenu = State(initialValue: contenu)
-        self.retirerReception = retirerReception
+        _formulaire = State(initialValue: brouillon)
+        _integre = State(initialValue: integre)
     }
 
     var body: some View {
-        FeuilleCourses("Articles d’un message", fermetureInterdite: session.occupee) {
+        FeuilleCourses(
+            "Articles d’un message", fermetureInterdite: session.occupee || clotureEnCours || conserverSourceEnCours,
+            fermer: demanderFermeture
+        ) {
             Group {
                 if let rapport {
                     BilanEnvoiCourses(
@@ -61,8 +89,8 @@ struct ArticlesMessageCourses: View {
                         }
                         Button("Terminé", action: terminer)
                     }
-                } else if let resultat {
-                    validation(resultat)
+                } else if let formulaire {
+                    validation(formulaire)
                 } else if contenu != nil {
                     if extraireEnCours {
                         ProgressView("Lecture du message")
@@ -73,15 +101,14 @@ struct ArticlesMessageCourses: View {
                     Form {
                         TextField("Collez le texte du message", text: $saisie, axis: .vertical)
                             .lineLimit(4...10)
-                        Button("Lire le message") {
-                            contenu = ContenuRecu(type: .texte, contenu: Data(saisie.utf8), origine: .pressePapiers)
-                            lireMessage = true
-                        }
-                        .disabled(saisie.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        Button("Lire le message", action: conserverSource)
+                            .disabled(
+                                conserverSourceEnCours || saisie.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            )
                     }
                 }
             }
-            .task { if contenu != nil && resultat == nil && !integre { lireMessage = true } }
+            .task { if contenu != nil && formulaire == nil && !integre { lireMessage = true } }
             .task(id: lireMessage) {
                 if lireMessage, let contenu { await extraire(contenu) }
             }
@@ -105,86 +132,174 @@ struct ArticlesMessageCourses: View {
                 let noms = exclus.compactMap { session.etat?.liste.ligne(id: $0)?.libelle }.joined(separator: ", ")
                 Text("Articles exclus de l’envoi. \(noms).")
             }
+            .confirmationDialog("Abandonner la validation ?", isPresented: $confirmerAbandon, titleVisibility: .visible)
+            {
+                Button("Abandonner", role: .destructive, action: abandonner)
+                Button("Continuer", role: .cancel) {}
+            } message: {
+                Text("Les corrections seront perdues. Le message est conservé.")
+            }
             .erreurCourses(session)
         }
         .presentationDetents([.large])
-        .interactiveDismissDisabled(session.occupee)
+        .interactiveDismissDisabled(session.occupee || formulaire != nil || conserverSourceEnCours)
+        .onChange(of: formulaire) { _, formulaire in
+            if let formulaire, !integre, !clotureEnCours { suivi.programmer(.message(formulaire)) }
+        }
+        .onChange(of: phase) { _, phase in
+            if let formulaire, phase != .active, !integre, !clotureEnCours {
+                suivi.enArrierePlan(.message(formulaire))
+            }
+        }
+    }
+
+    private var sourceDisponible: ContenuRecu? {
+        if let contenu { return contenu }
+        guard let id = formulaire?.sourceId else { return nil }
+        return reception.contenus.first { $0.id == id }
     }
 
     private var articles: [ArticleCourses] {
-        propositions.filter { !$0.exclue }.compactMap(\.article)
+        formulaire?.propositions.filter { !$0.exclue }.compactMap(\.article) ?? []
     }
 
-    private func validation(_ resultat: ResultatExtraction) -> some View {
+    private func validation(_ brouillon: FormulaireMessage) -> some View {
         List {
-            DisclosureGroup("Texte reçu") {
-                Text(resultat.texteSource).textSelection(.enabled)
+            if suivi.erreurEcriture {
+                Label("Impossible de garder le brouillon sur l’iPhone.", systemImage: "exclamationmark.circle")
+                    .foregroundStyle(CouleurPersillade.tomate.couleur)
+                Button("Réessayer") { suivi.programmer(.message(brouillon)) }
             }
-            if let cause = resultat.cause {
+            if let texte = brouillon.texteDerive ?? sourceDisponible?.texteRecu {
+                DisclosureGroup("Texte reçu") {
+                    Text(texte).textSelection(.enabled)
+                }
+            }
+            if sourceDisponible == nil {
+                Label(
+                    "Le message d’origine est indisponible. Le brouillon est conservé.",
+                    systemImage: "exclamationmark.circle")
+                Button("Relire le message") { Task { await reception.actualiser() } }
+            }
+            if let cause = brouillon.cause {
                 Text(explication(cause)).typographie(.precision)
                     .foregroundStyle(CouleurPersillade.beurreTexte.couleur)
             }
-            ForEach(propositions) { proposition in
+            ForEach(brouillon.propositions) { proposition in
                 let rayon = categorieParDefaut(normaliserNom(proposition.nom))
                 let nom =
                     proposition.nom.isEmpty ? proposition.texteNonCompris ?? "Article à préciser" : proposition.nom
                 LigneArticle(
                     nom: nom, quantite: proposition.quantite?.texteFrancais,
-                    unite: proposition.unite?.libellePersillade,
+                    unite: proposition.unite?.libelleLecturePersillade,
                     precision: proposition.article == nil
                         ? "Corriger · Cette ligne ne sera pas ajoutée." : rayon.rawValue,
                     exclu: proposition.exclue,
-                    ouvrir: { edition = proposition.id },
+                    ouvrir: { ouvrirEdition(proposition) },
                     basculerExclusion: {
-                        if let index = propositions.firstIndex(where: { $0.id == proposition.id }) {
-                            propositions[index].exclue.toggle()
+                        if let index = brouillon.propositions.firstIndex(where: { $0.id == proposition.id }) {
+                            self.formulaire?.propositions[index].exclue.toggle()
                         }
                     }
                 )
                 .listRowInsets(EdgeInsets())
             }
             Button("Ajouter une ligne", systemImage: "plus") {
-                let nouvelle = Proposition(nom: "", quantite: nil, unite: nil)
-                propositions.append(nouvelle)
-                edition = nouvelle.id
+                let nouvelle = FormulaireMessage.Proposition(nom: "", quantite: nil, unite: nil)
+                self.formulaire?.propositions.append(nouvelle)
+                ouvrirEdition(nouvelle)
             }
         }
         .listStyle(.plain)
+        .disabled(clotureEnCours || session.occupee)
         .barreAction(tailleMax: .accessibility5) {
             BoutonActionPersillade(
                 articles.count == 1 ? "Ajouter 1 article" : "Ajouter \(articles.count) articles",
                 symbole: "plus", action: { integrer() }
             )
-            .disabled(articles.isEmpty || session.occupee)
+            .disabled(sourceDisponible == nil || articles.isEmpty || session.occupee || clotureEnCours)
         }
         .sheet(
-            isPresented: Binding(get: { edition != nil }, set: { if !$0 { edition = nil } })
+            isPresented: Binding(
+                get: { self.formulaire?.edition != nil },
+                set: { if !$0 { self.formulaire?.edition = nil } })
         ) {
-            if let edition, let index = propositions.firstIndex(where: { $0.id == edition }) {
-                modifier($propositions[index])
+            if let liaison = Binding($formulaire), let edition = liaison.wrappedValue.edition,
+                let index = liaison.wrappedValue.propositions.firstIndex(where: { $0.id == edition.id })
+            {
+                let saisie = Binding(
+                    get: { formulaire?.edition?.saisie ?? edition.saisie },
+                    set: { formulaire?.edition?.saisie = $0 })
+                modifier(liaison.propositions[index], saisie: saisie)
                     .environment(\.dynamicTypeSize, taille)
             }
         }
     }
 
-    private func modifier(_ proposition: Binding<Proposition>) -> some View {
+    private func ouvrirEdition(_ proposition: FormulaireMessage.Proposition) {
+        formulaire?.edition = .init(
+            id: proposition.id, saisie: .init(quantite: proposition.quantite, unite: proposition.unite))
+    }
+
+    private func modifier(
+        _ proposition: Binding<FormulaireMessage.Proposition>, saisie: Binding<SaisieQuantite>
+    ) -> some View {
         FeuilleCourses("Corriger l’article") {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     TextField("Nom de l’article", text: proposition.nom)
                         .textFieldStyle(.roundedBorder)
-                    EditeurQuantite(quantite: proposition.wrappedValue.quantite, unite: proposition.wrappedValue.unite)
-                    {
-                        valeur, unite in
+                    EditeurQuantite(saisie: saisie, uniteLue: proposition.wrappedValue.unite) { valeur, unite in
                         proposition.wrappedValue.quantite = valeur
                         proposition.wrappedValue.unite = unite
-                        edition = nil
+                        formulaire?.edition = nil
                     }
                 }
                 .padding()
             }
         }
         .presentationDetents([.medium, .large])
+        #if DEBUG
+            .overlay(alignment: .topTrailing) { suivi.temoinEcriturePourEssai }
+        #endif
+    }
+
+    private func conserverSource() {
+        conserverSourceEnCours = true
+        let nouveau = ContenuRecu(type: .texte, contenu: Data(saisie.utf8), origine: .pressePapiers)
+        Task {
+            defer { conserverSourceEnCours = false }
+            do {
+                try await reception.deposer(nouveau)
+                contenu = nouveau
+                lireMessage = true
+            } catch {
+                session.signaler("Impossible de garder le message sur l’iPhone. Réessayez.", erreur: error)
+            }
+        }
+    }
+
+    private func demanderFermeture() {
+        if integre {
+            terminer()
+        } else if formulaire != nil {
+            confirmerAbandon = true
+        } else {
+            fermer()
+        }
+    }
+
+    private func abandonner() {
+        clotureEnCours = true
+        Task {
+            defer { clotureEnCours = false }
+            do {
+                try await suivi.effacer()
+                fermer()
+            } catch {
+                session.signaler("Impossible d’abandonner le brouillon.", erreur: error)
+            }
+        }
     }
 
     private func extraire(_ contenu: ContenuRecu) async {
@@ -196,19 +311,26 @@ struct ArticlesMessageCourses: View {
         do {
             let extraction = try await extracteur.extraire(contenu, cible: .message)
             try Task.checkCancellation()
-            resultat = extraction
-            propositions = extraction.articles.map {
-                Proposition(nom: $0.nom, quantite: $0.quantite, unite: $0.unite)
+            var propositions = extraction.articles.map {
+                FormulaireMessage.Proposition(nom: $0.nom, quantite: $0.quantite, unite: $0.unite)
             }
             if extraction.moteur == .manuel {
-                let incomprises: [Proposition] = extraction.texteSource.split(whereSeparator: \.isNewline).compactMap {
+                let incomprises: [FormulaireMessage.Proposition] = extraction.texteSource.split(
+                    whereSeparator: \.isNewline
+                ).compactMap {
                     ligne in
                     let texte = String(ligne).trimmingCharacters(in: .whitespaces)
                     guard !texte.isEmpty, AnalyseIngredient.analyser(texte).ligneNonComprise else { return nil }
-                    return Proposition(nom: "", quantite: nil, unite: nil, texteNonCompris: texte)
+                    return FormulaireMessage.Proposition(nom: "", quantite: nil, unite: nil, texteNonCompris: texte)
                 }
                 propositions.append(contentsOf: incomprises)
             }
+            formulaire = FormulaireMessage(
+                sourceId: contenu.id,
+                texteDerive: contenu.type == .texte && extraction.texteSource == contenu.texteRecu
+                    ? nil : extraction.texteSource,
+                cause: extraction.cause, propositions: propositions
+            )
         } catch is CancellationError {
             return
         } catch {
@@ -217,10 +339,12 @@ struct ArticlesMessageCourses: View {
     }
 
     private func integrer(_ choix: ListeCourses.ChoixIntegration? = nil) {
-        guard let id = contenu?.id else { return }
+        guard let formulaire, sourceDisponible != nil, !clotureEnCours else { return }
+        let id = formulaire.sourceId
+        let articles = articles
         Task {
             await session.effectuer("Impossible d’ajouter les articles. Le message est conservé.") {
-                let articles = articles
+                try await suivi.forcer(.message(formulaire))
                 let action: ListeCourses.Resultat
                 do {
                     action = try await session.envoi.modifier { liste, _ in
@@ -305,10 +429,11 @@ struct ArticlesMessageCourses: View {
     }
 
     private func retirerContenuRecu() async throws {
-        if !receptionRetiree, let retirerReception {
-            try await retirerReception()
-            receptionRetiree = true
-        }
+        guard !receptionRetiree else { return }
+        if let sourceDisponible { try await reception.retirer(sourceDisponible) }
+        try await suivi.effacer()
+        receptionRetiree = true
+        receptionTraitee()
     }
 
     private func explication(_ cause: CauseExtraction) -> String {

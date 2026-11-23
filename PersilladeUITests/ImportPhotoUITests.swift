@@ -23,6 +23,9 @@
             toucher(app.buttons["ouvrir-contenu-recu"])
             toucher(app.buttons["import-destination-recette"])
             verifierCorrection(app)
+            app.terminate()
+            app.launch()
+            verifierCorrection(app)
             toucher(app.buttons["enregistrer-correction"])
 
             let titre = app.staticTexts["titre-fiche"]

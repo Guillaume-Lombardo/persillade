@@ -50,10 +50,9 @@ private struct Racine: View {
 
     private enum Feuille: Identifiable {
         case importation(ContenuRecu?)
-        case articles(ContenuRecu)
+        case articles(ContenuRecu?, FormulaireMessage? = nil, integre: Bool = false)
         case photo(SourcePhoto)
-        case ecriture
-        case modification(Recette)
+        case correction(DonneesCorrection, repris: Bool = false, enregistree: Bool = false)
         case reglages
 
         var id: String {
@@ -61,8 +60,7 @@ private struct Racine: View {
             case .importation: "importation"
             case .articles: "articles"
             case .photo: "photo"
-            case .ecriture: "ecriture"
-            case .modification: "modification"
+            case .correction(let donnees, _, _): donnees.contexte.id.uuidString
             case .reglages: "reglages"
             }
         }
@@ -76,6 +74,9 @@ private struct Racine: View {
     @State private var traiterSuivant = false
     @State private var chemin: [UUID] = []
     @State private var cheminRecherche: [UUID] = []
+    @State private var suivi: SuiviBrouillonCorrection
+    @State private var brouillonCharge = false
+    @State private var erreurReprise: String?
     @State private var reception: ReceptionEntree
     @State private var bibliotheque: BibliothequeRecettes
     @State private var courses: SessionCourses
@@ -105,6 +106,7 @@ private struct Racine: View {
             }
         #endif
         let bibliotheque = BibliothequeRecettes(dossier: dossier, rappels: rappels)
+        _suivi = State(initialValue: SuiviBrouillonCorrection(dossier: dossier))
         _reception = State(initialValue: ReceptionEntree(dossier: dossier))
         _bibliotheque = State(initialValue: bibliotheque)
         _courses = State(initialValue: SessionCourses(bibliotheque: bibliotheque))
@@ -126,13 +128,16 @@ private struct Racine: View {
                 .erreurCourses(courses)
             }
             Tab("Courses", systemImage: "basket.fill", value: .courses) {
-                OngletCourses(session: courses, reglages: { feuille = .reglages }, extracteur: extracteur)
-                    .erreurCourses(courses)
+                OngletCourses(
+                    session: courses, reglages: { feuille = .reglages }, importerMessage: { feuille = .articles(nil) }
+                )
+                .erreurCourses(courses)
             }
             Tab(value: .recherche, role: .search) {
                 recettes(chemin: $cheminRecherche, recherche: true)
             }
         }
+        .disabled(!brouillonCharge)
         .tint(CouleurPersillade.persil.couleur)
         .tabViewBottomAccessory(
             isEnabled: onglet == .recettes && chemin.isEmpty && feuille == nil && !reception.contenus.isEmpty
@@ -150,13 +155,29 @@ private struct Racine: View {
                 }
             #endif
             await reception.actualiser()
-            if !Task.isCancelled, feuille == nil { ouvrirPremier() }
+            guard !Task.isCancelled else { return }
+            if !brouillonCharge {
+                await reprendreBrouillon()
+                guard !Task.isCancelled else { return }
+                brouillonCharge = true
+            }
+            if feuille == nil && erreurReprise == nil { ouvrirPremier() }
             await actualiserCourses()
         }
         .sheet(item: $feuille, onDismiss: apresFermeture) { contenu in
             contenuFeuille(contenu)
                 .environment(\.dynamicTypeSize, taille)
                 .tint(CouleurPersillade.persil.couleur)
+        }
+        .environment(suivi)
+        .alert(
+            "Brouillon de correction",
+            isPresented: Binding(get: { erreurReprise != nil }, set: { if !$0 { erreurReprise = nil } }),
+            presenting: erreurReprise
+        ) { _ in
+            Button("OK", action: ouvrirPremier)
+        } message: { message in
+            Text(message)
         }
         .alert(
             bibliotheque.erreur ?? "",
@@ -177,9 +198,11 @@ private struct Racine: View {
                 initial: recu, reception: reception, bibliotheque: bibliotheque, extracteur: extracteur,
                 repliConsenti: repliConsenti, fermer: { feuille = nil }, terminer: finImport,
                 importerArticles: { feuille = .articles($0) })
-        case .articles(let recu):
-            ArticlesMessageCourses(session: courses, contenu: recu, extracteur: extracteur) {
-                try await reception.retirer(recu)
+        case .articles(let recu, let brouillon, let integre):
+            ArticlesMessageCourses(
+                session: courses, contenu: recu, extracteur: extracteur, reception: reception, brouillon: brouillon,
+                integre: integre
+            ) {
                 traiterSuivant = true
                 onglet = .courses
             }
@@ -187,25 +210,28 @@ private struct Racine: View {
             ParcoursImport(
                 initial: nil, reception: reception, bibliotheque: bibliotheque, extracteur: extracteur,
                 repliConsenti: repliConsenti, fermer: { feuille = nil }, terminer: finImport, sourcePhoto: source)
-        case .ecriture:
+        case .correction(let donnees, let repris, let enregistree):
+            let recu = reception.contenus.first { $0.id == donnees.contexte.sourceId }
             NavigationStack {
                 CorrectionRecette(
-                    donnees: .init(), fermer: { feuille = nil }
-                ) { recette in
-                    try await bibliotheque.enregistrer(recette, modification: false, echelle: echelle)
-                    feuille = nil
-                    ouvrirFiche(recette.id)
-                }
-            }
-            .presentationDetents([.large])
-        case .modification(let recette):
-            NavigationStack {
-                CorrectionRecette(
-                    donnees: .init(recette: recette), fermer: { feuille = nil }
-                ) { modifiee in
-                    try await bibliotheque.enregistrer(modifiee, modification: true, echelle: echelle)
-                    feuille = nil
-                }
+                    donnees: donnees, photo: recu?.type == .image ? recu?.contenu : nil, repris: repris,
+                    enregistree: enregistree,
+                    fermer: { feuille = nil },
+                    enregistrer: {
+                        try await bibliotheque.enregistrer(
+                            $0, modification: donnees.contexte.modification, echelle: echelle)
+                    },
+                    retirerSource: {
+                        if let recu { try await reception.retirer(recu) }
+                    },
+                    terminer: { id in
+                        if donnees.contexte.sourceId != nil {
+                            finImport(id)
+                        } else {
+                            feuille = nil
+                            if !donnees.contexte.modification { ouvrirFiche(id) }
+                        }
+                    })
             }
             .presentationDetents([.large])
         case .reglages:
@@ -216,10 +242,92 @@ private struct Racine: View {
     private func recettes(chemin: Binding<[UUID]>, recherche: Bool = false) -> some View {
         OngletRecettes(
             chemin: chemin, bibliotheque: bibliotheque, rechercheActive: recherche, messageReception: reception.message,
-            coller: { feuille = .importation(nil) }, ecrire: { feuille = .ecriture },
+            coller: { feuille = .importation(nil) }, ecrire: { feuille = .correction(.init()) },
             prendrePhoto: { feuille = .photo(.appareilPhoto) },
             choisirPhoto: { feuille = .photo(.phototheque) },
-            reglages: { feuille = .reglages }, modifier: { feuille = .modification($0) })
+            reglages: { feuille = .reglages }, modifier: { feuille = .correction(.init(recette: $0)) })
+    }
+
+    private func reprendreBrouillon() async {
+        let brouillon: BrouillonCorrection?
+        do {
+            brouillon = try await suivi.lire()
+        } catch MagasinBrouillonCorrection.Erreur.illisible {
+            if !Task.isCancelled {
+                erreurReprise =
+                    "Le brouillon est illisible. Le contenu reçu et les recettes enregistrées sont conservés."
+            }
+            return
+        } catch {
+            if !Task.isCancelled { erreurReprise = "Impossible de lire le brouillon. Réessayez en rouvrant l’app." }
+            return
+        }
+        guard !Task.isCancelled, let brouillon else { return }
+        switch brouillon {
+        case .recette(let contexte, let formulaire, let validation):
+            let recu = reception.contenus.first { $0.id == contexte.sourceId }
+            var source =
+                contexte.texteDerive
+                ?? recu.flatMap { recu in
+                    recu.type == .texte ? recu.texteRecu : reception.textesDeRepli[recu.id]
+                }
+            var enregistree: Recette?
+            do {
+                let recette = try await bibliotheque.lire(contexte.id)
+                if contexte.modification { source = recette?.texteSource }
+                let modifiee =
+                    contexte.modification && validation
+                    ? try source.map { try formulaire.valider(contexte, source: $0) } : nil
+                if let recette, !contexte.modification || modifiee == recette {
+                    enregistree = recette
+                    source = recette.texteSource
+                    try Task.checkCancellation()
+                    if let recu { try await reception.retirer(recu) }
+                    try await suivi.effacer()
+                    if !contexte.modification { ouvrirFiche(recette.id) }
+                    return
+                }
+            } catch {
+                // La correction reste accessible si la bibliothèque ou le nettoyage échoue.
+                if !Task.isCancelled, enregistree == nil {
+                    bibliotheque.erreur = "Impossible de vérifier l’enregistrement de la recette."
+                }
+            }
+            guard !Task.isCancelled else { return }
+            if contexte.modification || contexte.sourceId != nil, source == nil {
+                erreurReprise = "Impossible de retrouver la source de la correction. Le brouillon est conservé."
+                return
+            }
+            let formulaireAffiche = enregistree.map { DonneesCorrection(recette: $0).formulaire } ?? formulaire
+            feuille = .correction(
+                .init(contexte: contexte, source: source ?? "", formulaire: formulaireAffiche),
+                repris: true, enregistree: enregistree != nil)
+        case .message(let formulaire):
+            let recu = reception.contenus.first { $0.id == formulaire.sourceId }
+            var integre = false
+            do {
+                let etat = try await courses.envoi.lire()
+                integre = etat.liste.contientMessage(id: formulaire.sourceId)
+                if integre {
+                    try Task.checkCancellation()
+                    if let recu { try await reception.retirer(recu) }
+                    try await suivi.effacer()
+                    onglet = .courses
+                    return
+                }
+            } catch {
+                if !Task.isCancelled {
+                    let message =
+                        integre
+                        ? "Les articles sont ajoutés. Impossible de clôturer la validation."
+                        : "Impossible de vérifier l’ajout du message."
+                    courses.signaler(message, erreur: error)
+                }
+            }
+            guard !Task.isCancelled else { return }
+            onglet = .courses
+            feuille = .articles(recu, formulaire, integre: integre)
+        }
     }
 
     private func ouvrirPremier() {

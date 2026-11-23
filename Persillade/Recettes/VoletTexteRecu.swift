@@ -2,6 +2,7 @@ import SwiftUI
 
 struct VoletTexteRecu: View {
     let source: String
+    var debut = 0
     let ingredients: [LigneIngredientCorrection]
     @Binding var ouvert: Bool
     let atteindre: (UUID) -> Void
@@ -11,13 +12,15 @@ struct VoletTexteRecu: View {
     var body: some View {
         let lignes = source.components(separatedBy: .newlines)
         let parIndice = Dictionary(grouping: ingredients.filter { $0.citation != nil }) { $0.citation?.ligne }
-        let hauteur = lignes.indices.prefix(5).reduce(0.0) { hauteur, indice in
+        let plage = lignes.indices.dropFirst(max(0, debut))
+        let hauteur = plage.prefix(5).reduce(0.0) { hauteur, indice in
             hauteur + (parIndice[indice] != nil ? max(hauteurLigne, GrillePersillade.cible) : hauteurLigne)
         }
         DisclosureGroup(isExpanded: $ouvert) {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(lignes.enumerated()), id: \.offset) { indice, texte in
+                    ForEach(plage, id: \.self) { indice in
+                        let texte = lignes[indice]
                         if let citations = parIndice[indice] {
                             Text(Self.surligner(texte, citations: citations))
                                 .typographie(.precision)

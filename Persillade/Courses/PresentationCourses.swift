@@ -122,15 +122,17 @@ struct FeuilleCourses<Contenu: View>: View {
     let titre: String
     let fermetureInterdite: Bool
     let afficherFermer: Bool
+    let actionFermer: (() -> Void)?
     @ViewBuilder var contenu: () -> Contenu
 
     init(
-        _ titre: String, fermetureInterdite: Bool = false, afficherFermer: Bool = true,
+        _ titre: String, fermetureInterdite: Bool = false, afficherFermer: Bool = true, fermer: (() -> Void)? = nil,
         @ViewBuilder contenu: @escaping () -> Contenu
     ) {
         self.titre = titre
         self.fermetureInterdite = fermetureInterdite
         self.afficherFermer = afficherFermer
+        actionFermer = fermer
         self.contenu = contenu
     }
 
@@ -144,8 +146,10 @@ struct FeuilleCourses<Contenu: View>: View {
                 .toolbar {
                     if afficherFermer {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button("Fermer") { fermer() }
-                                .disabled(fermetureInterdite)
+                            Button("Fermer") {
+                                if let actionFermer { actionFermer() } else { fermer() }
+                            }
+                            .disabled(fermetureInterdite)
                         }
                     }
                 }
@@ -156,6 +160,9 @@ struct FeuilleCourses<Contenu: View>: View {
 }
 
 struct AccesRappels: View {
+    static let consigne =
+        "Dans Réglages, ouvrez Apps → Persillade → Rappels ou Confidentialité et sécurité → Rappels → Persillade, puis autorisez l’accès complet."
+
     @Environment(\.dismiss) private var fermer
     @Environment(\.openURL) private var ouvrirURL
 
@@ -163,7 +170,7 @@ struct AccesRappels: View {
         ScrollView {
             EtatVide(
                 titre: "Persillade n’a pas accès à Rappels.",
-                message: "Autorisez l’accès complet dans Réglages. La liste de courses est conservée."
+                message: Self.consigne
             ) {
                 Image(systemName: "lock.fill")
                     .foregroundStyle(CouleurPersillade.tomate.couleur)
@@ -384,7 +391,7 @@ struct BilanEnvoiCourses: View {
 
     private func explication(_ cause: CauseEchecEnvoi) -> String {
         switch cause {
-        case .accesRefuse: "Autorisez l’accès complet à Rappels dans Réglages."
+        case .accesRefuse: AccesRappels.consigne
         case .listeIntrouvable: "La liste choisie n’existe plus dans Rappels."
         case .listeNonModifiable: "La liste choisie est en lecture seule."
         case .ecriture: "Rappels a refusé l’écriture."

@@ -1,3 +1,4 @@
+import PersilladeCore
 import Testing
 
 @testable import Persillade
@@ -21,4 +22,15 @@ import Testing
 @Test func privilegieLaCitationLongueQuandLesPlagesSeChevauchent() {
     let citations = CorrespondancesSource.associer(["1 citron", "1 citron vert"], dans: "1 citron vert et 1 citron")
     #expect(citations.map { $0?.plage.location } == [17, 0])
+}
+
+@Test func extraitWebCommenceAuTitreOuAuPremierIngredientSansDecalerLesCitations() {
+    let source = "Rechercher\nSoupe de courge\nSe connecter\nSoupe de courge\nIngrédients\n500 g de courge"
+    let brouillon = BrouillonRecette(
+        titre: "Soupe de courge", ingredients: [.init(nom: "courge", texteOrigine: "500 g de courge")])
+    var formulaire = FormulaireRecette(brouillon, source: source)
+    #expect(formulaire.debutExtraitWeb(dans: source) == 3)
+    #expect(formulaire.ingredients[0].citation?.ligne == 5)
+    formulaire.titre = "Autre titre"
+    #expect(formulaire.debutExtraitWeb(dans: source) == 5)
 }

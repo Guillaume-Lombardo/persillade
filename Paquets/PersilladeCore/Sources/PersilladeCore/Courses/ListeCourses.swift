@@ -103,10 +103,12 @@ public struct ListeCourses: Codable, Equatable, Identifiable, Sendable {
         return .applique(Effets())
     }
 
+    public func contientMessage(id: UUID) -> Bool { messagesIntegres.contains(id) }
+
     public mutating func integrer(
         _ articles: [ArticleCourses], messageId: UUID, choix: ChoixIntegration? = nil
     ) throws -> Resultat {
-        guard !messagesIntegres.contains(messageId) else { throw Erreur.messageDejaIntegre(messageId) }
+        guard !contientMessage(id: messageId) else { throw Erreur.messageDejaIntegre(messageId) }
         guard !articles.isEmpty else { throw Erreur.messageSansArticle }
         guard !envoyee || choix != nil else { return .choixIntegrationRequis }
 
