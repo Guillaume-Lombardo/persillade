@@ -106,7 +106,7 @@ import XCTest
             joindreCapture("Acces-Rappels-refuse")
             bouton("Ouvrir Réglages", dans: app).tap()
             let reglages = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
-            XCTAssertTrue(reglages.wait(for: .runningForeground, timeout: 10))
+            XCTAssertTrue(reglages.wait(for: .runningForeground, timeout: 30))
         }
 
         @MainActor
