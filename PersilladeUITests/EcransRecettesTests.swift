@@ -78,6 +78,7 @@
             XCTAssertEqual(app.staticTexts["nombre-portions"].label, "4 portions")
             XCTAssertTrue(
                 app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "au goût")).firstMatch.exists)
+            verifierLargeurActionCuisine(app)
             joindre("Fiche-clair")
             try auditer(app)
 
@@ -348,6 +349,7 @@
                 XCTAssertTrue(action.exists, nom)
                 XCTAssertTrue(cuisiner.exists, nom)
                 XCTAssertGreaterThanOrEqual(action.frame.height, 44, nom)
+                verifierLargeurActionCuisine(app)
                 let derniere = app.staticTexts.containing(
                     NSPredicate(format: "label CONTAINS %@", "Servez les crêpes")
                 ).firstMatch
@@ -359,7 +361,7 @@
                 XCTAssertLessThanOrEqual(derniere.frame.maxY, action.frame.minY, nom)
                 XCTAssertEqual(action.frame.minX - app.frame.minX, 21, accuracy: 2, nom)
                 XCTAssertEqual(app.frame.maxX - cuisiner.frame.maxX, 21, accuracy: 2, nom)
-                if nom.hasPrefix("AX"), cuisiner.frame.minY >= action.frame.maxY {
+                if cuisiner.frame.minY >= action.frame.maxY {
                     XCTAssertEqual(action.frame.width, cuisiner.frame.width, accuracy: 2, nom)
                 } else {
                     XCTAssertEqual(action.frame.midY, cuisiner.frame.midY, accuracy: 2, nom)
@@ -372,9 +374,14 @@
                 let suivante = app.buttons["suivante-cuisine"]
                 XCTAssertTrue(suivante.waitForExistence(timeout: 5))
                 XCTAssertEqual(suivante.label, "Suivante")
+                let ingredients = app.buttons["ingredients-cuisine"]
+                XCTAssertTrue(ingredients.isHittable)
+                if nom == "AX5" {
+                    XCTAssertGreaterThan(ingredients.frame.width, app.buttons["precedente-cuisine"].frame.width)
+                }
                 joindre("cuisine-\(nom)")
                 try auditer(app)
-                app.buttons["ingredients-cuisine"].tap()
+                ingredients.tap()
                 let mention = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "au goût")).firstMatch
                 for _ in 0..<4 {
                     if mention.isHittable { break }
@@ -547,6 +554,13 @@
         private func enregistrer(_ app: XCUIApplication) {
             app.navigationBars["Correction"].buttons["Enregistrer"].tap()
             XCTAssertTrue(app.staticTexts["titre-fiche"].waitForExistence(timeout: 8), app.debugDescription)
+        }
+
+        @MainActor
+        private func verifierLargeurActionCuisine(_ app: XCUIApplication) {
+            let semaine = app.buttons["Ajouter à la semaine"]
+            let cuisiner = app.buttons["ouvrir-cuisine"]
+            XCTAssertGreaterThanOrEqual(cuisiner.frame.width + 1, semaine.frame.width)
         }
 
         @MainActor

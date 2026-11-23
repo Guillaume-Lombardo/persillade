@@ -144,10 +144,9 @@ struct FicheRecette: View {
                     commandeSemaine(portions)
                 } else {
                     ViewThatFits(in: .horizontal) {
-                        HStack(spacing: GrillePersillade.pas * 2) {
+                        CommandesFicheHorizontales {
                             commandeSemaine(portions).fixedSize()
                             commandeCuisine
-                                .frame(maxWidth: .infinity)
                         }
                         VStack(spacing: GrillePersillade.pas * 2) {
                             commandeSemaine(portions)
@@ -293,6 +292,28 @@ struct FicheRecette: View {
             .accessibilityAddTraits(.isHeader)
             .padding(GrillePersillade.marge)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct CommandesFicheHorizontales: Layout {
+    private let espacement = GrillePersillade.pas * 2
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let minimum = subviews.map { $0.sizeThatFits(.unspecified).width }.max() ?? 0
+        let colonne = max(minimum, ((proposal.width ?? 0) - espacement) / 2)
+        let taille = ProposedViewSize(width: colonne, height: nil)
+        let hauteur = subviews.map { $0.sizeThatFits(taille).height }.max() ?? 0
+        return CGSize(width: colonne * 2 + espacement, height: hauteur)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let colonne = (bounds.width - espacement) / 2
+        for (index, bouton) in subviews.enumerated() {
+            bouton.place(
+                at: CGPoint(x: bounds.minX + CGFloat(index) * (colonne + espacement), y: bounds.midY),
+                anchor: .leading, proposal: ProposedViewSize(width: colonne, height: nil)
+            )
+        }
     }
 }
 

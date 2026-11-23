@@ -155,64 +155,74 @@ struct PasAPas: View {
     }
 
     private var commandes: some View {
-        let cible = GrillePersillade.cibleCuisine
-        let action = derniereEtape ? "Terminer" : "Suivante"
-        let symbole = derniereEtape ? "checkmark" : "chevron.right"
-        return HStack(spacing: GrillePersillade.pas * 2) {
-            boutonSecondaire("Précédente", symbole: "chevron.left", identifiant: "precedente-cuisine", iconeSeule: true)
-            {
-                changerEtape(versSuivante: false)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: GrillePersillade.pas * 2) {
+                precedente
+                ingredients.fixedSize(horizontal: true, vertical: false)
+                suivante
             }
-            .disabled(session.position == 1)
-            .opacity(session.position == 1 ? 0.5 : 1)
-
-            ViewThatFits(in: .horizontal) {
-                if !taille.isAccessibilitySize {
-                    boutonSecondaire(
-                        "Ingrédients", symbole: "list.bullet", identifiant: "ingredients-cuisine", iconeSeule: false
-                    ) { ingredientsVisibles = true }
-                    .fixedSize()
+            VStack(spacing: GrillePersillade.pas * 2) {
+                ingredients
+                HStack(spacing: GrillePersillade.pas * 2) {
+                    precedente
+                    suivante
                 }
-                boutonSecondaire(
-                    "Ingrédients", symbole: "list.bullet", identifiant: "ingredients-cuisine", iconeSeule: true
-                ) { ingredientsVisibles = true }
             }
-
-            Button {
-                if derniereEtape {
-                    memoriserPosition(0)
-                    quitter()
-                } else {
-                    changerEtape(versSuivante: true)
-                }
-            } label: {
-                ViewThatFits(in: .horizontal) {
-                    if !taille.isAccessibilitySize {
-                        HStack(spacing: GrillePersillade.pas * 2) {
-                            Text(action)
-                            Image(systemName: symbole).accessibilityHidden(true)
-                        }
-                        .fixedSize()
-                    }
-                    Text(action)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .font(.system(size: min(tailleAction, 32), weight: .semibold))
-                .padding(.horizontal, GrillePersillade.pas * 2)
-                .frame(minWidth: cible, maxWidth: .infinity, minHeight: cible)
-                .background(encre, in: .capsule)
-                .foregroundStyle(couleurFond)
-                .contentShape(.capsule)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(action)
-            .accessibilityShowsLargeContentViewer { Label(action, systemImage: symbole) }
-            .accessibilityIdentifier("suivante-cuisine")
         }
         .padding(.horizontal, GrillePersillade.marge)
         .padding(.vertical, GrillePersillade.pas * 2)
         .background(couleurFond)
+    }
+
+    private var precedente: some View {
+        boutonSecondaire("Précédente", symbole: "chevron.left", identifiant: "precedente-cuisine", iconeSeule: true) {
+            changerEtape(versSuivante: false)
+        }
+        .disabled(session.position == 1)
+        .opacity(session.position == 1 ? 0.5 : 1)
+    }
+
+    private var ingredients: some View {
+        boutonSecondaire("Ingrédients", symbole: "list.bullet", identifiant: "ingredients-cuisine", iconeSeule: false) {
+            ingredientsVisibles = true
+        }
+    }
+
+    private var suivante: some View {
+        let cible = GrillePersillade.cibleCuisine
+        let action = derniereEtape ? "Terminer" : "Suivante"
+        let symbole = derniereEtape ? "checkmark" : "chevron.right"
+        return Button {
+            if derniereEtape {
+                memoriserPosition(0)
+                quitter()
+            } else {
+                changerEtape(versSuivante: true)
+            }
+        } label: {
+            ViewThatFits(in: .horizontal) {
+                if !taille.isAccessibilitySize {
+                    HStack(spacing: GrillePersillade.pas * 2) {
+                        Text(action)
+                        Image(systemName: symbole).accessibilityHidden(true)
+                    }
+                    .fixedSize()
+                }
+                Text(action)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .font(.system(size: min(tailleAction, 32), weight: .semibold))
+            .padding(.horizontal, GrillePersillade.pas * 2)
+            .frame(minWidth: cible, maxWidth: .infinity, minHeight: cible)
+            .background(encre, in: .capsule)
+            .foregroundStyle(couleurFond)
+            .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(action)
+        .accessibilityShowsLargeContentViewer { Label(action, systemImage: symbole) }
+        .accessibilityIdentifier("suivante-cuisine")
     }
 
     private func boutonSecondaire(

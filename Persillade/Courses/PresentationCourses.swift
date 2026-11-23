@@ -164,8 +164,7 @@ struct FeuilleCourses<Contenu: View>: View {
 }
 
 struct AccesRappels: View {
-    static let consigne =
-        "Dans Réglages, ouvrez Apps → Persillade → Rappels ou Confidentialité et sécurité → Rappels → Persillade, puis autorisez l’accès complet."
+    static let chemin = "Autorisez l’accès complet dans Réglages → Apps → Persillade → Rappels."
 
     @Environment(\.dismiss) private var fermer
     @Environment(\.openURL) private var ouvrirURL
@@ -174,7 +173,7 @@ struct AccesRappels: View {
         ScrollView {
             EtatVide(
                 titre: "Persillade n’a pas accès à Rappels.",
-                message: Self.consigne
+                message: "\(Self.chemin) Votre liste est conservée, rien n’a été envoyé."
             ) {
                 Image(systemName: "lock.fill")
                     .foregroundStyle(CouleurPersillade.tomate.couleur)
@@ -223,8 +222,13 @@ struct BilanEnvoiCourses: View {
 
     private var ecritures: Int { rapport.ajoutes.count + rapport.complements.count }
     private var aEchoue: Bool { !rapport.echecs.isEmpty || rapport.causeGenerale != nil }
+    private var reessaiPrincipal: Bool {
+        rapport.causeGenerale == .ecriture
+            || (rapport.causeGenerale == nil && rapport.echecs.contains { $0.cause == .ecriture })
+    }
 
     private var titre: String {
+        if ecritures == 0, aEchoue { return "Échec de l’envoi" }
         let echecs = rapport.echecs.count
         if echecs > 0 {
             return "\(ecritures) envoyé\(ecritures > 1 ? "s" : ""), \(echecs) échec\(echecs > 1 ? "s" : "")"
@@ -246,7 +250,7 @@ struct BilanEnvoiCourses: View {
                 if let cause = rapport.causeGenerale {
                     Text(explication(cause)).typographie(.precision)
                     actionCause(cause)
-                } else {
+                } else if !aEchoue || ecritures > 0 {
                     Text("Au magasin, cochez dans Rappels.").typographie(.precision)
                 }
             }
@@ -271,9 +275,11 @@ struct BilanEnvoiCourses: View {
                             .listRowBackground(CouleurPersillade.page.couleur)
                         }
                     }
-                    ActionSecondaireCourses(libelle: "Réessayer", symbole: "arrow.clockwise", action: reessayer)
-                        .disabled(envoiEnCours)
-                        .listRowBackground(CouleurPersillade.page.couleur)
+                    if !reessaiPrincipal {
+                        ActionSecondaireCourses(libelle: "Réessayer", symbole: "arrow.clockwise", action: reessayer)
+                            .disabled(envoiEnCours)
+                            .listRowBackground(CouleurPersillade.page.couleur)
+                    }
                 } header: {
                     bandeau("À réessayer", symbole: "exclamationmark.triangle.fill", nombre: rapport.echecs.count)
                 }
@@ -294,14 +300,24 @@ struct BilanEnvoiCourses: View {
         .scrollContentBackground(.hidden)
         .barreAction(tailleMax: .accessibility5) {
             DispositionActionsCourses {
-                ActionSecondaireCourses(
-                    libelle: "Ouvrir Rappels", symbole: "arrow.up.forward.app", action: ouvrirListeRappels
-                )
-                .accessibilityIdentifier("rapport-ouvrir-rappels")
-                BoutonActionPersillade(
-                    "Terminé", symbole: "checkmark",
-                    progression: envoiEnCours ? session.progressionEnvoi ?? 0 : nil, pleineLargeur: true,
-                    action: terminer)
+                if reessaiPrincipal {
+                    ActionSecondaireCourses(libelle: "Terminé", symbole: "checkmark", action: terminer)
+                    BoutonActionPersillade(
+                        "Réessayer", symbole: "arrow.clockwise",
+                        progression: envoiEnCours ? session.progressionEnvoi ?? 0 : nil, pleineLargeur: true,
+                        action: reessayer
+                    )
+                    .accessibilityIdentifier("rapport-reessayer")
+                } else {
+                    ActionSecondaireCourses(
+                        libelle: "Ouvrir Rappels", symbole: "arrow.up.forward.app", action: ouvrirListeRappels
+                    )
+                    .accessibilityIdentifier("rapport-ouvrir-rappels")
+                    BoutonActionPersillade(
+                        "Terminé", symbole: "checkmark",
+                        progression: envoiEnCours ? session.progressionEnvoi ?? 0 : nil, pleineLargeur: true,
+                        action: terminer)
+                }
             }
             .disabled(envoiEnCours)
         }
@@ -398,7 +414,7 @@ struct BilanEnvoiCourses: View {
     private func explication(_ cause: CauseEchecEnvoi) -> String {
         let liste = session.titreDestination
         return switch cause {
-        case .accesRefuse: AccesRappels.consigne
+        case .accesRefuse: AccesRappels.chemin
         case .listeIntrouvable:
             liste.map { "La liste « \($0) » n’existe plus dans Rappels." }
                 ?? "La liste choisie n’existe plus dans Rappels."

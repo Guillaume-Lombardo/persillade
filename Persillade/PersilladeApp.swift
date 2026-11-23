@@ -82,6 +82,9 @@ private struct Racine: View {
     @State private var courses: SessionCourses
     private let extracteur: Extracteur
     private let repliConsenti: Extracteur.RepliConsenti?
+    #if DEBUG
+        private let rappelsEnEchec: MagasinRappelsMemoire?
+    #endif
 
     init() {
         var dossier: URL?
@@ -104,6 +107,8 @@ private struct Racine: View {
                     ])
                 }
             }
+            rappelsEnEchec =
+                processus.arguments.contains("-courses-envoi-echec") ? rappels as? MagasinRappelsMemoire : nil
         #endif
         let bibliotheque = BibliothequeRecettes(dossier: dossier, rappels: rappels)
         _suivi = State(initialValue: SuiviBrouillonCorrection(dossier: dossier))
@@ -146,6 +151,9 @@ private struct Racine: View {
         .task(id: phase) {
             guard phase == .active else { return }
             #if DEBUG
+                if !brouillonCharge {
+                    await rappelsEnEchec?.fixerEcrituresEnEchec(["œufs 4", "farine 1,5 kg"])
+                }
                 if ProcessInfo.processInfo.environment["PERSILLADE_TEST_SESSION"].flatMap(UUID.init(uuidString:))
                     != nil,
                     let texte = ProcessInfo.processInfo.environment["PERSILLADE_TEST_PRESSE_PAPIERS"]

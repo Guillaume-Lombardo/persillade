@@ -49,8 +49,7 @@ import XCTest
             bouton("courses-envoyer", dans: app).tap()
             XCTAssertTrue(app.staticTexts["2 articles envoyés"].waitForExistence(timeout: 10))
             bouton("Terminé", dans: app).tap()
-            let destination = bouton("Liste Rappels verrouillée", dans: app)
-            XCTAssertEqual(destination.value as? String, "Maison")
+            verifierDestinationVerrouillee(dans: app)
             let farine = bouton("article-farine", dans: app)
             XCTAssertEqual(farine.value as? String, "1,5 kg, Envoyé")
             XCTAssertFalse(app.staticTexts["Envoyé"].exists)
@@ -127,9 +126,9 @@ import XCTest
             ).firstMatch
             XCTAssertTrue(refuser.waitForExistence(timeout: 10), springboard.debugDescription)
             refuser.tap()
-            let chemin = app.staticTexts.matching(
-                NSPredicate(format: "label CONTAINS %@", "Apps → Persillade → Rappels")
-            ).firstMatch
+            let chemin = app.staticTexts[
+                "Autorisez l’accès complet dans Réglages → Apps → Persillade → Rappels. "
+                    + "Votre liste est conservée, rien n’a été envoyé."]
             XCTAssertTrue(chemin.waitForExistence(timeout: 10))
             return app
         }
@@ -209,14 +208,58 @@ import XCTest
                 XCTAssertTrue(ouvrirRappels.wait(for: \.isHittable, toEqual: true, timeout: 10))
                 joindreCapture("rapport-\(nom)")
                 bouton("Terminé", dans: app).tap()
-                let destination = bouton("Liste Rappels verrouillée", dans: app)
-                XCTAssertEqual(destination.value as? String, "Maison")
+                verifierDestinationVerrouillee(dans: app)
+                let renvoyer = bouton("courses-renvoyer", dans: app)
+                let ajouterArticle = bouton("Ajouter", dans: app)
+                XCTAssertEqual(ajouterArticle.frame.midY, renvoyer.frame.midY, accuracy: 2, nom)
+                XCTAssertTrue(oeufs.isHittable, nom)
+                XCTAssertLessThanOrEqual(oeufs.frame.maxY, min(ajouterArticle.frame.minY, renvoyer.frame.minY), nom)
                 joindreCapture("courses-envoyees-\(nom)")
-                bouton("courses-renvoyer", dans: app).tap()
+                renvoyer.tap()
                 XCTAssertTrue(app.staticTexts["Rien à ajouter"].waitForExistence(timeout: 10))
                 joindreCapture("rapport-renvoi-\(nom)")
                 app.terminate()
             }
+        }
+
+        @MainActor
+        func testRapportEchecMetEnAvantLeReessai() {
+            for (nom, arguments) in [("clair", []), ("AX5", ["-courses-ax5"])] {
+                let app = lancer(["-courses-envoi-echec"] + arguments)
+                ouvrirOnglet("Semaine", dans: app)
+                faireListe(dans: app)
+                bouton("Choisir une liste", dans: app).tap()
+                bouton("destination-rappels-maison", dans: app).tap()
+                bouton("courses-envoyer", dans: app).tap()
+                XCTAssertTrue(app.staticTexts["Échec de l’envoi"].waitForExistence(timeout: 10))
+                let bandeau = app.descendants(matching: .any).matching(
+                    NSPredicate(format: "label BEGINSWITH %@", "À réessayer")
+                ).firstMatch
+                XCTAssertTrue(bandeau.exists, nom)
+                XCTAssertTrue(bandeau.label.contains("2"), bandeau.label)
+                let reessayer = app.buttons["rapport-reessayer"]
+                XCTAssertTrue(reessayer.wait(for: \.isHittable, toEqual: true, timeout: 10))
+                XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label == %@", "Réessayer")).count, 1)
+                let terminer = bouton("Terminé", dans: app)
+                XCTAssertTrue(terminer.isHittable, nom)
+                XCTAssertTrue(terminer.frame.midY < reessayer.frame.midY || terminer.frame.midX < reessayer.frame.midX)
+                joindreCapture("rapport-echec-\(nom)")
+                reessayer.tap()
+                XCTAssertTrue(terminer.wait(for: \.isEnabled, toEqual: true, timeout: 10))
+                terminer.tap()
+                XCTAssertTrue(app.navigationBars["Courses"].waitForExistence(timeout: 5))
+                app.terminate()
+            }
+        }
+
+        @MainActor
+        private func verifierDestinationVerrouillee(dans app: XCUIApplication) {
+            let id = "courses-liste-verrouillee"
+            let destination = app.descendants(matching: .any)[id].firstMatch
+            XCTAssertTrue(destination.waitForExistence(timeout: 10))
+            XCTAssertEqual(destination.label, "Liste Rappels verrouillée")
+            XCTAssertEqual(destination.value as? String, "Maison")
+            XCTAssertFalse(app.buttons[id].exists)
         }
 
         @MainActor
