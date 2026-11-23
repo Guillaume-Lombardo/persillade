@@ -219,6 +219,7 @@ struct BilanEnvoiCourses: View {
     var ouvrirRappels: (() -> Void)?
 
     @Environment(\.openURL) private var ouvrirURL
+    @Environment(\.dynamicTypeSize) private var taille
 
     private var ecritures: Int { rapport.ajoutes.count + rapport.complements.count }
     private var aEchoue: Bool { !rapport.echecs.isEmpty || rapport.causeGenerale != nil }
@@ -271,10 +272,7 @@ struct BilanEnvoiCourses: View {
                             let quantite = PresentationQuantite(ligne: ligne)
                             LigneArticle(
                                 nom: ligne.libelle.lowercased(), quantite: quantite.nombre, unite: quantite.unite,
-                                precisionPleineLargeur: quantite.precision,
-                                marque: .init(
-                                    libelle: explication(echec.cause), symbole: "exclamationmark.triangle.fill",
-                                    couleur: .tomate)
+                                precision: explication(echec.cause), precisionPleineLargeur: quantite.precision
                             )
                             .listRowInsets(EdgeInsets())
                             .listRowSeparator(.hidden)
@@ -332,9 +330,12 @@ struct BilanEnvoiCourses: View {
     }
 
     private func bandeau(_ titre: String, symbole: String, nombre: Int) -> some View {
-        HStack {
-            Label(titre, systemImage: symbole).typographie(.rayon)
-            Spacer()
+        HStack(spacing: GrillePersillade.pas * 2) {
+            if !taille.isAccessibilitySize {
+                Image(systemName: symbole).typographie(.rayon).accessibilityHidden(true)
+            }
+            Text(titre).typographie(.rayon).layoutPriority(1)
+            Spacer(minLength: 0)
             if nombre > 0 { Text(nombre.formatted()).typographie(.precision) }
         }
         .foregroundStyle(CouleurPersillade.encre.couleur)
