@@ -169,11 +169,11 @@ struct CorrectionRecette: View {
                     }
                     .listRowBackground(CouleurPersillade.page2.couleur)
                 }
-                if donnees.cause != nil || !alertes.isEmpty {
-                    Section { bandeau(defilement) }
-                }
                 if !source.isEmpty && saisie == nil {
                     Section { panneauSource(defilement) }
+                }
+                if donnees.cause != nil || !alertes.isEmpty {
+                    Section { bandeau(defilement) }
                 }
 
                 Group {
@@ -326,6 +326,7 @@ struct CorrectionRecette: View {
             .contentShape(.rect)
             .simultaneousGesture(TapGesture().onEnded { saisie = .titre })
         }
+        .padding(.vertical, GrillePersillade.pas * 2)
         .ligneDeCorrection()
     }
 
@@ -354,6 +355,7 @@ struct CorrectionRecette: View {
                     : AnyLayout(HStackLayout(spacing: GrillePersillade.pas * 2))
                 disposition {
                     PastilleAVerifier(libelle: "Absent du texte, 4 par défaut")
+                        .labelStyle(StylePastilleCorrection())
                     boutonVerification("Garder 4") {
                         withAnimation(.easeInOut(duration: mouvementReduit ? 0.2 : 0.25)) {
                             formulaire.portions = "4"
@@ -364,6 +366,7 @@ struct CorrectionRecette: View {
                 }
             }
         }
+        .padding(.vertical, GrillePersillade.pas * 2)
         .ligneDeCorrection()
         .listRowBackground(
             formulaire.portions.isEmpty ? CouleurPersillade.beurreFond.couleur : CouleurPersillade.page.couleur)
@@ -375,13 +378,22 @@ struct CorrectionRecette: View {
                 Label(libelle(cause), systemImage: "exclamationmark.circle")
                     .typographie(.alerte)
             }
-            if !alertes.isEmpty {
-                let nombre = alertes.count
-                Text(nombre == 1 ? "1 point à vérifier" : "\(nombre) points à vérifier")
-                    .typographie(.alerte)
-            }
             if let premier = alertes.first {
-                boutonVerification("Suivant") { montrer(premier, dans: defilement) }
+                let nombre = alertes.count
+                let disposition =
+                    taille.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: GrillePersillade.pas))
+                    : AnyLayout(HStackLayout(spacing: GrillePersillade.pas * 2))
+                disposition {
+                    Label(
+                        nombre == 1 ? "1 point à vérifier" : "\(nombre) points à vérifier",
+                        systemImage: "exclamationmark.circle.fill"
+                    )
+                    .typographie(.alerte)
+                    .labelStyle(StylePastilleCorrection())
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    boutonVerification("Suivant") { montrer(premier, dans: defilement) }
+                }
             } else if donnees.cause != nil {
                 boutonVerification(donnees.cause == .contenuTropLong ? "Voir le texte" : "Suivant") {
                     if donnees.cause == .contenuTropLong {
@@ -395,6 +407,7 @@ struct CorrectionRecette: View {
                 }
             }
         }
+        .padding(.vertical, GrillePersillade.pas)
         .ligneDeCorrection()
         .foregroundStyle(CouleurPersillade.surBeurre.couleur)
         .tint(CouleurPersillade.surBeurre.couleur)
@@ -526,7 +539,9 @@ struct CorrectionRecette: View {
                                 montrer(champ, dans: defilement)
                             } label: {
                                 PastilleAVerifier(
-                                    libelle: ligne.nomVide ? "Corriger le nom" : "Ligne non comprise · Corriger")
+                                    libelle: ligne.nomVide ? "Corriger le nom" : "Ligne non comprise · Corriger"
+                                )
+                                .labelStyle(StylePastilleCorrection())
                             }
                             .buttonStyle(.plain)
                             .padding(.leading, taille.isAccessibilitySize ? GrillePersillade.marge : colonnePesee)
@@ -553,10 +568,11 @@ struct CorrectionRecette: View {
                 let champ = Champ.etape(ligne.id)
                 HStack {
                     TextField("Étape", text: $ligne.texte, axis: .vertical)
-                        .lineLimit(1...6)
+                        .lineLimit(taille.isAccessibilitySize ? nil : 6)
                         .focused($saisie, equals: champ)
                         .frame(minHeight: GrillePersillade.cible)
                         .cadreChampCorrection()
+                        .accessibilityIdentifier("texte-etape-correction")
                     poignee(champ)
                 }
                 .ligneDeCorrection()
@@ -774,6 +790,15 @@ struct CorrectionRecette: View {
             break
         }
         suppression = nil
+    }
+}
+
+private struct StylePastilleCorrection: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: GrillePersillade.pas * 2) {
+            configuration.icon.accessibilityHidden(true)
+            configuration.title
+        }
     }
 }
 

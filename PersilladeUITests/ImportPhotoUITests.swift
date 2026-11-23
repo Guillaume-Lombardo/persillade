@@ -52,7 +52,14 @@
             // La photo générée est plus récente que les exemples de la photothèque iOS.
             let grille = app.scrollViews["photosView_content_scroll_view"]
             toucher(grille.images.matching(identifier: "PXGGridLayout-Info").firstMatch)
-            toucher(app.buttons["import-destination-recette"])
+            let recette = app.buttons["import-destination-recette"]
+            let abandonner = app.buttons["import-destination-abandonner"]
+            XCTAssertTrue(recette.wait(for: \.isHittable, toEqual: true, timeout: 20))
+            XCTAssertTrue(abandonner.isHittable)
+            XCTAssertEqual(recette.frame.width, abandonner.frame.width, accuracy: 1)
+            XCTAssertFalse(app.buttons["Articles de courses"].exists)
+            joindre("Destination-photo-clair")
+            recette.tap()
             verifierCorrection(app)
             joindre("Photo-correction")
             let photo = app.buttons["photo-correction"]

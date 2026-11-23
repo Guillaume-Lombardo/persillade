@@ -142,6 +142,7 @@ struct ParcoursImport: View {
     private func destination(_ contenu: ContenuRecu) -> some View {
         let position = reception.contenus.firstIndex { $0.id == contenu.id }
         let suivant = reception.contenus.first { $0.id != contenu.id }
+        let apercu = contenu.type == .image ? "Photo de la recette" : contenu.texteRecu
         return ScrollView {
             VStack(alignment: .leading, spacing: GrillePersillade.pas * 3) {
                 if let position, reception.contenus.count > 1 {
@@ -151,10 +152,13 @@ struct ParcoursImport: View {
                     Label(hote, systemImage: "link")
                         .typographie(.section)
                         .accessibilityAddTraits(.isHeader)
+                        .accessibilityLabel("Site source : \(hote)")
+                        .accessibilityIdentifier("hote-destination")
                 }
-                Text(contenu.type == .image ? "Photo de la recette" : contenu.texteRecu)
+                Text(apercu)
                     .lineLimit(taille.isAccessibilitySize ? 2 : 3)
                     .typographie(.texte)
+                    .accessibilityLabel(contenu.type == .url ? "Adresse du lien : \(apercu)" : apercu)
                     .accessibilityIdentifier("apercu-destination")
                 if texteDeRepli != nil {
                     Label("Texte collé disponible", systemImage: "doc.text")

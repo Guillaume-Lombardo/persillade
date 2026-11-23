@@ -189,10 +189,11 @@
             let lien = "https://cuisine.exemple.test/recettes/crepes-maison"
             let app = lancer(texte: lien)
             coller(app)
-            let hote = app.staticTexts["cuisine.exemple.test"]
+            let hote = app.staticTexts["hote-destination"]
             let apercu = app.staticTexts["apercu-destination"]
             XCTAssertTrue(hote.exists)
-            XCTAssertEqual(apercu.label, lien)
+            XCTAssertEqual(hote.label, "Site source : cuisine.exemple.test")
+            XCTAssertEqual(apercu.label, "Adresse du lien : \(lien)")
             XCTAssertLessThan(hote.frame.maxY, apercu.frame.minY)
             verifierActionsDestination(app)
             joindre("Destination-lien-clair")
@@ -344,7 +345,12 @@
         @MainActor
         func testCorrectionTitreLongEtDerniereActionAX5() throws {
             let titre = "Çà, gâteau façon pâtissière à l'œuf poché"
-            let texte = Self.recette.replacingOccurrences(of: "Crêpes maison", with: titre)
+            let etapeLongue = String(
+                repeating: "Servez les crêpes encore chaudes avec la garniture de votre choix. ", count: 3
+            ).trimmingCharacters(in: .whitespaces)
+            let texte = Self.recette
+                .replacingOccurrences(of: "Crêpes maison", with: titre)
+                .replacingOccurrences(of: "Servez les crêpes encore chaudes.", with: etapeLongue)
             let app = lancer(arguments: ["-recettes-ax5"], texte: texte)
             coller(app)
             ouvrirCorrection(app)
@@ -354,11 +360,15 @@
             joindre("Correction-titre-long-AX5")
 
             let ajouter = app.buttons["Ajouter une étape"]
-            for _ in 0..<7 {
+            for _ in 0..<10 {
                 if ajouter.isHittable { break }
                 app.collectionViews.firstMatch.swipeUp(velocity: .slow)
             }
             XCTAssertTrue(ajouter.isHittable)
+            let etape = app.descendants(matching: .any).matching(identifier: "texte-etape-correction").matching(
+                NSPredicate(format: "value == %@", etapeLongue)
+            ).firstMatch
+            XCTAssertGreaterThan(etape.frame.height, app.frame.height / 2)
             XCTAssertTrue(app.buttons["enregistrer-correction"].isHittable)
             joindre("Correction-derniere-action-AX5")
             try auditer(app)
