@@ -145,10 +145,11 @@ struct FicheRecette: View {
                 } else {
                     ViewThatFits(in: .horizontal) {
                         HStack(spacing: GrillePersillade.pas * 2) {
-                            commandeSemaine(portions).fixedSize(horizontal: true, vertical: false)
+                            commandeSemaine(portions).fixedSize()
                             commandeCuisine
+                                .frame(maxWidth: .infinity)
                         }
-                        HStack(spacing: GrillePersillade.pas * 2) {
+                        VStack(spacing: GrillePersillade.pas * 2) {
                             commandeSemaine(portions)
                             commandeCuisine
                         }
@@ -311,16 +312,29 @@ struct IngredientsRecette: View {
                 let ingredient = recette.ingredients[index]
                 LigneArticle(
                     nom: ingredient.nom, quantite: quantites[index]?.texteFrancais,
-                    unite: ingredient.unite?.libelleLecturePersillade)
+                    unite: ingredient.unite?.libelleLecturePersillade, precision: mention(ingredient))
             }
         case .failure:
             Text("Impossible de calculer les quantités pour ces portions.")
                 .foregroundStyle(CouleurPersillade.tomate.couleur)
                 .padding(GrillePersillade.marge)
             ForEach(recette.ingredients.indices, id: \.self) { index in
-                LigneArticle(nom: recette.ingredients[index].nom)
+                let ingredient = recette.ingredients[index]
+                LigneArticle(nom: ingredient.nom, precision: mention(ingredient))
             }
         }
     }
 
+    private func mention(_ ingredient: Ingredient) -> String? {
+        let mentions =
+            #/
+            (?i)\b(?: au\h+go[uû]t | selon\h+(?:le\h+)?go[uû]t | [aà]\h+discr[eé]tion |
+                (?:une|1)\h+pinc[eé]e | quantit[ée]\h+suffisante )\b | \bq\.?\h*s\b\.?
+            /#
+        guard ingredient.quantite == nil, let match = ingredient.texteOrigine.firstMatch(of: mentions) else {
+            return nil
+        }
+        let libelle = String(match.output)
+        return ingredient.nom.localizedCaseInsensitiveContains(libelle) ? nil : libelle
+    }
 }

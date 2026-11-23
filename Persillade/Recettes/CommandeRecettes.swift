@@ -13,9 +13,7 @@ struct CommandeRecettes: View {
     var body: some View {
         Group {
             if principale {
-                bouton
-                    .buttonStyle(.glassProminent)
-                    .tint(CouleurPersillade.persil.couleur)
+                BoutonActionPersillade(titre, symbole: symbole, pleineLargeur: true, action: action)
             } else {
                 bouton.buttonStyle(.glass)
             }

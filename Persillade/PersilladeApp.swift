@@ -139,9 +139,7 @@ private struct Racine: View {
         }
         .disabled(!brouillonCharge)
         .tint(CouleurPersillade.persil.couleur)
-        .tabViewBottomAccessory(
-            isEnabled: onglet == .recettes && chemin.isEmpty && feuille == nil && !reception.contenus.isEmpty
-        ) {
+        .tabViewBottomAccessory(isEnabled: accessoireReceptionVisible) {
             AccessoireReception(contenus: reception.contenus, ouvrir: ouvrirPremier)
         }
         .task(id: phase) {
@@ -240,9 +238,14 @@ private struct Racine: View {
         }
     }
 
+    private var accessoireReceptionVisible: Bool {
+        onglet == .recettes && chemin.isEmpty && feuille == nil && !reception.contenus.isEmpty
+    }
+
     private func recettes(chemin: Binding<[UUID]>, recherche: Bool = false) -> some View {
         OngletRecettes(
             chemin: chemin, bibliotheque: bibliotheque, rechercheActive: recherche, messageReception: reception.message,
+            accessoireReceptionVisible: !recherche && accessoireReceptionVisible,
             coller: { feuille = .importation(nil) }, ecrire: { feuille = .correction(.init()) },
             prendrePhoto: { feuille = .photo(.appareilPhoto) },
             choisirPhoto: { feuille = .photo(.phototheque) },

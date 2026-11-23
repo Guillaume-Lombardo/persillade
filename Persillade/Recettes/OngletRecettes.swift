@@ -6,6 +6,7 @@ struct OngletRecettes: View {
     let bibliotheque: BibliothequeRecettes
     let rechercheActive: Bool
     let messageReception: String?
+    let accessoireReceptionVisible: Bool
     let coller: () -> Void
     let ecrire: () -> Void
     let prendrePhoto: () -> Void
@@ -15,6 +16,7 @@ struct OngletRecettes: View {
 
     @Environment(\.accessibilityReduceMotion) private var mouvementReduit
     @Environment(\.colorScheme) private var apparence
+    @Environment(\.dynamicTypeSize) private var taille
     @Namespace private var transition
     @State private var recherche = ""
     @State private var resultats: [ResumeRecette]?
@@ -139,12 +141,12 @@ struct OngletRecettes: View {
     private var plancheVide: some View {
         ScrollView {
             EtatVide(
-                titre: "La planche\nest vide",
+                titre: "La planche\nest vide.",
                 message: "Importez une première recette. Depuis Safari ou Messages : Partager, puis Persillade."
             ) {
                 Image(decorative: "PlancheVide")
                     .resizable()
-                    .frame(height: 320)
+                    .frame(height: hauteurMotifVide)
             } actions: {
             }
         }
@@ -152,7 +154,7 @@ struct OngletRecettes: View {
             VStack(spacing: GrillePersillade.pas * 2) {
                 CommandeRecettes(
                     titre: "Coller un lien ou un texte", symbole: "document.on.clipboard", principale: true,
-                    hauteurLibelle: GrillePersillade.pas * 8, action: coller)
+                    action: coller)
                 CommandeRecettes(
                     titre: "Prendre une photo", symbole: "camera",
                     hauteurLibelle: GrillePersillade.pas * 8, action: prendrePhoto)
@@ -163,6 +165,11 @@ struct OngletRecettes: View {
             .padding(.vertical, GrillePersillade.pas)
             .background(CouleurPersillade.page.couleur)
         }
+    }
+
+    private var hauteurMotifVide: CGFloat {
+        if taille >= .accessibility3 { return 184 }
+        return accessoireReceptionVisible ? 240 : 320
     }
 
     private func liste(_ recettes: [ResumeRecette]) -> some View {

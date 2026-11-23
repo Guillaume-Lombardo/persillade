@@ -55,7 +55,7 @@
             try auditer(app)
             verifierActionsDestination(app)
             app.navigationBars["Contenu reçu"].buttons["Fermer"].tap()
-            XCTAssertTrue(app.buttons["Ouvrir"].waitForExistence(timeout: 5))
+            verifierPlancheAvecReception(app, doitDefiler: false)
             joindre("contenu-recu-clair")
             app.tabBars.firstMatch.buttons["Semaine"].tap()
             XCTAssertFalse(app.buttons["Ouvrir"].exists)
@@ -76,6 +76,8 @@
             enregistrer(app)
             XCTAssertEqual(app.staticTexts["titre-fiche"].label, "Crêpes maison")
             XCTAssertEqual(app.staticTexts["nombre-portions"].label, "4 portions")
+            XCTAssertTrue(
+                app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "au goût")).firstMatch.exists)
             joindre("Fiche-clair")
             try auditer(app)
 
@@ -329,6 +331,8 @@
                 let ouvrir = app.buttons["ouvrir-contenu-recu"]
                 XCTAssertTrue(ouvrir.wait(for: \.isHittable, toEqual: true, timeout: 5))
                 joindre("contenu-recu-\(nom)")
+                verifierPlancheAvecReception(app, doitDefiler: nom.hasPrefix("AX"))
+                if nom == "AX5" { joindre("contenu-recu-defile-AX5") }
                 ouvrir.tap()
                 ouvrirCorrection(app)
                 if nom.hasPrefix("AX") {
@@ -355,7 +359,12 @@
                 XCTAssertLessThanOrEqual(derniere.frame.maxY, action.frame.minY, nom)
                 XCTAssertEqual(action.frame.minX - app.frame.minX, 21, accuracy: 2, nom)
                 XCTAssertEqual(app.frame.maxX - cuisiner.frame.maxX, 21, accuracy: 2, nom)
-                XCTAssertEqual(action.frame.midY, cuisiner.frame.midY, accuracy: 2, nom)
+                if nom.hasPrefix("AX"), cuisiner.frame.minY >= action.frame.maxY {
+                    XCTAssertEqual(action.frame.width, cuisiner.frame.width, accuracy: 2, nom)
+                } else {
+                    XCTAssertEqual(action.frame.midY, cuisiner.frame.midY, accuracy: 2, nom)
+                    XCTAssertGreaterThanOrEqual(cuisiner.frame.width, 100, nom)
+                }
                 joindre("Fiche-dernière-ligne-\(nom)")
                 try auditer(app)
 
@@ -365,6 +374,16 @@
                 XCTAssertEqual(suivante.label, "Suivante")
                 joindre("cuisine-\(nom)")
                 try auditer(app)
+                app.buttons["ingredients-cuisine"].tap()
+                let mention = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "au goût")).firstMatch
+                for _ in 0..<4 {
+                    if mention.isHittable { break }
+                    app.scrollViews.firstMatch.swipeUp(velocity: .slow)
+                }
+                XCTAssertTrue(mention.isHittable, nom)
+                joindre("cuisine-ingredients-\(nom)")
+                app.buttons["fermer-ingredients-cuisine"].tap()
+                XCTAssertTrue(suivante.wait(for: \.isHittable, toEqual: true, timeout: 5))
                 if nom == "AX5" {
                     for _ in 1..<5 { suivante.tap() }
                     XCTAssertTrue(suivante.wait(for: \.label, toEqual: "Terminer", timeout: 5))
@@ -428,8 +447,12 @@
 
             let appareil = XCUIDevice.shared
             appareil.orientation = .landscapeLeft
-            defer { appareil.orientation = .portrait }
             let fenetre = app.windows.firstMatch
+            defer {
+                appareil.orientation = .portrait
+                let portrait = NSPredicate { _, _ in fenetre.frame.height > fenetre.frame.width }
+                wait(for: [XCTNSPredicateExpectation(predicate: portrait, object: fenetre)], timeout: 8)
+            }
             let paysage = NSPredicate { _, _ in fenetre.frame.width > fenetre.frame.height }
             wait(for: [XCTNSPredicateExpectation(predicate: paysage, object: fenetre)], timeout: 8)
             let cuisiner = app.buttons["ouvrir-cuisine"]
@@ -458,6 +481,7 @@
                 "PERSILLADE_TEST_SESSION": UUID().uuidString,
                 "PERSILLADE_TEST_PRESSE_PAPIERS": texte ?? Self.recette,
             ]
+            XCUIDevice.shared.orientation = .portrait
             app.launch()
             XCTAssertTrue(app.buttons["Coller un lien ou un texte"].waitForExistence(timeout: 8), app.debugDescription)
             return app
@@ -489,6 +513,28 @@
             XCTAssertLessThanOrEqual(app.staticTexts["apercu-destination"].frame.maxY, recette.frame.minY)
             XCTAssertLessThan(recette.frame.maxY, articles.frame.minY)
             XCTAssertLessThan(articles.frame.maxY, abandonner.frame.minY)
+        }
+
+        @MainActor
+        private func verifierPlancheAvecReception(_ app: XCUIApplication, doitDefiler: Bool) {
+            let titre = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "est vide.")).firstMatch
+            let message = app.staticTexts[
+                "Importez une première recette. Depuis Safari ou Messages : Partager, puis Persillade."]
+            let coller = app.buttons["Coller un lien ou un texte"]
+            XCTAssertTrue(app.buttons["ouvrir-contenu-recu"].wait(for: \.isHittable, toEqual: true, timeout: 5))
+            XCTAssertTrue(titre.waitForExistence(timeout: 5))
+            XCTAssertTrue(message.waitForExistence(timeout: 5))
+            if doitDefiler {
+                for _ in 0..<5 {
+                    if message.isHittable, message.frame.maxY <= coller.frame.minY { break }
+                    app.scrollViews.firstMatch.swipeUp(velocity: .slow)
+                }
+            } else {
+                XCTAssertTrue(titre.isHittable)
+                XCTAssertLessThanOrEqual(titre.frame.maxY, message.frame.minY)
+            }
+            XCTAssertTrue(message.isHittable)
+            XCTAssertLessThanOrEqual(message.frame.maxY, coller.frame.minY)
         }
 
         @MainActor
