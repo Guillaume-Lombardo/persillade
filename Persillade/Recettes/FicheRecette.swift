@@ -198,7 +198,7 @@ struct FicheRecette: View {
     private var commandeCuisine: some View {
         CommandeRecettes(
             titre: positionCuisine > 0 ? "Reprendre à l’étape \(positionCuisine)" : "Cuisiner",
-            symbole: "frying.pan.fill", principale: true
+            symbole: taille < .xxxLarge ? "frying.pan.fill" : nil, principale: true
         ) {
             if positionCuisine == 0 { positionCuisine = 1 }
             cuisiner = true
