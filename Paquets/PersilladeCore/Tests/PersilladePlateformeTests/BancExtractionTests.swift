@@ -66,10 +66,12 @@ struct BancExtractionTests {
         #expect(recette.portions == fiche.portions)
         #expect(recette.ingredients.count == fiche.ingredients.count, "\(resultat.texteSource)")
         #expect(recette.etapes.count == fiche.etapes.count, "\(resultat.texteSource)")
-        let alternative = recette.ingredients.first { $0.quantite == Quantite(6) }
+        let abricots = try #require(recette.ingredients.first { $0.nom.lowercased() == "abricots" })
+        #expect(abricots.quantite == Quantite(6))
+        let alternative = try #require(abricots.alternatives.first)
         #expect(
-            alternative?.nom.lowercased().replacingOccurrences(of: "’", with: "'")
-                == "abricots ou 12 oreillons d'abricots au sirop")
+            alternative.nom.lowercased().replacingOccurrences(of: "’", with: "'") == "oreillons d'abricots au sirop")
+        #expect(alternative.quantite == Quantite(12))
     }
 
     @available(iOS 27.0, macOS 27.0, *)
@@ -183,10 +185,12 @@ private struct CasExtraction: Decodable {
         let nom: String
         let quantite: String?
         let unite: Unite?
+        let alternatives: [IngredientAttendu]?
 
         func champ() throws -> ChampIngredient {
             ChampIngredient(
-                nom: normaliserNom(nom), quantite: try quantite.map { try Quantite(texte: $0) }, unite: unite)
+                nom: normaliserNom(nom), quantite: try quantite.map { try Quantite(texte: $0) }, unite: unite,
+                alternatives: try (alternatives ?? []).map { try $0.champ() })
         }
     }
 
@@ -194,6 +198,7 @@ private struct CasExtraction: Decodable {
         let nom: String
         let quantite: Quantite?
         let unite: Unite?
+        var alternatives: [ChampIngredient] = []
     }
 
     let id: String
@@ -228,7 +233,11 @@ private struct CasExtraction: Decodable {
         let titreDifferent = Self.normaliserTexte(titre) != Self.normaliserTexte(recette.titre)
         let portionsDifferentes = portions != recette.portions
         let mesures = recette.ingredients.map {
-            ChampIngredient(nom: normaliserNom($0.nom), quantite: $0.quantite, unite: $0.unite)
+            ChampIngredient(
+                nom: normaliserNom($0.nom), quantite: $0.quantite, unite: $0.unite,
+                alternatives: $0.alternatives.map {
+                    ChampIngredient(nom: normaliserNom($0.nom), quantite: $0.quantite, unite: $0.unite)
+                })
         }
         let cibles = try ingredients.map { try $0.champ() }
         return (titreDifferent ? 1 : 0) + (portionsDifferentes ? 1 : 0)

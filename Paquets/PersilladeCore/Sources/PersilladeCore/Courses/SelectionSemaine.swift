@@ -31,6 +31,7 @@ public struct SelectionSemaine: Codable, Equatable, Sendable {
     public struct Contribution: Equatable, Sendable {
         public let recetteId: UUID
         public let article: ArticleCourses
+        public let alternatives: [AlternativeIngredient]
 
         public var quantitePourRecette: Quantite? {
             get throws {
@@ -78,7 +79,8 @@ public struct SelectionSemaine: Codable, Equatable, Sendable {
             for ingredient in recette.ingredients {
                 let quantite = try ingredient.quantite.map { try $0 * rapport }
                 let article = try ArticleCourses(nom: ingredient.nom, quantite: quantite, unite: ingredient.unite)
-                contributions.append(Contribution(recetteId: recette.id, article: article))
+                let alternatives = try ingredient.alternatives.map { try $0.multiplierQuantite(par: rapport) }
+                contributions.append(Contribution(recetteId: recette.id, article: article, alternatives: alternatives))
             }
         }
         let idsAbsents = Set(absentes)

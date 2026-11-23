@@ -19,6 +19,14 @@ extension Unite {
     }
 }
 
+extension AlternativeIngredient {
+    var mentionPersillade: String {
+        let mesure = quantite?.composantesAffichage(unite: unite)
+        let choix = [mesure?.nombre, mesure?.unite, nom].compactMap { $0 }.joined(separator: " ")
+        return "ou \(choix)"
+    }
+}
+
 struct ColonnesIngredient: DynamicProperty {
     static let espacement: CGFloat = GrillePersillade.pas
 
@@ -140,6 +148,7 @@ struct LigneArticle: View {
     var unite: String?
     var precision: String?
     var precisionPleineLargeur: String?
+    var alternatives: [String] = []
     var exclu = false
     var marque: Marque?
     var afficherMarque = true
@@ -197,8 +206,9 @@ struct LigneArticle: View {
 
     private var valeurAccessibilite: String {
         let quantiteAffichee = [quantite, unite].compactMap { $0 }.joined(separator: " ")
-        return [quantiteAffichee, precision, precisionPleineLargeur, exclu ? "Ne sera pas envoyé" : marque?.libelle]
-            .compactMap { $0 }
+        let details = [quantiteAffichee, precision, precisionPleineLargeur].compactMap { $0 }
+        let etat = exclu ? "Ne sera pas envoyé" : marque?.libelle
+        return (details + alternatives + [etat].compactMap { $0 })
             .filter { !$0.isEmpty }
             .joined(separator: ", ")
     }
@@ -232,11 +242,17 @@ struct LigneArticle: View {
                     .typographie(.precision)
                     .foregroundStyle(CouleurPersillade.encre2.couleur)
             }
+            ForEach(alternatives.indices, id: \.self) { index in
+                Text(alternatives[index])
+                    .typographie(.precision)
+                    .foregroundStyle(CouleurPersillade.encre2.couleur)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, taille.isAccessibilitySize ? 8 : 2)
         .frame(
-            minHeight: precision == nil && precisionPleineLargeur == nil && !exclu
+            minHeight: precision == nil && precisionPleineLargeur == nil && alternatives.isEmpty && !exclu
                 ? hauteurSimple : GrillePersillade.ingredientAnnote
         )
         .contentShape(.rect)

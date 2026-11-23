@@ -326,16 +326,19 @@ struct IngredientsRecette: View {
         let miseAEchelle = Result {
             var selection = SelectionSemaine()
             selection.selectionner(try .init(recetteId: recette.id, portions: portions))
-            return try selection.preparer(recettes: [recette]).contributions.map { try $0.quantitePourRecette }
+            return try selection.preparer(recettes: [recette]).contributions.map {
+                (quantite: try $0.quantitePourRecette, alternatives: $0.alternatives)
+            }
         }
         switch miseAEchelle {
         case .success(let quantites):
             ForEach(recette.ingredients.indices, id: \.self) { index in
                 let ingredient = recette.ingredients[index]
-                let mesure = quantites[index]?.composantesAffichage(unite: ingredient.unite)
+                let mesure = quantites[index].quantite?.composantesAffichage(unite: ingredient.unite)
                 LigneArticle(
                     nom: ingredient.nom, quantite: mesure?.nombre,
-                    unite: mesure?.unite, precision: mention(ingredient))
+                    unite: mesure?.unite, precision: mention(ingredient),
+                    alternatives: quantites[index].alternatives.map(\.mentionPersillade))
             }
         case .failure:
             Text("Impossible de calculer les quantités pour ces portions.")

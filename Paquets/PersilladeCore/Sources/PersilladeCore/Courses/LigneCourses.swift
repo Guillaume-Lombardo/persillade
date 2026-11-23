@@ -17,6 +17,7 @@ public struct LigneCourses: Codable, Equatable, Identifiable, Sendable {
     public private(set) var unite: Unite?
     public internal(set) var categorie: Categorie
     public private(set) var origines: [OrigineCourses]
+    public private(set) var alternatives: [AlternativeIngredient]
     public internal(set) var cochee: Bool
     var idsFusionnes: [UUID] = []
 
@@ -34,12 +35,14 @@ public struct LigneCourses: Codable, Equatable, Identifiable, Sendable {
         }
     }
 
-    init(article: ArticleCourses, origine: OrigineCourses) throws {
+    init(article: ArticleCourses, origine: OrigineCourses, alternatives: [AlternativeIngredient] = []) throws {
         id = UUID()
         libelle = article.nom
         nomNormalise = normaliserNom(article.nom)
         categorie = categorieParDefaut(nomNormalise)
         origines = [origine]
+        var vues: Set<AlternativeIngredient> = []
+        self.alternatives = alternatives.filter { vues.insert($0).inserted }
         cochee = false
         try fixerQuantite(article.quantite, unite: article.unite)
     }
@@ -77,10 +80,13 @@ public struct LigneCourses: Codable, Equatable, Identifiable, Sendable {
         for origine in autre.origines where !origines.contains(origine) {
             origines.append(origine)
         }
+        for alternative in autre.alternatives where !alternatives.contains(alternative) {
+            alternatives.append(alternative)
+        }
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, libelle, quantite, unite, categorie, origines, cochee
+        case id, libelle, quantite, unite, categorie, origines, cochee, alternatives
         case nomNormalise = "nom_normalise"
         case idsFusionnes = "ids_fusionnes"
     }
@@ -92,6 +98,7 @@ public struct LigneCourses: Codable, Equatable, Identifiable, Sendable {
         nomNormalise = try champs.decode(String.self, forKey: .nomNormalise)
         categorie = try champs.decode(Categorie.self, forKey: .categorie)
         origines = try champs.decode([OrigineCourses].self, forKey: .origines)
+        alternatives = try champs.decodeIfPresent([AlternativeIngredient].self, forKey: .alternatives) ?? []
         cochee = try champs.decode(Bool.self, forKey: .cochee)
         idsFusionnes = try champs.decodeIfPresent([UUID].self, forKey: .idsFusionnes) ?? []
 

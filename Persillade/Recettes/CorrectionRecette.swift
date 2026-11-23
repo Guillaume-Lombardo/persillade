@@ -3,6 +3,13 @@ import SwiftUI
 import UIKit
 
 struct CorrectionRecette: View {
+    private struct EditionAlternative: Identifiable {
+        let id = UUID()
+        let ingredient: UUID
+        let index: Int?
+        let valeur: AlternativeIngredient?
+    }
+
     private enum Champ: Hashable {
         case titre, portions
         case ingredient(UUID)
@@ -58,6 +65,7 @@ struct CorrectionRecette: View {
     @State private var erreurAbandon = false
     @State private var sourceOuverte: Bool?
     @State private var photoAgrandie = false
+    @State private var editionAlternative: EditionAlternative?
     @State private var suppression: Suppression?
 
     init(
@@ -253,6 +261,18 @@ struct CorrectionRecette: View {
             .sensoryFeedback(.success, trigger: alertes.isEmpty) { _, vide in vide }
         }
         .tint(CouleurPersillade.persil.couleur)
+        .sheet(item: $editionAlternative) { edition in
+            EditeurAlternativeIngredient(edition.valeur) { valeur in
+                guard let index = formulaire.ingredients.firstIndex(where: { $0.id == edition.ingredient }) else {
+                    return
+                }
+                if let position = edition.index {
+                    formulaire.ingredients[index].alternatives[position] = valeur
+                } else {
+                    formulaire.ingredients[index].alternatives.append(valeur)
+                }
+            }
+        }
         .sheet(isPresented: $photoAgrandie) {
             if let photo, let image = UIImage(data: photo) {
                 NavigationStack {
@@ -522,6 +542,7 @@ struct CorrectionRecette: View {
                     if case .autre = ligne.quantite.unite {
                         ChampNomUnite(nom: liaison.quantite.autre).focused($saisie, equals: .unite(ligne.id))
                     }
+                    choixAlternatifs(liaison, dans: defilement)
                     HStack {
                         boutonVerification("Suivant") { terminerLigne(ligne.id, dans: defilement) }
                         Spacer()
@@ -551,6 +572,7 @@ struct CorrectionRecette: View {
                             quantite: texte.isEmpty ? nil : texte,
                             unite: texte.isEmpty ? nil : uniteAffichee,
                             precision: ligne.note,
+                            alternatives: ligne.alternatives.map(\.mentionPersillade),
                             ouvrir: { montrer(champ, dans: defilement) },
                             hauteurSimple: GrillePersillade.ingredient, fondEtFilet: false)
                         if ligne.aVerifier {
@@ -578,6 +600,45 @@ struct CorrectionRecette: View {
             Button("Supprimer", systemImage: "trash", role: .destructive) { supprimer(champ) }
         }
         .accessibilityActions { actionsOrdre(champ) }
+    }
+
+    private func choixAlternatifs(
+        _ liaison: Binding<LigneIngredientCorrection>, dans defilement: ScrollViewProxy
+    ) -> some View {
+        let ligne = liaison.wrappedValue
+        return VStack(alignment: .leading, spacing: GrillePersillade.pas) {
+            ForEach(ligne.alternatives.indices, id: \.self) { index in
+                let choix = ligne.alternatives[index]
+                Menu {
+                    Button("Modifier", systemImage: "pencil") {
+                        saisie = nil
+                        editionAlternative = EditionAlternative(ingredient: ligne.id, index: index, valeur: choix)
+                    }
+                    Button("Utiliser comme ingrédient principal", systemImage: "arrow.up.arrow.down") {
+                        do {
+                            try liaison.wrappedValue.echangerAvecAlternative(index)
+                            erreurValidation = nil
+                        } catch {
+                            signalerErreur(error, ligne: liaison.wrappedValue, dans: defilement)
+                        }
+                    }
+                    Button("Supprimer l’alternative", systemImage: "trash", role: .destructive) {
+                        liaison.wrappedValue.alternatives.remove(at: index)
+                    }
+                } label: {
+                    Label(choix.mentionPersillade, systemImage: "ellipsis.circle")
+                        .typographie(.precision)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(minHeight: GrillePersillade.cible, alignment: .leading)
+                }
+            }
+            Button("Ajouter une alternative", systemImage: "plus") {
+                saisie = nil
+                editionAlternative = EditionAlternative(ingredient: ligne.id, index: nil, valeur: nil)
+            }
+            .frame(minHeight: GrillePersillade.cible)
+        }
+        .buttonStyle(.borderless)
     }
 
     private func sectionEtapes(_ defilement: ScrollViewProxy) -> some View {

@@ -66,6 +66,53 @@ func lignesIngredients(_ cas: CasIngredient) throws {
     #expect(try analyse.valider().nom == cas.nom)
 }
 
+@Test func reconnaitLesAlternativesDoseesEtConserveLaCitation() throws {
+    let ligne = "6 abricots ou 12 oreillons d'abricots au sirop ou ½ kg d’abricots surgelés"
+    let ingredient = try AnalyseIngredient.analyser(ligne).valider()
+    #expect(ingredient.nom == "abricots")
+    #expect(ingredient.quantite == Quantite(6))
+    #expect(ingredient.unite == .piece)
+    #expect(ingredient.texteOrigine == ligne)
+    #expect(
+        ingredient.alternatives == [
+            try AlternativeIngredient(nom: "oreillons d'abricots au sirop", quantite: Quantite(12), unite: .piece),
+            try AlternativeIngredient(nom: "abricots surgelés", quantite: Quantite(texte: "1/2"), unite: .kg),
+        ])
+}
+
+@Test func laQuantiteDuChocolatVautPourLesDeuxChoix() throws {
+    let ingredient = AnalyseIngredient.analyser("200 g de chocolat noir ou au lait")
+    #expect(ingredient.nom == "chocolat noir")
+    #expect(ingredient.quantite == Quantite(200))
+    #expect(
+        ingredient.alternatives == [
+            try AlternativeIngredient(nom: "chocolat au lait", quantite: Quantite(200), unite: .g)
+        ])
+}
+
+@Test(arguments: [
+    ("sel ou poivre", "sel ou poivre"),
+    ("1,6 kg pommes de terre bintje ou charlotte", "pommes de terre bintje ou charlotte"),
+])
+func conserveLesPrecisionsSansSecondeQuantite(ligne: String, nom: String) {
+    let ingredient = AnalyseIngredient.analyser(ligne)
+    #expect(ingredient.nom == nom)
+    #expect(ingredient.alternatives.isEmpty)
+}
+
+@Test func regroupeLesCitationsAlternativesDuMoteur() async throws {
+    let texte = """
+        Clafoutis maison
+        Pour ce dessert, prenez 6 abricots ou 12 oreillons d’abricots au sirop.
+        """
+    let moteur = MoteurBouchon(
+        .reponse { _ in PropositionExtraction(ingredients: ["6 abricots", "12 oreillons d’abricots au sirop"]) })
+    let resultat = try await Extracteur(moteurIA: moteur).extraire(texteRecu(texte), cible: .recette)
+    let ingredients = try #require(resultat.recette?.ingredients)
+    #expect(ingredients.map(\.nom) == ["abricots"])
+    #expect(ingredients.first?.alternatives.first?.nom == "oreillons d’abricots au sirop")
+}
+
 @Test(arguments: [
     "200 g", "200 g de", "200 g ()", "½", "1/0 de farine", "0 g de farine", "-2 kg de farine", "QS", "3glevure",
 ])
@@ -607,9 +654,12 @@ func photoReconnaitUneEtapeAvecUneQuantite(texte: String) async throws {
 ])
 func photoRattacheLAlternativeSurLaMemeLigne(alternative: String) async throws {
     let recette = try await recetteLueSurPhoto("Compote\nIngrédients\n1. \(alternative)\n2. 2 pommes\nCuire ensemble.")
-    #expect(
-        recette.ingredients.map { $0.nom.lowercased() } == ["abricots ou 12 oreillons d'abricots au sirop", "pommes"])
+    #expect(recette.ingredients.map { $0.nom.lowercased() } == ["abricots", "pommes"])
     #expect(recette.ingredients.first?.quantite == Quantite(6))
+    #expect(
+        recette.ingredients.first?.alternatives == [
+            try AlternativeIngredient(nom: "oreillons d'abricots au sirop", quantite: Quantite(12), unite: .piece)
+        ])
 }
 
 @Test func photoGardeUnIngredientPonctue() async throws {

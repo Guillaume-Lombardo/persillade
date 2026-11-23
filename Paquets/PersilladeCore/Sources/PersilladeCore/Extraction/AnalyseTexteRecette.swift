@@ -167,7 +167,8 @@ struct AnalyseTexteRecette {
             if let analyse = ingredientNumerote {
                 ingredient = BrouillonIngredient(
                     nom: analyse.nom, quantite: analyse.quantite, unite: analyse.unite,
-                    texteOrigine: origine, ligneNonComprise: analyse.ligneNonComprise)
+                    texteOrigine: origine, ligneNonComprise: analyse.ligneNonComprise,
+                    alternatives: analyse.alternatives)
             } else {
                 ingredient = AnalyseIngredient.analyser(enteteTrouvee ? ligne : origine)
             }

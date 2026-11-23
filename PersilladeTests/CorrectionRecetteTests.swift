@@ -1,7 +1,24 @@
+import Foundation
 import PersilladeCore
 import Testing
 
 @testable import Persillade
+
+@Suite struct AlternativesCorrectionTests {
+    @Test func leBrouillonConserveLEchangeEtLaCitation() throws {
+        let source = "6 abricots ou 12 oreillons d’abricots au sirop"
+        let ingredient = AnalyseIngredient.analyser(source)
+        var ligne = LigneIngredientCorrection(ingredient)
+        try ligne.echangerAvecAlternative(0)
+        let relue = try JSONDecoder().decode(LigneIngredientCorrection.self, from: JSONEncoder().encode(ligne))
+        let validee = try relue.valider()
+        #expect(validee.nom == "oreillons d’abricots au sirop")
+        #expect(validee.quantite == Quantite(12))
+        #expect(validee.alternatives.map(\.nom) == ["abricots"])
+        #expect(validee.alternatives.first?.quantite == Quantite(6))
+        #expect(validee.texteOrigine == source)
+    }
+}
 
 @Test func associeLesExtraitsAuxOccurrencesSansConfondreLesQuantites() {
     let source = """

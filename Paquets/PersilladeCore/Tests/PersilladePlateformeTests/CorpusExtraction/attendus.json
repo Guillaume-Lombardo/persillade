@@ -243,7 +243,10 @@
       {"nom": "biscuits ronds", "quantite": "8", "unite": "piece"},
       {"nom": "chocolat au lait"},
       {"nom": "farine", "quantite": "50", "unite": "g"},
-      {"nom": "abricots ou 12 oreillons d'abricots au sirop", "quantite": "6", "unite": "piece"},
+      {
+        "nom": "abricots", "quantite": "6", "unite": "piece",
+        "alternatives": [{"nom": "oreillons d'abricots au sirop", "quantite": "12", "unite": "piece"}]
+      },
       {"nom": "noix de beurre", "quantite": "1", "unite": "piece"}
     ],
     "etapes": [

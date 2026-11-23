@@ -228,6 +228,7 @@ struct OngletCourses: View {
         return LigneArticle(
             nom: ligne.libelle.lowercased(), quantite: quantite.nombre, unite: quantite.unite,
             precisionPleineLargeur: quantite.precision,
+            alternatives: ligne.alternatives.map(\.mentionPersillade),
             exclu: ligne.cochee, marque: statut?.marque, afficherMarque: afficherMarque,
             ouvrir: { if !session.occupee { feuille = .detail(ligne.id) } },
             identifiantOuverture: "article-\(ligne.nomNormalise)",

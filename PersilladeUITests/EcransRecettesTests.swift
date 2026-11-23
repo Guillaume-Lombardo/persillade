@@ -2,6 +2,15 @@
     import XCTest
 
     final class EcransRecettesTests: XCTestCase {
+        private static let recetteAvecAlternative = """
+            Clafoutis aux abricots
+            Pour 4 personnes
+            Ingrédients :
+            6 abricots ou 12 oreillons d’abricots au sirop
+            Préparation :
+            Coupez les abricots et faites-les cuire.
+            """
+
         private static let recette = """
             Crêpes maison
             Ingrédients :
@@ -422,6 +431,92 @@
                 }
                 app.terminate()
             }
+        }
+
+        @MainActor
+        func testAlternativesDeLaCorrectionAuxCourses() {
+            let mention = "ou 12 oreillons d’abricots au sirop"
+            for (nom, arguments) in [("clair", []), ("sombre", ["-recettes-sombre"]), ("AX5", ["-recettes-ax5"])] {
+                let app = lancer(arguments: arguments, texte: Self.recetteAvecAlternative)
+                coller(app)
+                ouvrirCorrection(app)
+                let correction = app.buttons["abricots"]
+                defilerPourVoir(correction, dans: app)
+                XCTAssertTrue((correction.value as? String)?.contains(mention) == true, nom)
+                joindre("alternatives-correction-\(nom)")
+
+                enregistrer(app)
+                let fiche = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", mention)).firstMatch
+                defilerPourVoir(fiche, dans: app)
+                joindre("alternatives-fiche-\(nom)")
+                app.buttons["Ajouter à la semaine"].tap()
+                XCTAssertTrue(app.buttons["Retirer de la semaine"].waitForExistence(timeout: 5))
+                app.navigationBars.firstMatch.buttons.firstMatch.tap()
+                app.tabBars.firstMatch.buttons["Semaine"].tap()
+                app.buttons["Faire la liste"].tap()
+                let course = app.buttons["article-abricot"]
+                defilerPourVoir(course, dans: app)
+                XCTAssertTrue((course.value as? String)?.contains(mention) == true, nom)
+                XCTAssertFalse(
+                    app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "article-oreillon"))
+                        .firstMatch.exists)
+                joindre("alternatives-courses-\(nom)")
+                app.terminate()
+            }
+        }
+
+        @MainActor
+        func testCorrectionDesAlternatives() {
+            let app = lancer(texte: Self.recetteAvecAlternative)
+            coller(app)
+            ouvrirCorrection(app)
+            let principal = app.buttons["abricots"]
+            defilerPourVoir(principal, dans: app)
+            principal.tap()
+            let ajouter = app.buttons["Ajouter une alternative"]
+            defilerPourVoir(ajouter, dans: app)
+            ajouter.tap()
+            let champ = app.textFields["nom-alternative"]
+            XCTAssertTrue(champ.waitForExistence(timeout: 5))
+            champ.tap()
+            champ.typeText("compote")
+            app.navigationBars["Alternative"].buttons["Valider"].tap()
+
+            let compote = app.buttons["ou compote"]
+            defilerPourVoir(compote, dans: app)
+            compote.tap()
+            app.buttons["Modifier"].tap()
+            XCTAssertTrue(champ.waitForExistence(timeout: 5))
+            champ.tap()
+            champ.typeText(" nature")
+            app.navigationBars["Alternative"].buttons["Valider"].tap()
+            let compoteNature = app.buttons["ou compote nature"]
+            defilerPourVoir(compoteNature, dans: app)
+            compoteNature.tap()
+            app.buttons["Utiliser comme ingrédient principal"].tap()
+            XCTAssertEqual(app.textFields["nom-ingredient"].value as? String, "compote nature")
+
+            let abricots = app.buttons["ou 6 abricots"]
+            defilerPourVoir(abricots, dans: app)
+            abricots.tap()
+            app.buttons["Supprimer l’alternative"].tap()
+            XCTAssertFalse(abricots.exists)
+            enregistrer(app)
+            let plat = app.staticTexts.containing(
+                NSPredicate(format: "label CONTAINS %@", "ou 12 oreillons d’abricots au sirop")
+            ).firstMatch
+            defilerPourVoir(plat, dans: app)
+            XCTAssertTrue(plat.label.contains("compote nature"))
+        }
+
+        @MainActor
+        private func defilerPourVoir(_ element: XCUIElement, dans app: XCUIApplication) {
+            let debut = app.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.77))
+            let fin = app.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.35))
+            for _ in 0..<8 where !element.isHittable {
+                debut.press(forDuration: 0.05, thenDragTo: fin, withVelocity: .slow, thenHoldForDuration: 0.05)
+            }
+            XCTAssertTrue(element.isHittable, app.debugDescription)
         }
 
         @MainActor

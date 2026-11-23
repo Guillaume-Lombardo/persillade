@@ -9,11 +9,11 @@ private func fixture() throws -> Data {
     return try Data(contentsOf: url)
 }
 
-@Test func lectureEtEncodageStableDeLaRecetteV1() throws {
+@Test func migrationDeLaRecetteV1() throws {
     let lecteur = JSONDecoder()
     let donnees = try fixture()
     let recette = try lecteur.decode(Recette.self, from: donnees)
-    #expect(recette.versionSchema == 1)
+    #expect(recette.versionSchema == 2)
     #expect(recette.id.uuidString == "12345678-1234-1234-1234-123456789ABC")
     #expect(recette.titre == "Omelette aux fines herbes")
     #expect(recette.portions == 4)
@@ -26,13 +26,26 @@ private func fixture() throws -> Data {
         ])
     #expect(recette.ingredients.map(\.aLUnite) == [true, true, false, false, false, false])
     #expect(recette.ingredients.map(\.unite) == [.piece, .piece, .l, nil, nil, .autre("bouquet")])
+    #expect(recette.ingredients.allSatisfy { $0.alternatives.isEmpty })
 
-    let attendu = try JSONSerialization.data(
-        withJSONObject: JSONSerialization.jsonObject(with: donnees),
-        options: [.sortedKeys, .withoutEscapingSlashes])
     let encode = try recette.encoderJSON()
-    #expect(encode == attendu)
+    let objet = try #require(JSONSerialization.jsonObject(with: encode) as? [String: Any])
+    #expect(objet["version_schema"] as? Int == 2)
     #expect(try lecteur.decode(Recette.self, from: encode) == recette)
+    #expect(try lecteur.decode(Recette.self, from: encode).encoderJSON() == encode)
+}
+
+@Test func recetteV2ConserveLesAlternativesEtLeursFractions() throws {
+    let alternative = try AlternativeIngredient(nom: "compote", quantite: Quantite(texte: "1/3"), unite: .kg)
+    let ingredient = try Ingredient(nom: "pommes", texteOrigine: "pommes ou compote", alternatives: [alternative])
+    let recette = try Recette(
+        titre: "Chaussons", portions: 3, ingredients: [ingredient], etapes: [], texteSource: "")
+    let json = try recette.encoderJSON()
+    #expect(try JSONDecoder().decode(Recette.self, from: json).ingredients.first?.alternatives == [alternative])
+    let invalide = Data(#"{"nom":"compote","unite":"kg"}"#.utf8)
+    #expect(throws: Ingredient.Erreur.uniteSansQuantite) {
+        try JSONDecoder().decode(AlternativeIngredient.self, from: invalide)
+    }
 }
 
 @Test func invariantsDesModeles() throws {
@@ -68,8 +81,8 @@ func uneUnitePersonnaliseeExigeUnLibelle(libelle: String) throws {
 @Test func leDecodageRevalideLesDonnees() throws {
     let lecteur = JSONDecoder()
     let source = String(decoding: try fixture(), as: UTF8.self)
-    let nouvelleVersion = source.replacingOccurrences(of: "\"version_schema\": 1", with: "\"version_schema\": 2")
-    #expect(throws: Recette.Erreur.versionNonPriseEnCharge(2)) {
+    let nouvelleVersion = source.replacingOccurrences(of: "\"version_schema\": 1", with: "\"version_schema\": 3")
+    #expect(throws: Recette.Erreur.versionNonPriseEnCharge(3)) {
         try lecteur.decode(Recette.self, from: Data(nouvelleVersion.utf8))
     }
     let portionsInvalides = source.replacingOccurrences(of: "\"portions\": 4", with: "\"portions\": -1")
