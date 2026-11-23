@@ -17,7 +17,7 @@ public struct LecteurImageVision: LecteurImage {
         do {
             for orientation in orientations {
                 try Task.checkCancellation()
-                let candidates = try await Self.reconnaitre(pixels, orientation: orientation)
+                let (candidates, precise) = try await Self.reconnaitre(pixels, orientation: orientation)
                 var scores: [CGImagePropertyOrientation: Double] = [:]
                 for ligne in candidates {
                     let sens = ligne.sens(rapportImage: rapportImage)
@@ -32,7 +32,7 @@ public struct LecteurImageVision: LecteurImage {
                     }
                 }
                 // Une page déjà lisible à l’endroit n’a pas besoin de trois autres passages.
-                if orientation == .up, meilleurSens == .up, meilleurScore >= 20 { break }
+                if precise, orientation == .up, meilleurSens == .up, meilleurScore >= 20 { break }
             }
         } catch {
             try Task.checkCancellation()
@@ -47,24 +47,26 @@ public struct LecteurImageVision: LecteurImage {
             .map(\.texte).joined(separator: "\n")
     }
 
-    private static func reconnaitre(_ pixels: CGImage, orientation: CGImagePropertyOrientation) async throws -> [Ligne]
-    {
+    private static func reconnaitre(
+        _ pixels: CGImage, orientation: CGImagePropertyOrientation
+    ) async throws -> (lignes: [Ligne], precise: Bool) {
         var requete = RecognizeTextRequest()
         requete.recognitionLevel = .accurate
         requete.recognitionLanguages = [Locale.Language(identifier: "fr-FR")]
         requete.usesLanguageCorrection = true
         do {
-            return try await requete.perform(on: pixels, orientation: orientation).compactMap {
+            let lignes: [Ligne] = try await requete.perform(on: pixels, orientation: orientation).compactMap {
                 guard let candidat = $0.topCandidates(1).first else { return nil }
                 return Ligne(
                     texte: candidat.string, cadre: $0.boundingBox.cgRect, confiance: candidat.confidence,
                     debut: $0.topLeft.cgPoint, fin: $0.topRight.cgPoint)
             }
+            return (lignes, true)
         } catch {
             #if os(macOS)
                 try Task.checkCancellation()
                 if error is CancellationError { throw error }
-                return try reconnaitreRapidement(pixels, orientation: orientation)
+                return (try reconnaitreRapidement(pixels, orientation: orientation), false)
             #else
                 throw error
             #endif
