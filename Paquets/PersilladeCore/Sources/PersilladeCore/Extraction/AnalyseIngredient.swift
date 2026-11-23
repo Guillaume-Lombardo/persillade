@@ -17,6 +17,7 @@ public enum AnalyseIngredient {
             #"(?:[0-9]+\h+\#(fraction)|[0-9]+\h*[\#(fractions)]|\#(fraction)|[\#(fractions)]|[0-9]+(?:[.,][0-9]+)?|[.,][0-9]+|(?:\#(mots))(?!\p{L}))"#
     }()
     private static let plage = #"\#(nombre)(?:\h*(?:à|a|[-–—])\h*\#(nombre))?(?![0-9/⁄]|[.,][0-9])"#
+    private static let marqueQuantiteSuffisante = #"(?i)^\s*(?:q\.?\h*s\.?|quantit[ée]\h+suffisante)(?=\h|$)\h*"#
 
     private static let unites: [(motif: String, unite: Unite, facteur: Int64)] = [
         (#"cuill[èe]res?\h+(?:à|a)\h+soupe|c\.?\h*(?:à|a)\h*(?:soupe|s\.?)|cs"#, .cas, 1),
@@ -52,11 +53,18 @@ public enum AnalyseIngredient {
         texte.ranges(of: #"(?i)(?<![\p{L}\p{N}.,/⁄])[-−+]?\#(plage)"#)
     }
 
+    static func fragmentSansNom(_ texte: String) -> Bool {
+        let sansMesure = texte.remplacer(marqueQuantiteSuffisante, par: "")
+            .remplacer(#"(?i)^[-−+]?\#(plage)\h*"#, par: "")
+        let reste = lireUnite(sansMesure)?.suite ?? sansMesure
+        return !reste.contains(where: \.isLetter)
+    }
+
     public static func analyser(_ ligne: String) -> BrouillonIngredient {
         let texte = retirerPuce(ligne)
         let sansMarque =
             texte
-            .remplacer(#"(?i)^\s*(?:q\.?\h*s\.?|quantit[ée]\h+suffisante)(?=\h|$)\h*"#, par: "")
+            .remplacer(marqueQuantiteSuffisante, par: "")
             .remplacer(#"(?i)\h*[,;]?\h*(?:\((?:au go[uû]t|q\.?\h*s\.?)\)|\b(?:au go[uû]t|q\.?\h*s\.?))\.?$"#, par: "")
             .epure
         let pinceeDeSel = #"(?i)^(?:une|1)\h+pinc[ée]e\h+(?=de\h+sel\b)"#

@@ -558,18 +558,47 @@ func photoLitLesPortionsApresUnIngredient(mention: String) async throws {
     #expect(recette.ingredients.map(\.nom) == ["pommes"])
 }
 
-@Test func photoEcarteLesDureesDesIngredients() async throws {
-    let recette = try await recetteLueSurPhoto(
-        "Compote\n15 min de préparation - 25 min de cuisson\nIngrédients\n2 pommes\n25 minutes de cuisson\nCuire les pommes."
-    )
+@Test(arguments: ["15 min de préparation - 25 min de cuisson", "Préparation : 15 minutes", "25 min"])
+func photoEcarteLesDureesDesIngredients(duree: String) async throws {
+    let recette = try await recetteLueSurPhoto("Compote\nIngrédients\n\(duree)\n2 pommes\nCuire les pommes.")
     #expect(recette.titre == "Compote")
     #expect(recette.ingredients.map(\.nom) == ["pommes"])
+    #expect(recette.etapes == ["Cuire les pommes."])
 }
 
 @Test func photoEcarteLesLignesSansNom() async throws {
     let recette = try await recetteLueSurPhoto(
-        "Compote\nIngrédients\n\n•\n— ... !\n70 g\n1/2\n2 pommes\nCuire les pommes.")
+        "Compote\nIngrédients\n\n•\n— ... !\n70 g\n1/2\nkg\nQS\n2 pommes\nCuire les pommes.")
     #expect(recette.ingredients.map(\.nom) == ["pommes"])
+}
+
+@Test func photoSignaleUneLigneAvecUnNomPotentielEtUneQuantiteCollee() async throws {
+    let recette = try await recetteLueSurPhoto("Tarte\nIngrédients\n250gfarine\n2 pommes\nBeurrer le moule.")
+    #expect(recette.statut == .partiel)
+    #expect(recette.ingredients.first?.texteOrigine == "250gfarine")
+    #expect(recette.ingredients.first?.ligneNonComprise == true)
+    #expect(recette.ingredients.last?.nom == "pommes")
+}
+
+@Test func photoDistingueEtapeEtIngredientDoseNumerotes() async throws {
+    let recette = try await recetteLueSurPhoto(
+        "Jus\nIngrédients\n1. 2 pommes\n2. 1 poire\n1-Filtrer le mélange.\n2-Servir frais.")
+    #expect(recette.ingredients.map(\.nom) == ["pommes", "poire"])
+    #expect(recette.etapes == ["Filtrer le mélange.", "Servir frais."])
+}
+
+@Test(arguments: ["6 abricots\nou 12 oreillons d'abricots au sirop", "6 abricots ou 12 oreillons\nd'abricots au sirop"])
+func photoRattacheLAlternativeSurLaMemeLigne(alternative: String) async throws {
+    let recette = try await recetteLueSurPhoto("Compote\nIngrédients\n1. \(alternative)\n2. 2 pommes\nCuire ensemble.")
+    #expect(recette.ingredients.map(\.nom) == ["abricots ou 12 oreillons d'abricots au sirop", "pommes"])
+    #expect(recette.ingredients.first?.quantite == Quantite(6))
+}
+
+@Test func photoGardeUnIngredientPonctue() async throws {
+    let recette = try await recetteLueSurPhoto(
+        "Dessert\nIngrédients\ncrème fraîche épaisse au choix.\n2 pommes\nServir frais.")
+    #expect(recette.ingredients.map(\.nom) == ["crème fraîche épaisse au choix.", "pommes"])
+    #expect(recette.etapes == ["Servir frais."])
 }
 
 @Test func photoRattacheLesRetoursDeLigneDesEtapesNumerotees() async throws {
@@ -594,6 +623,7 @@ func photoLitLesPortionsApresUnIngredient(mention: String) async throws {
 
 @Test(arguments: [
     "que le mélange double de volume. Ajouter les biscuits", "Incorporer le beurre fondu", "verser dans le moule.",
+    "riger puis incorporer le beurre fondu:",
 ])
 func photoClasseUnFragmentDePreparationCommeEtape(fragment: String) async throws {
     let recette = try await recetteLueSurPhoto("Moelleux\nIngrédients\n3 œufs\n\(fragment)")
