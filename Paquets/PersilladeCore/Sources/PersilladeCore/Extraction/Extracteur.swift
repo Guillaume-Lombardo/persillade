@@ -8,6 +8,10 @@ public protocol LecteurImage: Sendable {
     func lireTexte(_ image: Data) async throws -> String
 }
 
+package protocol LecteurImageAvecEntete: LecteurImage {
+    func lirePage(_ image: Data) async throws -> (texte: String, indiceTitre: Int?)
+}
+
 public struct ChampsRecette: OptionSet, Sendable {
     public let rawValue: UInt8
     public init(rawValue: UInt8) { self.rawValue = rawValue }
@@ -72,13 +76,18 @@ public struct Extracteur: Sendable {
         var url: URL?
         var structure: BrouillonRecette?
         var corpsPage: String?
+        var indiceTitrePhoto: Int?
         do {
             switch contenu.type {
             case .texte:
                 texte = brut
             case .image:
                 guard let lecteurImage else { throw CauseExtraction.rienTrouve }
-                texte = try await lecteurImage.lireTexte(contenu.contenu)
+                if cible == .recette, let lecteur = lecteurImage as? any LecteurImageAvecEntete {
+                    (texte, indiceTitrePhoto) = try await lecteur.lirePage(contenu.contenu)
+                } else {
+                    texte = try await lecteurImage.lireTexte(contenu.contenu)
+                }
             case .url:
                 url = URL(string: brut.epure)
                 guard let url, let telechargeur else { throw CauseExtraction.pageInaccessible }
@@ -101,7 +110,10 @@ public struct Extracteur: Sendable {
         try Task.checkCancellation()
 
         let photo = contenu.type == .image
-        let analyse = cible == .recette ? try AnalyseTexteRecette(corpsPage ?? texte, photo: photo) : nil
+        let analyse =
+            cible == .recette
+            ? try AnalyseTexteRecette(corpsPage ?? texte, photo: photo, indiceTitrePhoto: indiceTitrePhoto)
+            : nil
         var proposition = EtatExtraction(cible: cible, messageID: contenu.id, texte: texte, url: url, photo: photo)
         if let analyse {
             proposition.recette = structure ?? analyse.recette

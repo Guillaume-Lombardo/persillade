@@ -23,23 +23,24 @@ struct AnalyseTexteRecette {
         #"(?i)^(?:https?://|www\.|copyright\b|©|publicit[ée]\b|accueil\b|partager\b|imprimer\b|abonne[sz]\b|ouvrir le menu\b|[ée]crit par\b|par\h+[^\d]+$|(?:temps|dur[ée]e|cuisson|repos|difficult[ée]|calories|publi[ée])\b\h*[:\d]|pr[ée]paration\h*:\h*[0-9]+\h*(?:min|h)\b|(?:bonjour|salut|coucou|merci|bisous)\b)"#
 
     private static let portionsPhoto =
-        #"(?i)^[\[(]?\h*(?:pour\h*:?\h*\S+|[0-9]+)\h+(?:personnes?|parts?|portions?)\b[\h:.)\]]*$"#
+        #"(?i)^[\[(]?\h*(?:pour\h*:?\h*\S+|[0-9]+)\h+(?:personnes?|parts?|portions?)\b(?:\h*\([^()]*\))?[\h:.)\]]*$"#
     private static let etiquetteDureePhoto = #"(?:(?:temps\h+de\h+)?(?:pr[ée]paration|cuisson|repos)|temps\h+total)"#
     private static let dureePhoto =
-        #"(?i)^(?:(?:\#(etiquetteDureePhoto)\h*:?\h*)?[0-9]+\h*(?:min(?:utes?)?|h(?:eures?)?|s(?:econdes?)?)(?!\p{L})|(?:cuisson|repos)\h*[:.]?\h*$)"#
+        #"(?i)^(?:(?:\#(etiquetteDureePhoto)\h*:?\h*)?[0-9]+\h*(?:min(?:utes?)?|h(?:eures?)?|s(?:econdes?)?|jours?)(?!\p{L})|(?:cuisson|repos)\h*[:.]?\h*$)"#
     private static let numeroEtapePhoto = #"\#(numeroEtape)|^[0-9]+\h*[-–—]\h*(?=\p{L})"#
     private static let suiteIngredientPhoto = #"(?i)^(?:d['’]|(?:de|ou)\h+)"#
     private static let suiteEtapePhoto = #"(?i)^(?:que\b|qu['’]|jusqu['’]|puis\b|ensuite\b|afin de\b)"#
     private static let debutEtapePhoto =
-        #"(?i)^(?:fouetter|incorporer|[ée]craser|r[âa]per|d[ée]noyauter|beurrer|disposer|saupoudrer|d[ée]mouler|tapisser|r[ée]server|d[ée]layer|peser|une\h+fois)\b"#
+        #"(?i)^(?:fouetter|incorporer|[ée]craser|r[âa]per|d[ée]noyauter|beurrer|disposer|saupoudrer|d[ée]mouler|tapisser|r[ée]server|d[ée]layer|peser|filtrer|une\h+fois)\b"#
     private static let phraseEtapePhoto = #"[.!?]\h+\p{Lu}|(?i:\b(?:puis|ensuite)\h+\p{L}+(?:er|ez|ir|re)\b)"#
 
-    init(_ texte: String, photo: Bool = false) throws {
+    init(_ texte: String, photo: Bool = false, indiceTitrePhoto: Int? = nil) throws {
         let lignes = texte.components(separatedBy: .newlines)
         var section = Section.introduction
         var ingredientsExplicites = false
         var etapeNumerotee = false
         var titrePossible: (index: Int, texte: String)?
+        var mesureEnAttente: (index: Int, texte: String)?
         var premierIndice: Int?
         var dernierIndice: Int?
 
@@ -50,7 +51,9 @@ struct AnalyseTexteRecette {
                 ligne.contains(where: \.isLetter)
                     || ligne.contains(where: \.isNumber)
             else { continue }
-            if photo, !ligne.contains(where: \.isLetter) || (section != .etapes && ligne.correspond(Self.dureePhoto)) {
+            let mesurePrecedente = mesureEnAttente
+            mesureEnAttente = nil
+            if photo, section == .etapes ? !ligne.contains(where: \.isLetter) : ligne.correspond(Self.dureePhoto) {
                 continue
             }
             if section != .introduction, ligne.correspond(Self.enteteFin) {
@@ -79,6 +82,9 @@ struct AnalyseTexteRecette {
 
             if photo, ligne.correspond(Self.portionsPhoto) {
                 recette.portions = recette.portions ?? Self.portionsDansLigne(ligne)
+                if section == .introduction, !recette.titre.isEmpty || titrePossible != nil {
+                    section = .ingredients
+                }
                 premierIndice = premierIndice ?? index
                 dernierIndice = index
                 continue
@@ -98,25 +104,33 @@ struct AnalyseTexteRecette {
                     }
                 }
             }
-            if titreMarque {
+            if titreMarque || index == indiceTitrePhoto {
                 let titre = ligne.remplacer(Self.titreExplicite, par: "").epure
                 if !titre.isEmpty {
                     recette.titre = titre
+                    if photo, section == .introduction, recette.portions != nil { section = .ingredients }
                     premierIndice = premierIndice ?? index
                     dernierIndice = index
                 }
                 continue
             }
+            if let indiceTitrePhoto, index < indiceTitrePhoto, section == .introduction { continue }
 
             let sansNumero = ligne.remplacer(photo ? Self.numeroEtapePhoto : Self.numeroEtape, par: "").epure
-            let etapeVerbale =
-                sansNumero.correspond(Self.verbeEtape) || (photo && sansNumero.correspond(Self.debutEtapePhoto))
             let numerotee = sansNumero != ligne
+            let etapeVerbale =
+                Self.amorceEtape(sansNumero, photo: photo)
+                || (photo && numerotee
+                    && sansNumero.split(separator: ",", maxSplits: 1).dropFirst().contains {
+                        Self.amorceEtape(String($0).epure, photo: true)
+                    })
             let ingredientNumerote = section == .ingredients && numerotee ? AnalyseIngredient.analyser(sansNumero) : nil
             let ingredientDose =
                 (photo || sansNumero.first?.isNumber == true)
-                && ingredientNumerote?.quantite != nil && ingredientNumerote?.ligneNonComprise == false
-            if section == .etapes || etapeVerbale || (numerotee && (photo || !ingredientsExplicites) && !ingredientDose)
+                && ingredientNumerote?.quantite != nil && (photo || ingredientNumerote?.ligneNonComprise == false)
+            let marqueEtape = photo && numerotee && ligne.correspond(#"(?i)^[ée]tape\b"#)
+            if section == .etapes || etapeVerbale || marqueEtape
+                || (numerotee && !ingredientsExplicites && !ingredientDose)
                 || (photo && section == .ingredients && Self.fragmentEtape(sansNumero))
             {
                 section = .etapes
@@ -137,7 +151,7 @@ struct AnalyseTexteRecette {
                 continue
             }
 
-            if photo, section == .ingredients, ligne.correspond(Self.suiteIngredientPhoto),
+            if photo, mesurePrecedente == nil, section == .ingredients, ligne.correspond(Self.suiteIngredientPhoto),
                 let precedent = recette.ingredients.last, precedent.quantite != nil
             {
                 let textePrecedent = retirerPuce(precedent.texteOrigine).remplacer(Self.numeroEtapePhoto, par: "")
@@ -147,7 +161,7 @@ struct AnalyseTexteRecette {
                 continue
             }
 
-            let ingredient: BrouillonIngredient
+            var ingredient: BrouillonIngredient
             if let analyse = ingredientNumerote {
                 ingredient = BrouillonIngredient(
                     nom: analyse.nom, quantite: analyse.quantite, unite: analyse.unite,
@@ -155,10 +169,20 @@ struct AnalyseTexteRecette {
             } else {
                 ingredient = AnalyseIngredient.analyser(enteteTrouvee ? ligne : origine)
             }
-            if photo, ingredient.nom.isEmpty,
-                ingredient.quantite != nil || AnalyseIngredient.fragmentSansNom(sansNumero)
-            {
-                continue
+            if photo {
+                if ingredient.nom.isEmpty {
+                    if ingredient.quantite != nil {
+                        mesureEnAttente = (index, sansNumero)
+                        continue
+                    }
+                    if AnalyseIngredient.fragmentSansNom(sansNumero) { continue }
+                } else if let mesurePrecedente, ingredient.quantite == nil {
+                    let raccord = AnalyseIngredient.analyser(mesurePrecedente.texte + " " + sansNumero)
+                    if raccord.quantite != nil, !raccord.nom.isEmpty {
+                        ingredient = raccord
+                        premierIndice = premierIndice ?? mesurePrecedente.index
+                    }
+                }
             }
             let ligneIngredient = ingredient.quantite != nil || ingredient.ligneNonComprise
             let nomSeul = section == .ingredients && (ingredientsExplicites || Self.titrePlausible(ligne))
@@ -185,6 +209,10 @@ struct AnalyseTexteRecette {
         }
     }
 
+    private static func amorceEtape(_ ligne: String, photo: Bool) -> Bool {
+        ligne.correspond(verbeEtape) || (photo && ligne.correspond(debutEtapePhoto))
+    }
+
     private static func fragmentEtape(_ ligne: String) -> Bool {
         ligne.first?.isLetter == true && (ligne.correspond(suiteEtapePhoto) || ligne.correspond(phraseEtapePhoto))
     }
@@ -194,7 +222,7 @@ struct AnalyseTexteRecette {
         return normaliserNom(texte) != normaliserNom(titre)
             && !texte.correspond(titreExplicite)
             && !texte.correspond(Self.bruit) && !texte.correspond(portionsPhoto) && !texte.correspond(dureePhoto)
-            && !texte.correspond(verbeEtape) && !texte.correspond(debutEtapePhoto)
+            && !amorceEtape(texte, photo: true)
             && !texte.correspond(numeroEtapePhoto) && !fragmentEtape(texte)
     }
 

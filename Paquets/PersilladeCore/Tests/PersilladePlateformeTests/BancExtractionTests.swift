@@ -6,6 +6,35 @@ import Testing
 
 @Suite(.serialized)
 struct BancExtractionTests {
+    @Test(arguments: [nil as String?, "DESSERTS"])
+    func titreAuDessusDesEtapesSurUnePageTournee(surtitre: String?) async throws {
+        let image = try PageCorpusExtraction.rendre(
+            "CLAFOUTIS\n\n2 œufs\n200 g de farine\n\n1. Mélanger le tout.\n2. Servir frais.",
+            manuscrite: false, rotation: 90, enteteADroite: true, surtitre: surtitre)
+        let contenu = ContenuRecu(type: .image, contenu: image, origine: .phototheque)
+        let resultat = try await Extracteur(lecteurImage: LecteurImageVision()).extraire(contenu, cible: .recette)
+        let recette = try #require(resultat.recette)
+        let lignes = resultat.texteSource.components(separatedBy: .newlines)
+        if let surtitre { #expect(lignes.first?.uppercased() == surtitre) }
+        let titreLu = try #require(lignes.dropFirst(surtitre == nil ? 0 : 1).first)
+        #expect(titreLu.uppercased().hasPrefix("CLAFOU"))
+        #expect(recette.titre == titreLu)
+        #expect(recette.ingredients.count == 2)
+        #expect(recette.etapes.count == 2)
+    }
+
+    @Test func titreImprimeCommencantParUnNombre() async throws {
+        let image = try PageCorpusExtraction.rendre(
+            "4 QUARTS\n200 g de farine\n3 œufs\n1. Mélanger le tout.\n2. Cuire au four.", manuscrite: false)
+        let contenu = ContenuRecu(type: .image, contenu: image, origine: .phototheque)
+        let resultat = try await Extracteur(lecteurImage: LecteurImageVision()).extraire(contenu, cible: .recette)
+        let recette = try #require(resultat.recette)
+        #expect(recette.titre == "4 QUARTS")
+        #expect(recette.ingredients.count == 2)
+        #expect(recette.ingredients.first?.quantite == Quantite(200))
+        #expect(recette.etapes.count == 2)
+    }
+
     @Test(arguments: [0, 90, 180, 270])
     func pageImprimeeDeuxColonnes(rotation: Int) async throws {
         let (corpus, cas) = try Self.chargerCorpus()

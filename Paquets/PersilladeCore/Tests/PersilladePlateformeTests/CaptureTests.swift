@@ -3,9 +3,10 @@ import CoreText
 import Foundation
 import ImageIO
 import PersilladeCore
-import PersilladePlateforme
 import Testing
 import UniformTypeIdentifiers
+
+@testable import PersilladePlateforme
 
 @Suite(.serialized)
 struct CaptureTests {
@@ -132,6 +133,52 @@ struct CaptureTests {
         }
         await #expect(throws: CancellationError.self) { try await tache.value }
         #expect(!FileManager.default.fileExists(atPath: dossier.path))
+    }
+
+    @Test(arguments: [CGImagePropertyOrientation.up, .right])
+    func uneRotationEnErreurLaisseLesAutresLectures(orientationEnErreur: CGImagePropertyOrientation) async throws {
+        let photo = try page([])
+        let lecteur = LecteurImageVision { _, orientation in
+            if orientation == orientationEnErreur { throw ErreurSonde.rotation }
+            return ([try Self.ligneSonde()], false)
+        }
+        #expect(try await lecteur.lireTexte(photo) == "Compote de pommes")
+    }
+
+    @Test func erreurVisionRemonteeQuandAucuneOrientationNeDonneDeTexte() async throws {
+        let photo = try page([])
+        let lecteur = LecteurImageVision { _, orientation in
+            if orientation == .right { throw ErreurSonde.rotation }
+            return ([], false)
+        }
+        await #expect {
+            try await lecteur.lireTexte(photo)
+        } throws: { erreur in
+            guard case ErreurCapture.lectureVision(let cause) = erreur else { return false }
+            return cause as? ErreurSonde == .rotation
+        }
+    }
+
+    @Test func annulationInterromptLesRotations() async throws {
+        let photo = try page([])
+        let lecteur = LecteurImageVision { _, orientation in
+            if orientation == .right { throw CancellationError() }
+            #expect(orientation == .up)
+            return ([try Self.ligneSonde()], false)
+        }
+        await #expect(throws: CancellationError.self) { try await lecteur.lireTexte(photo) }
+    }
+
+    private enum ErreurSonde: Error {
+        case rotation
+    }
+
+    private static func ligneSonde() throws -> LecteurImageVision.Ligne {
+        let cadre = CGRect(x: 0.1, y: 0.8, width: 0.4, height: 0.05)
+        return try #require(
+            LecteurImageVision.Ligne(
+                texte: "Compote de pommes", cadre: cadre, confiance: 1,
+                debut: CGPoint(x: cadre.minX, y: cadre.maxY), fin: CGPoint(x: cadre.maxX, y: cadre.maxY)))
     }
 
     private func pageRecette(gouttiereEtroite: Bool = false) throws -> Data {

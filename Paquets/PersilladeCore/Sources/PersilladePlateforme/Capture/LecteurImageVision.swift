@@ -2,10 +2,22 @@ import Foundation
 import PersilladeCore
 import Vision
 
-public struct LecteurImageVision: LecteurImage {
-    public init() {}
+public struct LecteurImageVision: LecteurImageAvecEntete {
+    typealias Reconnaissance =
+        @Sendable (CGImage, CGImagePropertyOrientation) async throws -> (lignes: [Ligne], precise: Bool)
+    private let reconnaitre: Reconnaissance
+
+    public init() { self.init(reconnaitre: Self.reconnaitre) }
+
+    init(reconnaitre: @escaping Reconnaissance) {
+        self.reconnaitre = reconnaitre
+    }
 
     public func lireTexte(_ image: Data) async throws -> String {
+        try await lirePage(image).texte
+    }
+
+    package func lirePage(_ image: Data) async throws -> (texte: String, indiceTitre: Int?) {
         try Task.checkCancellation()
         let pixels = try ImageCapture.decoder(image)
         let rapportImage = CGFloat(pixels.height) / CGFloat(pixels.width)
@@ -13,11 +25,11 @@ public struct LecteurImageVision: LecteurImage {
         var lignes: [Ligne] = []
         var meilleurSens = CGImagePropertyOrientation.up
         var meilleurScore = 0.0
-        try Task.checkCancellation()
-        do {
-            for orientation in orientations {
-                try Task.checkCancellation()
-                let (candidates, precise) = try await Self.reconnaitre(pixels, orientation: orientation)
+        var premiereErreur: (any Error)?
+        for orientation in orientations {
+            try Task.checkCancellation()
+            do {
+                let (candidates, precise) = try await reconnaitre(pixels, orientation)
                 var scores: [CGImagePropertyOrientation: Double] = [:]
                 for ligne in candidates {
                     let sens = ligne.sens(rapportImage: rapportImage)
@@ -33,18 +45,21 @@ public struct LecteurImageVision: LecteurImage {
                 }
                 // Une page déjà lisible à l’endroit n’a pas besoin de trois autres passages.
                 if precise, orientation == .up, meilleurSens == .up, meilleurScore >= 20 { break }
+            } catch {
+                try Task.checkCancellation()
+                if error is CancellationError { throw error }
+                premiereErreur = premiereErreur ?? error
             }
-        } catch {
-            try Task.checkCancellation()
-            if error is CancellationError { throw error }
-            throw ErreurCapture.lectureVision(error)
         }
         try Task.checkCancellation()
-        guard !lignes.isEmpty else { throw CauseExtraction.rienTrouve }
+        guard !lignes.isEmpty else {
+            if let premiereErreur { throw ErreurCapture.lectureVision(premiereErreur) }
+            throw CauseExtraction.rienTrouve
+        }
         // Vision peut lire le texte de travers et renvoyer ses cadres dans les pixels d’origine.
         let rapport = meilleurSens == .left || meilleurSens == .right ? 1 / rapportImage : rapportImage
-        return Self.ordonner(lignes.map { $0.redressee(meilleurSens) }, rapportImage: rapport)
-            .map(\.texte).joined(separator: "\n")
+        let page = Self.ordonner(lignes.map { $0.redressee(meilleurSens) }, rapportImage: rapport)
+        return (page.lignes.map(\.texte).joined(separator: "\n"), page.indiceTitre)
     }
 
     private static func reconnaitre(
@@ -92,7 +107,7 @@ public struct LecteurImageVision: LecteurImage {
         }
     #endif
 
-    private struct Ligne {
+    struct Ligne {
         let texte: String
         var cadre: CGRect
         let confiance: Float
@@ -128,7 +143,9 @@ public struct LecteurImageVision: LecteurImage {
         }
     }
 
-    private static func ordonner(_ lignes: [Ligne], rapportImage: CGFloat) -> [Ligne] {
+    private static func ordonner(
+        _ lignes: [Ligne], rapportImage: CGFloat
+    ) -> (lignes: [Ligne], indiceTitre: Int?) {
         // Les ordonnées Vision partent du bas de l’image.
         let lignes = lignes.sorted {
             if $0.cadre.midY == $1.cadre.midY { return $0.cadre.minX < $1.cadre.minX }
@@ -139,42 +156,62 @@ public struct LecteurImageVision: LecteurImage {
         // de page peut traverser la gouttière hors de ces blocs.
         let hauteurs = lignes.map(\.cadre.height).sorted()
         let hauteurMediane = hauteurs[hauteurs.count / 2]
+        let hauteurTitre = hauteurMediane * 1.25
         let largeurGouttiere = hauteurMediane * rapportImage / 4
         var meilleureLargeur = largeurGouttiere
         var ordre = lignes
+        var tailleEntete = lignes.count > 1 && lignes[0].cadre.minY >= lignes[1].cadre.maxY ? 1 : 0
         for debutDroite in Set(lignes.map { $0.cadre.minX }).sorted() {
             let gauche = lignes.filter { $0.cadre.maxX <= debutDroite - largeurGouttiere }
             let droite = lignes.filter { $0.cadre.minX >= debutDroite }
-            guard lignesVoisines(gauche, espacementMax: hauteurMediane),
-                lignesVoisines(droite, espacementMax: hauteurMediane)
+            guard let hautGauche = hautDuBloc(gauche, espacementMax: hauteurMediane),
+                let hautDroite = hautDuBloc(droite, espacementMax: hauteurMediane)
             else { continue }
 
             let blocGauche = gauche.reduce(CGRect.null) { $0.union($1.cadre) }
             let blocDroite = droite.reduce(CGRect.null) { $0.union($1.cadre) }
             let largeur = debutDroite - blocGauche.maxX
             guard largeur > meilleureLargeur,
-                min(blocGauche.maxY, blocDroite.maxY) > max(blocGauche.minY, blocDroite.minY)
+                min(hautGauche, hautDroite) > max(blocGauche.minY, blocDroite.minY)
             else { continue }
 
             let traversantes = lignes.filter {
                 $0.cadre.maxX > debutDroite - largeurGouttiere && $0.cadre.minX < debutDroite
             }
             let haut = max(blocGauche.maxY, blocDroite.maxY)
+            let hautDesColonnes = max(hautGauche, hautDroite)
             let bas = min(blocGauche.minY, blocDroite.minY)
-            let avant = traversantes.filter { $0.cadre.minY >= haut }
+            // Les premières lignes proches ancrent chaque colonne sous les éléments isolés du bandeau.
+            let coupure = lignes.indices.dropLast().last {
+                let cadre = lignes[$0].cadre
+                let espace = cadre.minY - lignes[$0 + 1].cadre.maxY
+                return cadre.minY >= hautDesColonnes
+                    && (espace >= hauteurMediane || (espace >= 0 && cadre.height >= hauteurTitre))
+            }
+            let seuilEntete = min(haut, coupure.map { lignes[$0].cadre.minY } ?? haut)
+            let avant = lignes.filter { $0.cadre.minY >= seuilEntete }
             let apres = traversantes.filter { $0.cadre.maxY <= bas }
-            guard avant.count + apres.count == traversantes.count else { continue }
+            guard traversantes.allSatisfy({ $0.cadre.minY >= seuilEntete || $0.cadre.maxY <= bas }) else { continue }
 
             meilleureLargeur = largeur
-            ordre = avant + gauche + droite + apres
+            tailleEntete = avant.count
+            ordre =
+                avant + gauche.filter { $0.cadre.minY < seuilEntete }
+                + droite.filter { $0.cadre.minY < seuilEntete } + apres
         }
-        return ordre
+        let indiceTitre = ordre.indices.prefix(tailleEntete)
+            .filter { ordre[$0].cadre.height >= hauteurTitre }
+            .max {
+                let gauche = ordre[$0].cadre.height
+                let droite = ordre[$1].cadre.height
+                return gauche == droite ? $0 > $1 : gauche < droite
+            }
+        return (ordre, indiceTitre)
     }
 
-    private static func lignesVoisines(_ lignes: [Ligne], espacementMax: CGFloat) -> Bool {
-        // Des sous-titres épars devant des listes indentées ne forment pas une colonne.
-        zip(lignes, lignes.dropFirst()).contains { haute, basse in
+    private static func hautDuBloc(_ lignes: [Ligne], espacementMax: CGFloat) -> CGFloat? {
+        zip(lignes, lignes.dropFirst()).first { haute, basse in
             haute.cadre.minY - basse.cadre.maxY <= espacementMax
-        }
+        }?.0.cadre.maxY
     }
 }

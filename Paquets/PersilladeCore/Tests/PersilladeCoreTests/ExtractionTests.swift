@@ -655,6 +655,49 @@ private func recetteLueSurPhoto(_ texte: String) async throws -> BrouillonRecett
     return try #require(resultat.recette)
 }
 
+struct StructurePhotoRevueTests {
+    @Test func mesureSurLaLignePrecedente() async throws {
+        let recette = try await recetteLueSurPhoto("Gâteau\n2 œufs\n200 g\nde farine\nCuire au four.")
+        #expect(recette.ingredients.map(\.nom) == ["œufs", "farine"])
+        #expect(recette.ingredients.map(\.quantite) == [Quantite(2), Quantite(200)])
+    }
+
+    @Test(arguments: ["", "Ingrédients\n"])
+    func instructionAvecMesure(entete: String) async throws {
+        let recette = try await recetteLueSurPhoto(
+            "Gâteau\n\(entete)2 œufs\n1. Dans un saladier, verser le lait : 200 ml\n2. Cuire au four.")
+        #expect(recette.ingredients.map(\.nom) == ["œufs"])
+        #expect(recette.etapes == ["Dans un saladier, verser le lait : 200 ml", "Cuire au four."])
+    }
+
+    @Test func numerotationDesIngredients() async throws {
+        let recette = try await recetteLueSurPhoto("Crème\nIngrédients\n1. SEL\n1 citron\nMélanger le tout.")
+        #expect(recette.ingredients.map { $0.nom.lowercased() } == ["sel", "citron"])
+        #expect(recette.etapes == ["Mélanger le tout."])
+    }
+
+    @Test(arguments: ["POUR 6 PERSONNES", "Pour 6 personnes (moule de 22 cm)"])
+    func portionsAvantIngredientSansMesure(mention: String) async throws {
+        let recette = try await recetteLueSurPhoto("Mousse\n\(mention)\nCHOCOLAT NOIR\n2 œufs\nMélanger le tout.")
+        #expect(recette.titre == "Mousse")
+        #expect(recette.portions == 6)
+        #expect(recette.ingredients.map { $0.nom.lowercased() } == ["chocolat noir", "œufs"])
+    }
+
+    @Test func portionsAvecPrecisionApresUnIngredient() async throws {
+        let recette = try await recetteLueSurPhoto(
+            "Mousse\nIngrédients\n2 œufs\nPour 6 personnes (moule de 22 cm)\nMélanger le tout.")
+        #expect(recette.portions == 6)
+        #expect(recette.ingredients.map(\.nom) == ["œufs"])
+    }
+
+    @Test func dureeEnJours() async throws {
+        let recette = try await recetteLueSurPhoto(
+            "Pâte\nIngrédients\n200 g de farine\n2 jours de repos\nMélanger le tout.")
+        #expect(recette.ingredients.map(\.nom) == ["farine"])
+    }
+}
+
 @Test func repliPhotoConserveSeulementLesCitationsDuTexteLu() async throws {
     let image = ContenuRecu(type: .image, contenu: Data([42]), origine: .phototheque)
     let sansLecteur = try await Extracteur().extraire(image, cible: .message) { _, _, _ in
