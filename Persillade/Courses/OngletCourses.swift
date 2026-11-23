@@ -149,6 +149,7 @@ struct OngletCourses: View {
         let toutTraite = statuts.values.allSatisfy(\.traitee)
         return List {
             if etat.liste.envoyee {
+                let bandeauCompact = etat.destinationVerrouillee && taille.isAccessibilitySize
                 VStack(alignment: .leading, spacing: 8) {
                     if etat.destinationVerrouillee {
                         Label(session.titreDestination ?? "Liste Rappels", systemImage: "lock.fill")
@@ -157,11 +158,19 @@ struct OngletCourses: View {
                             .accessibilityValue(session.titreDestination ?? "Liste Rappels")
                             .accessibilityIdentifier("courses-liste-verrouillee")
                     }
-                    Text("Au magasin, cochez dans Rappels.")
-                        .typographie(etat.destinationVerrouillee ? .precision : .texte)
-                    Button("Ouvrir Rappels", systemImage: "arrow.up.forward", action: ouvrirRappels)
-                        .buttonStyle(.borderless)
-                        .typographie(.precision)
+                    if !bandeauCompact {
+                        Text("Au magasin, cochez dans Rappels.").typographie(.texte)
+                    }
+                    Button(action: ouvrirRappels) {
+                        if bandeauCompact {
+                            Text("Ouvrir Rappels")
+                        } else {
+                            Label("Ouvrir Rappels", systemImage: "arrow.up.forward")
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    .typographie(bandeauCompact ? .precision : .texte)
+                    .accessibilityHint(bandeauCompact ? "Au magasin, cochez dans Rappels." : "")
                 }
                 .listRowSeparator(.hidden)
                 .listRowBackground(CouleurPersillade.page2.couleur)

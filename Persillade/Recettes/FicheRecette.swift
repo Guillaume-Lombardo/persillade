@@ -300,7 +300,8 @@ private struct CommandesFicheHorizontales: Layout {
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let minimum = subviews.map { $0.sizeThatFits(.unspecified).width }.max() ?? 0
-        let colonne = max(minimum, ((proposal.width ?? 0) - espacement) / 2)
+        let largeur = proposal.width ?? 0
+        let colonne = largeur.isFinite ? max(minimum, (largeur - espacement) / 2) : minimum
         let taille = ProposedViewSize(width: colonne, height: nil)
         let hauteur = subviews.map { $0.sizeThatFits(taille).height }.max() ?? 0
         return CGSize(width: colonne * 2 + espacement, height: hauteur)

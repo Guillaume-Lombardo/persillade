@@ -82,9 +82,6 @@ private struct Racine: View {
     @State private var courses: SessionCourses
     private let extracteur: Extracteur
     private let repliConsenti: Extracteur.RepliConsenti?
-    #if DEBUG
-        private let rappelsEnEchec: MagasinRappelsMemoire?
-    #endif
 
     init() {
         var dossier: URL?
@@ -101,14 +98,19 @@ private struct Racine: View {
                 dossier = URL.temporaryDirectory.appending(path: "Courses-\(id.uuidString)")
                 moteur = nil
                 if !processus.arguments.contains("-courses-eventkit") {
-                    rappels = MagasinRappelsMemoire(destinations: [
+                    let memoire = MagasinRappelsMemoire(destinations: [
                         .init(id: "maison", titre: "Maison", compte: "Sur mon iPhone", modifiable: true),
                         .init(id: "archive", titre: "Archives", compte: "Sur mon iPhone", modifiable: false),
                     ])
+                    if processus.arguments.contains("-courses-envoi-echec") {
+                        rappels = RappelsAvecEchecsPonctuels(memoire: memoire, titres: ["œufs 4", "farine 1,5 kg"])
+                    } else if processus.arguments.contains("-courses-envoi-echec-partiel") {
+                        rappels = RappelsAvecEchecsPonctuels(memoire: memoire, titres: ["farine 1,5 kg"])
+                    } else {
+                        rappels = memoire
+                    }
                 }
             }
-            rappelsEnEchec =
-                processus.arguments.contains("-courses-envoi-echec") ? rappels as? MagasinRappelsMemoire : nil
         #endif
         let bibliotheque = BibliothequeRecettes(dossier: dossier, rappels: rappels)
         _suivi = State(initialValue: SuiviBrouillonCorrection(dossier: dossier))
@@ -151,9 +153,6 @@ private struct Racine: View {
         .task(id: phase) {
             guard phase == .active else { return }
             #if DEBUG
-                if !brouillonCharge {
-                    await rappelsEnEchec?.fixerEcrituresEnEchec(["œufs 4", "farine 1,5 kg"])
-                }
                 if ProcessInfo.processInfo.environment["PERSILLADE_TEST_SESSION"].flatMap(UUID.init(uuidString:))
                     != nil,
                     let texte = ProcessInfo.processInfo.environment["PERSILLADE_TEST_PRESSE_PAPIERS"]
@@ -384,3 +383,28 @@ private struct Racine: View {
         }
     }
 }
+
+#if DEBUG
+    private actor RappelsAvecEchecsPonctuels: MagasinRappels {
+        let memoire: MagasinRappelsMemoire
+        private var titres: Set<String>
+
+        init(memoire: MagasinRappelsMemoire, titres: Set<String>) {
+            self.memoire = memoire
+            self.titres = titres
+        }
+
+        func destinations() async throws -> [DestinationRappels] {
+            try await memoire.destinations()
+        }
+
+        func lire(destinationId: String) async throws -> [RappelCourses] {
+            try await memoire.lire(destinationId: destinationId)
+        }
+
+        func ajouter(titre: String, destinationId: String) async throws -> RappelCourses {
+            if titres.remove(titre) != nil { throw CauseEchecEnvoi.ecriture }
+            return try await memoire.ajouter(titre: titre, destinationId: destinationId)
+        }
+    }
+#endif

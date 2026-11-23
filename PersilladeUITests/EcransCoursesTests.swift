@@ -211,10 +211,10 @@ import XCTest
                 verifierDestinationVerrouillee(dans: app)
                 let renvoyer = bouton("courses-renvoyer", dans: app)
                 let ajouterArticle = bouton("Ajouter", dans: app)
+                joindreCapture("courses-envoyees-\(nom)")
                 XCTAssertEqual(ajouterArticle.frame.midY, renvoyer.frame.midY, accuracy: 2, nom)
                 XCTAssertTrue(oeufs.isHittable, nom)
                 XCTAssertLessThanOrEqual(oeufs.frame.maxY, min(ajouterArticle.frame.minY, renvoyer.frame.minY), nom)
-                joindreCapture("courses-envoyees-\(nom)")
                 renvoyer.tap()
                 XCTAssertTrue(app.staticTexts["Rien à ajouter"].waitForExistence(timeout: 10))
                 joindreCapture("rapport-renvoi-\(nom)")
@@ -245,11 +245,34 @@ import XCTest
                 XCTAssertTrue(terminer.frame.midY < reessayer.frame.midY || terminer.frame.midX < reessayer.frame.midX)
                 joindreCapture("rapport-echec-\(nom)")
                 reessayer.tap()
-                XCTAssertTrue(terminer.wait(for: \.isEnabled, toEqual: true, timeout: 10))
-                terminer.tap()
+                XCTAssertTrue(app.staticTexts["2 articles envoyés"].waitForExistence(timeout: 10))
+                XCTAssertTrue(reessayer.waitForNonExistence(timeout: 5))
+                bouton("Terminé", dans: app).tap()
+                XCTAssertTrue(app.navigationBars["Rapport d’envoi"].waitForNonExistence(timeout: 5))
                 XCTAssertTrue(app.navigationBars["Courses"].waitForExistence(timeout: 5))
                 app.terminate()
             }
+        }
+
+        @MainActor
+        func testReessaiPartielEnvoieUniquementLaLigneEnEchec() {
+            let app = lancer(["-courses-envoi-echec-partiel"])
+            ouvrirOnglet("Semaine", dans: app)
+            faireListe(dans: app)
+            bouton("Choisir une liste", dans: app).tap()
+            bouton("destination-rappels-maison", dans: app).tap()
+            bouton("courses-envoyer", dans: app).tap()
+            XCTAssertTrue(app.staticTexts["1 envoyé, 1 échec"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.buttons["rapport-ouvrir-rappels"].isHittable)
+            let reessayer = bouton("rapport-reessayer", dans: app)
+            reessayer.tap()
+            XCTAssertTrue(app.staticTexts["1 article envoyé"].waitForExistence(timeout: 10))
+            XCTAssertTrue(reessayer.waitForNonExistence(timeout: 5))
+            XCTAssertFalse(app.descendants(matching: .any)["Aucun ajout nécessaire · 1"].firstMatch.exists)
+            bouton("Terminé", dans: app).tap()
+            XCTAssertTrue(app.navigationBars["Rapport d’envoi"].waitForNonExistence(timeout: 5))
+            XCTAssertTrue((bouton("article-farine", dans: app).value as? String)?.contains("Envoyé") == true)
+            XCTAssertTrue((bouton("article-oeuf", dans: app).value as? String)?.contains("Envoyé") == true)
         }
 
         @MainActor

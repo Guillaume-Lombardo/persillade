@@ -253,6 +253,12 @@ struct BilanEnvoiCourses: View {
                 } else if !aEchoue || ecritures > 0 {
                     Text("Au magasin, cochez dans Rappels.").typographie(.precision)
                 }
+                if reessaiPrincipal, ecritures > 0 {
+                    Button("Ouvrir Rappels", systemImage: "arrow.up.forward.app", action: ouvrirListeRappels)
+                        .buttonStyle(.borderless)
+                        .accessibilityIdentifier("rapport-ouvrir-rappels")
+                        .disabled(envoiEnCours)
+                }
             }
             .foregroundStyle(CouleurPersillade.encre.couleur)
             .listRowSeparator(.hidden)
