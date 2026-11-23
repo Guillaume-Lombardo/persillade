@@ -17,7 +17,12 @@ struct BancExtractionTests {
         let disponibilite = indisponibilite.map { String(describing: $0) } ?? "disponible"
         let contexte = indisponibilite == nil ? String(SystemLanguageModel.default.contextSize) : "—"
 
-        let corpus = try #require(Bundle.module.url(forResource: "CorpusExtraction", withExtension: nil))
+        #if SWIFT_PACKAGE
+            let paquet = Bundle.module
+        #else
+            let paquet = Bundle(for: RessourcesBancExtraction.self)
+        #endif
+        let corpus = try #require(paquet.url(forResource: "CorpusExtraction", withExtension: nil))
         let cas = try JSONDecoder().decode(
             [CasExtraction].self, from: Data(contentsOf: corpus.appending(path: "attendus.json")))
         var rapport = [
@@ -92,6 +97,10 @@ struct BancExtractionTests {
         }
     }
 }
+
+#if !SWIFT_PACKAGE
+    private final class RessourcesBancExtraction: NSObject {}
+#endif
 
 private struct CasExtraction: Decodable {
     enum TypeEntree: String, Decodable {

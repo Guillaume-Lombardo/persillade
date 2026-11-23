@@ -52,6 +52,18 @@ Sur simulateur iOS 27 :
 )
 ```
 
+Sur iPhone, préparer [la signature locale et l’appareil](../../README.md#installation-sur-iphone).
+Depuis la racine du dépôt :
+
+```sh
+TEST_RUNNER_PERSILLADE_BANC_EXTRACTION=1 xcodebuild -scheme Persillade \
+  -destination "platform=iOS,id=$PERSILLADE_IPHONE" \
+  -derivedDataPath .build/DerivedData -allowProvisioningUpdates -parallel-testing-enabled NO -jobs 4 \
+  -only-testing:PersilladeTests/BancExtractionTests test
+```
+
+La cible `PersilladeTests` exécute le même banc et embarque le même corpus dans son bundle de tests.
+
 Le test écrit et affiche le Markdown. Sans chemin explicite, il l’écrit dans le dossier
 temporaire du processus de test. Sur iOS, récupérer le tableau dans la sortie de test.
 
@@ -74,7 +86,7 @@ Sur `texte-01`, le repli forcé est partiel (`ia_indisponible`) avec trois ligne
 contre zéro avec le modèle.
 
 Un passage sur simulateur iPhone 15 Pro, iOS 27.0, a signalé `modeleEnAttente`.
-La fenêtre de contexte est donc à mesurer sur iPhone.
+La fenêtre de contexte n’a pas été mesurée sur le simulateur.
 
 | Entrée | Cas | Simulateur · complets / partiels / échecs | Simulateur · durée (ms) | Simulateur · corrections cumulées |
 | --- | ---: | ---: | ---: | ---: |
@@ -88,32 +100,34 @@ Sur simulateur, le JSON-LD évite trois corrections dans chacun des cas `web-01`
 temps observés sont de −27,8 ms, −4,4 ms et −8,6 ms respectivement. Sans modèle
 disponible, ces écarts comparent deux traitements déterministes sur un seul passage.
 
-## iPhone physique
+## Mesures iPhone
 
-L’iPhone appairé est resté verrouillé au second essai, espacé de plus de dix minutes.
-L’installation et les mesures restent à faire. Vérifier l’état de l’appareil avec
-`xcrun devicectl device info lockState --device "$PERSILLADE_IPHONE" --timeout 10`.
+Un passage sur iPhone 15 Pro, iOS 27.2.1, avec le modèle en français disponible et
+une fenêtre de contexte de 8 192 jetons. Le tableau regroupe les variantes nominales.
+
+| Entrée | Cas | iPhone · complets / partiels / échecs | iPhone · durée (ms) | iPhone · corrections cumulées |
+| --- | ---: | ---: | ---: | ---: |
+| Web | 5 | 5 / 0 / 0 | 8,5–2 080,7 | 2 |
+| Texte | 5 | 5 / 0 / 0 | 3,3–1 839,1 | 2 |
+| Page imprimée simulée | 5 | 5 / 0 / 0 | 134,3–2 258,8 | 0 |
+| Fiche en police manuscrite | 3 | 3 / 0 / 0 | 135,7–149,6 | 6 |
+
+Les gains JSON-LD sont de 3 262,0 ms, −2,8 ms et 2 421,5 ms pour `web-01`,
+`web-02` et `web-03` respectivement, avec zéro correction dans les deux variantes.
+Sans JSON-LD, `web-01` et `web-03` appellent le modèle et `web-02` reste déterministe.
+Sur `texte-01`, le repli forcé est partiel (`ia_indisponible`) et prend 8,1 ms avec
+trois corrections. Avec le modèle, l’extraction est complète en 1 839,1 ms avec zéro
+correction.
+
+## Autres mesures sur iPhone
 
 | Mesure sur iPhone 15 Pro | Résultat |
 | --- | --- |
-| Extraction, modèle local et fenêtre de contexte | À mesurer |
 | Motif, médiane vignette et fiche à cache vidé | À mesurer |
 | Démarrage à froid | À mesurer |
 | Correction et enregistrement chronométrés | À mesurer |
 
-Pour le banc seul, utiliser le paquet avec une équipe de développement existante. Avec
-`PERSILLADE_IPHONE` et `PERSILLADE_EQUIPE` renseignés localement :
-
-```sh
-(
-  cd Paquets/PersilladeCore
-  TEST_RUNNER_PERSILLADE_BANC_EXTRACTION=1 xcodebuild -scheme PersilladeCore-Package \
-    -destination "platform=iOS,id=$PERSILLADE_IPHONE" \
-    -derivedDataPath ../../.build/DerivedData -parallel-testing-enabled NO -jobs 4 \
-    -only-testing:PersilladePlateformeTests/BancExtractionTests \
-    DEVELOPMENT_TEAM="$PERSILLADE_EQUIPE" CODE_SIGN_ENTITLEMENTS= test
-)
-```
+Les essais avec la vraie caméra, VoiceOver et les recettes du foyer restent manuels.
 
 Pour l’app et son test de rendu, la signature automatique peut utiliser le profil générique
 déjà présent, s’il couvre les cibles et l’appareil. Avec les entitlements vidés, la feuille
@@ -139,7 +153,7 @@ arrêter Persillade et relever le temps jusqu’à la première image dans le mo
 
 ## Risque s5_r1
 
-L’extraction seule reste sous les cibles sur Mac et simulateur avec ce corpus court. Le
+L’extraction seule reste sous les cibles sur Mac, simulateur et iPhone avec ce corpus court. Le
 risque s5_r1 reste ouvert pour les imports en moins de 60 s (web et texte) ou 120 s (photo),
 correction et enregistrement compris. Pour vérifier ces cibles, chronométrer l’import jusqu’à
 l’enregistrement sur l’iPhone, avec des contenus réels et du papier réellement manuscrit.

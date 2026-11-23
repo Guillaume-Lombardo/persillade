@@ -10,6 +10,9 @@
 		100000000000000000000002 /* PersilladeCore in Frameworks */ = {isa = PBXBuildFile; productRef = 900000000000000000000002 /* PersilladeCore */; };
 		100000000000000000000003 /* PersilladePlateforme in Frameworks */ = {isa = PBXBuildFile; productRef = 900000000000000000000003 /* PersilladePlateforme */; };
 		100000000000000000000004 /* PersilladeCore in Frameworks */ = {isa = PBXBuildFile; productRef = 900000000000000000000004 /* PersilladeCore */; };
+		100000000000000000000005 /* BancExtractionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000C /* BancExtractionTests.swift */; };
+		100000000000000000000006 /* PageCorpusExtraction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000D /* PageCorpusExtraction.swift */; };
+		100000000000000000000007 /* CorpusExtraction in Resources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000E /* CorpusExtraction */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -60,6 +63,9 @@
 		200000000000000000000009 /* Partage.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Partage.xcconfig; sourceTree = "<group>"; };
 		20000000000000000000000A /* Tests.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Tests.xcconfig; sourceTree = "<group>"; };
 		20000000000000000000000B /* UITests.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = UITests.xcconfig; sourceTree = "<group>"; };
+		20000000000000000000000C /* BancExtractionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BancExtractionTests.swift; sourceTree = "<group>"; };
+		20000000000000000000000D /* PageCorpusExtraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageCorpusExtraction.swift; sourceTree = "<group>"; };
+		20000000000000000000000E /* CorpusExtraction */ = {isa = PBXFileReference; lastKnownFileType = folder; path = CorpusExtraction; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -97,6 +103,7 @@
 				510000000000000000000002 /* PersilladePartage */,
 				510000000000000000000003 /* PersilladeTests */,
 				510000000000000000000004 /* PersilladeUITests */,
+				520000000000000000000004 /* Banc d’extraction */,
 				520000000000000000000002 /* Config */,
 				520000000000000000000003 /* Products */,
 			);
@@ -125,6 +132,17 @@
 				200000000000000000000004 /* PersilladeUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		520000000000000000000004 /* Banc d’extraction */ = {
+			isa = PBXGroup;
+			children = (
+				20000000000000000000000C /* BancExtractionTests.swift */,
+				20000000000000000000000D /* PageCorpusExtraction.swift */,
+				20000000000000000000000E /* CorpusExtraction */,
+			);
+			name = "Banc d’extraction";
+			path = Paquets/PersilladeCore/Tests/PersilladePlateformeTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -236,14 +254,14 @@
 /* Begin PBXResourcesBuildPhase section */
 		620000000000000000000001 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 		620000000000000000000002 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		620000000000000000000003 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		620000000000000000000003 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000007 /* CorpusExtraction in Resources */); runOnlyForDeploymentPostprocessing = 0; };
 		620000000000000000000004 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		610000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 		610000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		610000000000000000000003 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		610000000000000000000003 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000005 /* BancExtractionTests.swift in Sources */, 100000000000000000000006 /* PageCorpusExtraction.swift in Sources */); runOnlyForDeploymentPostprocessing = 0; };
 		610000000000000000000004 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
