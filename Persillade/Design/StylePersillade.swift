@@ -1,3 +1,4 @@
+import CoreText
 import PersilladeCore
 import SwiftUI
 
@@ -120,6 +121,7 @@ enum TypographiePersillade {
 private struct PolicePersillade: ViewModifier {
     let role: TypographiePersillade
     @Environment(\.dynamicTypeSize) private var tailleDynamique
+    @Environment(\.fontResolutionContext) private var contextePolice
     @Environment(\.legibilityWeight) private var lisibilite
     @ScaledMetric private var taille: CGFloat
 
@@ -128,6 +130,7 @@ private struct PolicePersillade: ViewModifier {
         _taille = ScaledMetric(wrappedValue: role.taille, relativeTo: role.style)
     }
 
+    @ViewBuilder
     func body(content: Content) -> some View {
         let graisse: Font.Weight = lisibilite == .bold && role.graisse == .regular ? .semibold : role.graisse
         let styleAX = if case .consigne = role { Font.TextStyle.title2 } else { role.style }
@@ -140,11 +143,37 @@ private struct PolicePersillade: ViewModifier {
             case .etape, .quantite: base.monospacedDigit()
             default: base
             }
-        content
-            .font(police)
-            .lineHeight(
-                tailleDynamique.isAccessibilitySize
-                    ? nil : role.interligne.map { .exact(points: $0 * taille / role.taille) })
+        if let interligne = role.interligne, !tailleDynamique.isAccessibilitySize {
+            let hauteur = interligne * taille / role.taille
+            let policeResolue = police.resolve(in: contextePolice).ctFont
+            MargesAffiche(ascendante: CTFontGetAscent(policeResolue), descendante: CTFontGetDescent(policeResolue)) {
+                content.font(police).lineHeight(.exact(points: hauteur))
+            }
+        } else {
+            content.font(police)
+        }
+    }
+}
+
+private struct MargesAffiche: Layout {
+    let ascendante: CGFloat
+    let descendante: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let texte = subviews[0].dimensions(in: proposal)
+        // Les lignes gardent leur écart, le bloc réserve la hauteur des glyphes aux extrémités.
+        let haut = margeHaute(texte)
+        let bas = max(0, texte[.lastTextBaseline] + descendante - texte.height)
+        return CGSize(width: texte.width, height: haut + texte.height + bas)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let texte = subviews[0].dimensions(in: proposal)
+        subviews[0].place(at: CGPoint(x: bounds.minX, y: bounds.minY + margeHaute(texte)), proposal: proposal)
+    }
+
+    private func margeHaute(_ texte: ViewDimensions) -> CGFloat {
+        max(0, ascendante - texte[.firstTextBaseline])
     }
 }
 
