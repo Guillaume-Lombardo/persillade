@@ -134,9 +134,14 @@ final class ConsentementFournisseurUITests: XCTestCase {
             return
         }
         champ.tap()
+        XCTAssertTrue(XCUIApplication().keyboards.firstMatch.waitForExistence(timeout: 5))
         if valeur != label {
-            champ.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
-            champ.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: valeur.count))
+            // Le simulateur de CI peut perdre des frappes : on efface ce qui reste, en plusieurs passes.
+            for _ in 0..<5 {
+                guard let reste = champ.value as? String, reste != label, !reste.isEmpty else { break }
+                champ.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+                champ.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: reste.count))
+            }
             XCTAssertEqual(champ.value as? String, label)
         }
         champ.typeText(texte)
