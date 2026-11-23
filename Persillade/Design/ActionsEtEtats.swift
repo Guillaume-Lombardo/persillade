@@ -10,6 +10,7 @@ struct BoutonActionPersillade: View {
     let progression: Double?
     let pleineLargeur: Bool
     let secondaire: Bool
+    let surUneLigne: Bool
     let action: () -> Void
 
     @Environment(\.dansBarreAction) private var dansBarre
@@ -18,13 +19,15 @@ struct BoutonActionPersillade: View {
 
     init(
         _ libelle: String, symbole: String? = nil, progression: Double? = nil,
-        pleineLargeur: Bool = false, secondaire: Bool = false, action: @escaping () -> Void
+        pleineLargeur: Bool = false, secondaire: Bool = false, surUneLigne: Bool = false,
+        action: @escaping () -> Void
     ) {
         self.libelle = libelle
         self.symbole = symbole
         self.progression = progression
         self.pleineLargeur = pleineLargeur
         self.secondaire = secondaire
+        self.surUneLigne = surUneLigne
         self.action = action
     }
 
@@ -82,7 +85,7 @@ struct BoutonActionPersillade: View {
                 .multilineTextAlignment(.center)
         }
         .typographie(.bouton)
-        .fixedSize(horizontal: false, vertical: true)
+        .fixedSize(horizontal: surUneLigne && !taille.isAccessibilitySize, vertical: true)
     }
 }
 

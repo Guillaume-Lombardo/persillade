@@ -14,15 +14,7 @@ struct PresentationQuantite {
 
     init(_ quantite: Quantite?, _ unite: Unite?) throws {
         guard let quantite else { return }
-        guard let unite else {
-            nombre = quantite.texteFrancais
-            return
-        }
-        let texte = try formaterQuantiteCourses(quantite, unite: unite)
-        let morceaux = texte.split(separator: " ", maxSplits: 1).map(String.init)
-        nombre = morceaux.first
-        self.unite = morceaux.dropFirst().first
-        if unite == .cac || unite == .cas { self.unite = unite.libellePersillade }
+        (nombre, self.unite) = try composantesQuantiteCourses(quantite, unite: unite)
     }
 
     init(ligne: LigneCourses) {
