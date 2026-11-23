@@ -2,6 +2,8 @@ import PersilladeCore
 import SwiftUI
 
 struct OngletRecettes: View {
+    private static let hauteurMotifNominale: CGFloat = 320
+
     @Binding var chemin: [UUID]
     let bibliotheque: BibliothequeRecettes
     let rechercheActive: Bool
@@ -144,9 +146,14 @@ struct OngletRecettes: View {
                 titre: "La planche\nest vide.",
                 message: "Importez une première recette. Depuis Safari ou Messages : Partager, puis Persillade."
             ) {
-                Image(decorative: "PlancheVide")
-                    .resizable()
+                Color.clear
                     .frame(height: hauteurMotifVide)
+                    .overlay {
+                        Image(decorative: "PlancheVide")
+                            .resizable()
+                            .frame(height: Self.hauteurMotifNominale)
+                    }
+                    .clipped()
             } actions: {
             }
         }
@@ -169,7 +176,7 @@ struct OngletRecettes: View {
 
     private var hauteurMotifVide: CGFloat {
         if taille >= .accessibility3 { return 184 }
-        return accessoireReceptionVisible ? 240 : 320
+        return accessoireReceptionVisible ? 240 : Self.hauteurMotifNominale
     }
 
     private func liste(_ recettes: [ResumeRecette]) -> some View {
