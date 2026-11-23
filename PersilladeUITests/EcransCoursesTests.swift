@@ -54,18 +54,9 @@ import XCTest
             XCTAssertEqual(farine.value as? String, "1,5 kg, Envoyé")
             XCTAssertFalse(app.staticTexts["Envoyé"].exists)
 
-            bouton("Ajouter", dans: app).tap()
-            bouton("Ajouter un article", dans: app).tap()
-            let saisie = app.textFields["ajout-saisie-courses"]
-            XCTAssertTrue(saisie.waitForExistence(timeout: 10))
-            saisie.tap()
-            saisie.typeText("2 bananes")
-            bouton("ajout-valider-courses", dans: app).tap()
-            XCTAssertTrue(app.staticTexts["Article ajouté"].waitForExistence(timeout: 10))
-            let bananesEnvoyees = app.buttons.matching(
-                NSPredicate(format: "label == %@ AND value CONTAINS %@", "bananes", "Envoyé")
-            ).firstMatch
-            XCTAssertTrue(bananesEnvoyees.waitForExistence(timeout: 10))
+            let ananasEnvoye = ajouterAnanas(dans: app)
+            joindreCapture("Ajout-ananas-envoye")
+            XCTAssertLessThan(ananasEnvoye.frame.height, 62)
             bouton("Terminé", dans: app).tap()
 
             bouton("courses-renvoyer", dans: app).tap()
@@ -82,7 +73,7 @@ import XCTest
             bouton("Refaire la liste", dans: app).tap()
             bouton("Remplacer", dans: app).tap()
             XCTAssertTrue(app.navigationBars["Courses"].waitForExistence(timeout: 10))
-            XCTAssertTrue(app.buttons["article-banane"].waitForNonExistence(timeout: 10))
+            XCTAssertTrue(app.buttons["article-ananas"].waitForNonExistence(timeout: 10))
             XCTAssertTrue((bouton("article-farine", dans: app).value as? String)?.contains("1,625") == true)
         }
 
@@ -218,6 +209,16 @@ import XCTest
                 renvoyer.tap()
                 XCTAssertTrue(app.staticTexts["Rien à ajouter"].waitForExistence(timeout: 10))
                 joindreCapture("rapport-renvoi-\(nom)")
+                if nom == "AX5" {
+                    bouton("Terminé", dans: app).tap()
+                    let ananas = ajouterAnanas(dans: app)
+                    let depart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.32))
+                    let arrivee = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.17))
+                    depart.press(forDuration: 0.05, thenDragTo: arrivee)
+                    XCTAssertTrue(ananas.isHittable)
+                    joindreCapture("Ajout-ananas-envoye-AX5")
+                    XCTAssertLessThan(ananas.frame.height, 218)
+                }
                 app.terminate()
             }
         }
@@ -273,6 +274,23 @@ import XCTest
             XCTAssertTrue(app.navigationBars["Rapport d’envoi"].waitForNonExistence(timeout: 5))
             XCTAssertTrue((bouton("article-farine", dans: app).value as? String)?.contains("Envoyé") == true)
             XCTAssertTrue((bouton("article-oeuf", dans: app).value as? String)?.contains("Envoyé") == true)
+        }
+
+        @MainActor
+        private func ajouterAnanas(dans app: XCUIApplication) -> XCUIElement {
+            bouton("Ajouter", dans: app).tap()
+            bouton("Ajouter un article", dans: app).tap()
+            let saisie = app.textFields["ajout-saisie-courses"]
+            XCTAssertTrue(saisie.waitForExistence(timeout: 10))
+            saisie.tap()
+            saisie.typeText("1 ananas")
+            bouton("ajout-valider-courses", dans: app).tap()
+            XCTAssertTrue(app.staticTexts["Article ajouté"].waitForExistence(timeout: 10))
+            let ananas = app.buttons.matching(
+                NSPredicate(format: "label == %@ AND value CONTAINS %@", "ananas", "Envoyé")
+            ).firstMatch
+            XCTAssertTrue(ananas.waitForExistence(timeout: 10))
+            return ananas
         }
 
         @MainActor

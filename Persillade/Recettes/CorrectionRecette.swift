@@ -198,6 +198,12 @@ struct CorrectionRecette: View {
             .foregroundStyle(CouleurPersillade.encre.couleur)
             .background(CouleurPersillade.page.couleur)
             .scrollDismissesKeyboard(.interactively)
+            .task(id: saisie) {
+                guard let id = saisie?.ingredient, saisie != .unite(id) else { return }
+                await Task.yield()
+                guard !Task.isCancelled else { return }
+                defilement.scrollTo(Champ.ingredient(id), anchor: .top)
+            }
             .reorderContainer(for: LigneIngredientCorrection.self, isEnabled: !enregistrant && !enregistree) {
                 difference in
                 appliquerReordre(&formulaire.ingredients, selon: difference)
@@ -491,7 +497,8 @@ struct CorrectionRecette: View {
     ) -> some View {
         let ligne = liaison.wrappedValue
         let champ = Champ.ingredient(ligne.id)
-        return Group {
+        // Le défilement cible la même cellule avant et pendant l’édition.
+        return VStack(spacing: 0) {
             if ingredientOuvert == ligne.id {
                 VStack(alignment: .leading, spacing: GrillePersillade.pas * 2) {
                     if saisie?.ingredient == ligne.id,

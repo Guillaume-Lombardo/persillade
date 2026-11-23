@@ -53,7 +53,9 @@ struct PresentationEnvoi {
             case .aEnvoyer:
                 marque = .init(libelle: "À envoyer", symbole: "arrow.up.circle", couleur: .persil)
             case .envoyee:
-                marque = .init(libelle: "Envoyé", symbole: "arrow.up.circle.fill", couleur: .encre2, discrete: true)
+                marque = .init(
+                    libelle: "Envoyé", symbole: "arrow.up.circle.fill", couleur: .encre2,
+                    discrete: true, surUneLigne: true)
             case .rienAAjouter:
                 marque = .init(libelle: "Rien à ajouter", symbole: "checkmark.circle", couleur: .encre2, discrete: true)
             case .supplement(let quantite, let unite):

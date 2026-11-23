@@ -135,6 +135,30 @@
         }
 
         @MainActor
+        func testNomEtQuantiteVisiblesALOuvertureDeLIngredient() {
+            let app = lancer()
+            coller(app)
+            ouvrirCorrection(app)
+            app.buttons["farine"].tap()
+
+            let clavier = app.keyboards.firstMatch
+            XCTAssertTrue(clavier.waitForExistence(timeout: 8))
+            let nom = app.textFields["nom-ingredient"]
+            let quantite = app.textFields["editeur-quantite"]
+            verifierChampsAuDessusDuClavier([nom, quantite], clavier: clavier)
+            joindre("Correction-quantite-visible")
+
+            let depart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.45))
+            let arrivee = clavier.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.55))
+            depart.press(forDuration: 0.05, thenDragTo: arrivee)
+            XCTAssertTrue(clavier.waitForNonExistence(timeout: 5))
+            quantite.tap()
+            XCTAssertTrue(clavier.waitForExistence(timeout: 8))
+            verifierChampsAuDessusDuClavier([nom, quantite], clavier: clavier)
+            joindre("Correction-quantite-focus")
+        }
+
+        @MainActor
         func testReprendCorrectionApresTerminaisonPuisEffaceApresEnregistrement() {
             let app = lancer(arguments: ["-test-observer-brouillon"])
             coller(app)
@@ -561,6 +585,14 @@
             let semaine = app.buttons["Ajouter à la semaine"]
             let cuisiner = app.buttons["ouvrir-cuisine"]
             XCTAssertGreaterThanOrEqual(cuisiner.frame.width + 1, semaine.frame.width)
+        }
+
+        @MainActor
+        private func verifierChampsAuDessusDuClavier(_ champs: [XCUIElement], clavier: XCUIElement) {
+            for champ in champs {
+                XCTAssertTrue(champ.wait(for: \.isHittable, toEqual: true, timeout: 5), champ.debugDescription)
+                XCTAssertLessThanOrEqual(champ.frame.maxY, clavier.frame.minY, champ.debugDescription)
+            }
         }
 
         @MainActor

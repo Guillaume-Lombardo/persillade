@@ -117,6 +117,7 @@ struct LigneArticle: View {
         let symbole: String
         let couleur: CouleurPersillade
         var discrete = false
+        var surUneLigne = false
     }
 
     let nom: String
@@ -240,9 +241,14 @@ struct LigneArticle: View {
                     .foregroundStyle(CouleurPersillade.encre2.couleur)
                     .transition(.opacity)
             } else if let marque, afficherMarque {
-                Label(marque.libelle, systemImage: marque.symbole)
-                    .typographie(marque.discrete ? .precision : .alerte)
-                    .foregroundStyle(marque.couleur.couleur)
+                Label {
+                    Text(marque.libelle)
+                        .fixedSize(horizontal: marque.surUneLigne, vertical: false)
+                } icon: {
+                    Image(systemName: marque.symbole)
+                }
+                .typographie(marque.discrete ? .precision : .alerte)
+                .foregroundStyle(marque.couleur.couleur)
             }
         }
     }
