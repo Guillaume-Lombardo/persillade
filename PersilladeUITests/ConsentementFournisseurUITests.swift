@@ -135,7 +135,9 @@ final class ConsentementFournisseurUITests: XCTestCase {
         }
         champ.tap()
         if valeur != label {
-            champ.typeKey("a", modifierFlags: .command)
+            champ.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+            champ.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: valeur.count))
+            XCTAssertEqual(champ.value as? String, label)
         }
         champ.typeText(texte)
         XCTAssertEqual(champ.value as? String, texte)
