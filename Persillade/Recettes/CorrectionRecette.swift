@@ -193,6 +193,7 @@ struct CorrectionRecette: View {
                 .disabled(enregistree || enregistrant)
             }
             .listStyle(.plain)
+            .environment(\.defaultMinListRowHeight, GrillePersillade.ingredient)
             .scrollContentBackground(.hidden)
             .foregroundStyle(CouleurPersillade.encre.couleur)
             .background(CouleurPersillade.page.couleur)

@@ -364,15 +364,19 @@
             joindre("Correction-titre-long-AX5")
 
             let ajouter = app.buttons["Ajouter une étape"]
-            for _ in 0..<10 {
-                if ajouter.isHittable { break }
-                app.collectionViews.firstMatch.swipeUp(velocity: .slow)
-            }
-            XCTAssertTrue(ajouter.isHittable)
             let etape = app.descendants(matching: .any).matching(identifier: "texte-etape-correction").matching(
                 NSPredicate(format: "value == %@", etapeLongue)
             ).firstMatch
-            XCTAssertGreaterThan(etape.frame.height, app.frame.height / 2)
+            let debut = app.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.86))
+            let fin = app.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.25))
+            var hauteur: CGFloat = 0
+            for _ in 0..<12 {
+                if etape.exists { hauteur = max(hauteur, etape.frame.height) }
+                if ajouter.isHittable { break }
+                debut.press(forDuration: 0.05, thenDragTo: fin, withVelocity: .fast, thenHoldForDuration: 0.1)
+            }
+            XCTAssertTrue(ajouter.isHittable)
+            XCTAssertGreaterThan(hauteur, app.frame.height / 2)
             XCTAssertTrue(app.buttons["enregistrer-correction"].isHittable)
             joindre("Correction-derniere-action-AX5")
             try auditer(app)
