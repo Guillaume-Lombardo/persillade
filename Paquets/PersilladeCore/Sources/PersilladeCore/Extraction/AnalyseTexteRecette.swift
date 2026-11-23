@@ -24,13 +24,14 @@ struct AnalyseTexteRecette {
 
     private static let portionsPhoto =
         #"(?i)^[\[(]?\h*(?:pour\h*:?\h*\S+|[0-9]+)\h+(?:personnes?|parts?|portions?)\b[\h:.)\]]*$"#
+    private static let etiquetteDureePhoto = #"(?:(?:temps\h+de\h+)?(?:pr[ée]paration|cuisson|repos)|temps\h+total)"#
     private static let dureePhoto =
-        #"(?i)^(?:(?:(?:pr[ée]paration|cuisson|repos)\h*:?\h*)?[0-9]+\h*(?:min(?:utes?)?|h(?:eures?)?|s(?:econdes?)?)(?!\p{L})|(?:cuisson|repos)\h*[:.]?\h*$)"#
+        #"(?i)^(?:(?:\#(etiquetteDureePhoto)\h*:?\h*)?[0-9]+\h*(?:min(?:utes?)?|h(?:eures?)?|s(?:econdes?)?)(?!\p{L})|(?:cuisson|repos)\h*[:.]?\h*$)"#
     private static let numeroEtapePhoto = #"\#(numeroEtape)|^[0-9]+\h*[-–—]\h*(?=\p{L})"#
-    private static let suiteIngredientPhoto = #"^(?:d['’]|(?:de|ou)\h+)"#
+    private static let suiteIngredientPhoto = #"(?i)^(?:d['’]|(?:de|ou)\h+)"#
     private static let suiteEtapePhoto = #"(?i)^(?:que\b|qu['’]|jusqu['’]|puis\b|ensuite\b|afin de\b)"#
     private static let verbeEtapePhoto =
-        #"(?i)^(?:fouetter|incorporer|[ée]craser|r[âa]per|d[ée]noyauter|beurrer|disposer|saupoudrer|d[ée]mouler|tapisser|r[ée]server)\b"#
+        #"(?i)^(?:fouetter|incorporer|[ée]craser|r[âa]per|d[ée]noyauter|beurrer|disposer|saupoudrer|d[ée]mouler|tapisser|r[ée]server|d[ée]layer)\b"#
     private static let phraseEtapePhoto = #"[.!?]\h+\p{Lu}|(?i:\b(?:puis|ensuite)\h+\p{L}+(?:er|ez|ir|re)\b)"#
 
     init(_ texte: String, photo: Bool = false) throws {
@@ -113,7 +114,7 @@ struct AnalyseTexteRecette {
             let numerotee = sansNumero != ligne
             let ingredientNumerote = section == .ingredients && numerotee ? AnalyseIngredient.analyser(sansNumero) : nil
             let ingredientDose =
-                sansNumero.first?.isNumber == true
+                (photo || sansNumero.first?.isNumber == true)
                 && ingredientNumerote?.quantite != nil && ingredientNumerote?.ligneNonComprise == false
             if section == .etapes || etapeVerbale || (numerotee && (photo || !ingredientsExplicites) && !ingredientDose)
                 || (photo && section == .ingredients && Self.fragmentEtape(sansNumero))

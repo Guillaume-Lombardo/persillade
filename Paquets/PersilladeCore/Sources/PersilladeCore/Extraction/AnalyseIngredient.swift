@@ -54,19 +54,15 @@ public enum AnalyseIngredient {
     }
 
     static func fragmentSansNom(_ texte: String) -> Bool {
-        let sansMesure = texte.remplacer(marqueQuantiteSuffisante, par: "")
+        let sansMesure = sansMarquesQuantite(texte)
             .remplacer(#"(?i)^[-−+]?\#(plage)\h*"#, par: "")
         let reste = lireUnite(sansMesure)?.suite ?? sansMesure
-        return !reste.contains(where: \.isLetter)
+        return !nettoyerNom(reste).contains(where: \.isLetter)
     }
 
     public static func analyser(_ ligne: String) -> BrouillonIngredient {
         let texte = retirerPuce(ligne)
-        let sansMarque =
-            texte
-            .remplacer(marqueQuantiteSuffisante, par: "")
-            .remplacer(#"(?i)\h*[,;]?\h*(?:\((?:au go[uû]t|q\.?\h*s\.?)\)|\b(?:au go[uû]t|q\.?\h*s\.?))\.?$"#, par: "")
-            .epure
+        let sansMarque = sansMarquesQuantite(texte)
         let pinceeDeSel = #"(?i)^(?:une|1)\h+pinc[ée]e\h+(?=de\h+sel\b)"#
         if sansMarque != texte || texte.correspond(pinceeDeSel) {
             let nom = sansMarque.remplacer(pinceeDeSel, par: "")
@@ -117,14 +113,24 @@ public enum AnalyseIngredient {
         return nil
     }
 
+    private static func sansMarquesQuantite(_ texte: String) -> String {
+        texte.remplacer(marqueQuantiteSuffisante, par: "")
+            .remplacer(#"(?i)\h*[,;]?\h*(?:\((?:au go[uû]t|q\.?\h*s\.?)\)|\b(?:au go[uû]t|q\.?\h*s\.?))\.?$"#, par: "")
+            .epure
+    }
+
+    private static func nettoyerNom(_ nom: String) -> String {
+        nom.epure
+            .remplacer(#"(?i)^(\([^()]+\))\h+((?:de\h+|d['’]).+)$"#, par: "$2 $1")
+            .remplacer(#"(?i)^(?:de\h+(?:(?:la|le|les)\h+|l['’])?|(?:de|du|des)(?:\h+|$)|d['’]\h*)"#, par: "")
+            .epure
+    }
+
     private static func resultat(
         nom: String, origine: String, mesure: String? = nil,
         unite: (unite: Unite, facteur: Int64, suite: String)? = nil
     ) -> BrouillonIngredient {
-        let nom = nom.epure
-            .remplacer(#"(?i)^(\([^()]+\))\h+((?:de\h+|d['’]).+)$"#, par: "$2 $1")
-            .remplacer(#"(?i)^(?:de\h+(?:(?:la|le|les)\h+|l['’])?|(?:de|du|des)(?:\h+|$)|d['’]\h*)"#, par: "")
-            .epure
+        let nom = nettoyerNom(nom)
         let nomVide = !nom.contains(where: \.isLetter)
         let libelle = nomVide ? "" : nom
         guard let mesure else {
