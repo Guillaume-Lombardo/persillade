@@ -228,7 +228,7 @@ private struct ConsentementFournisseur: View {
                 VStack(spacing: GrillePersillade.pas * 3) {
                     CommandeRecettes(titre: "Accepter et activer", principale: true, action: accepter)
                         .accessibilityIdentifier("fournisseur-accepter")
-                    CommandeRecettes(titre: "Refuser", action: refuser)
+                    BoutonActionPersillade("Refuser", pleineLargeur: true, secondaire: true, action: refuser)
                         .accessibilityIdentifier("fournisseur-refuser")
                 }
                 .dynamicTypeSize(...DynamicTypeSize.accessibility2)

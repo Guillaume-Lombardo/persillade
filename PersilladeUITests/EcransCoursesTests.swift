@@ -205,7 +205,8 @@ import XCTest
                 bouton("destination-rappels-maison", dans: app).tap()
                 bouton("courses-envoyer", dans: app).tap()
                 XCTAssertTrue(app.staticTexts["2 articles envoyés"].waitForExistence(timeout: 10))
-                XCTAssertTrue(bouton("Ouvrir Rappels", dans: app).isHittable)
+                let ouvrirRappels = app.buttons["rapport-ouvrir-rappels"]
+                XCTAssertTrue(ouvrirRappels.wait(for: \.isHittable, toEqual: true, timeout: 10))
                 joindreCapture("rapport-\(nom)")
                 bouton("Terminé", dans: app).tap()
                 let destination = bouton("Liste Rappels verrouillée", dans: app)
