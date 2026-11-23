@@ -94,10 +94,10 @@
             XCTAssertEqual(titre.value as? String, "Crêpes maison du dimanche")
             XCTAssertEqual(portions.value as? String, "6")
             let oeufs = app.buttons.matching(
-                NSPredicate(format: "label CONTAINS[cd] %@ AND label CONTAINS %@", "œufs", "2")
+                NSPredicate(format: "label CONTAINS[cd] %@ AND value BEGINSWITH %@", "œufs", "2")
             ).firstMatch
             XCTAssertTrue(oeufs.exists)
-            XCTAssertFalse(oeufs.label.contains("pièce"))
+            XCTAssertEqual((oeufs.value as? String)?.components(separatedBy: ", ").first, "2")
             joindre("Correction-reprise")
             enregistrer(app)
             XCTAssertEqual(app.staticTexts["titre-fiche"].label, "Crêpes maison du dimanche")
@@ -167,10 +167,10 @@
             XCTAssertTrue(exclure.waitForExistence(timeout: 8))
             exclure.tap()
             let bananes = app.buttons.matching(
-                NSPredicate(format: "label CONTAINS[cd] %@ AND label CONTAINS %@", "bananes", "2")
+                NSPredicate(format: "label CONTAINS[cd] %@ AND value BEGINSWITH %@", "bananes", "2")
             ).firstMatch
             XCTAssertTrue(bananes.exists)
-            XCTAssertFalse(bananes.label.contains("pièce"))
+            XCTAssertEqual((bananes.value as? String)?.components(separatedBy: ", ").first, "2")
             bananes.tap()
             let quantite = app.textFields["editeur-quantite"]
             XCTAssertTrue(quantite.waitForExistence(timeout: 8))
@@ -192,7 +192,7 @@
             XCTAssertTrue(terminer.waitForExistence(timeout: 8))
             terminer.tap()
             XCTAssertTrue(app.buttons["article-banane"].waitForExistence(timeout: 8))
-            XCTAssertTrue(app.buttons["article-banane"].label.contains("3"))
+            XCTAssertEqual((app.buttons["article-banane"].value as? String)?.components(separatedBy: ", ").first, "3")
             XCTAssertFalse(app.buttons["article-farine"].exists)
         }
 

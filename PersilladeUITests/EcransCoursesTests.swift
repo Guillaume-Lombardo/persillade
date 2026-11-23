@@ -90,7 +90,8 @@ import XCTest
         func testRefusRappelsAfficheLeCheminEtOuvreReglages() {
             let app = lancer(["-courses-eventkit"])
             app.resetAuthorizationStatus(for: .reminders)
-            ouvrirOnglet("Courses", dans: app)
+            ouvrirOnglet("Semaine", dans: app)
+            faireListe(dans: app)
             bouton("Choisir une liste", dans: app).tap()
             let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
             let refuser = springboard.alerts.buttons.matching(
