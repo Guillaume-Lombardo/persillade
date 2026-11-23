@@ -230,6 +230,30 @@
     ]
   },
   {
+    "id": "photo-06",
+    "type": "imprime",
+    "rotation": 90,
+    "titre": "MOELLEUX AUX ABRICOTS",
+    "portions": 6,
+    "ingredients": [
+      {"nom": "cassonade", "quantite": "120", "unite": "g"},
+      {"nom": "œufs", "quantite": "3", "unite": "piece"},
+      {"nom": "poudre d'amandes", "quantite": "70", "unite": "g"},
+      {"nom": "beurre fondu", "quantite": "80", "unite": "g"},
+      {"nom": "biscuits ronds", "quantite": "8", "unite": "piece"},
+      {"nom": "chocolat au lait"},
+      {"nom": "farine", "quantite": "50", "unite": "g"},
+      {"nom": "abricots ou 12 oreillons d'abricots au sirop", "quantite": "6", "unite": "piece"},
+      {"nom": "noix de beurre", "quantite": "1", "unite": "piece"}
+    ],
+    "etapes": [
+      "Fouetter les œufs et le sucre jusqu'à ce que le mélange double de volume. Ajouter les biscuits écrasés et la poudre d'amandes.",
+      "Incorporer la farine et le beurre fondu. Mélanger pour obtenir une pâte lisse.",
+      "Beurrer le moule et y verser la pâte. Disposer les abricots et ajouter le chocolat.",
+      "Enfourner à 180 °C pendant 25 minutes. Laisser tiédir avant de démouler."
+    ]
+  },
+  {
     "id": "fiche-01",
     "type": "manuscrit",
     "titre": "Soupe aux fanes de navet",

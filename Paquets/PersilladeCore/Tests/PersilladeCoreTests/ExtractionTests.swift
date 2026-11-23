@@ -539,6 +539,74 @@ private struct LecteurBouchon: LecteurImage {
     #expect(lu.texteSource == "3 œufs")
 }
 
+@Test func photoConserveLeTitreDeTete() async throws {
+    let recette = try await recetteLueSurPhoto("MOELLEUX AUX ABRICOTS\nDessert du jour\n2 œufs\nMélanger les œufs.")
+    #expect(recette.titre == "MOELLEUX AUX ABRICOTS")
+    #expect(recette.ingredients.map(\.nom) == ["œufs"])
+}
+
+@Test(arguments: ["POUR 6 PERSONNES", "Pour 6 parts", "6 portions"])
+func photoLitLesPortionsApresUnIngredient(mention: String) async throws {
+    let recette = try await recetteLueSurPhoto("Compote\nIngrédients\n2 pommes\n\(mention)\nCuire les pommes.")
+    #expect(recette.portions == 6)
+    #expect(recette.ingredients.map(\.nom) == ["pommes"])
+}
+
+@Test func photoIgnoreUneMentionDePortionsIllisible() async throws {
+    let recette = try await recetteLueSurPhoto("Compote\nIngrédients\n2 pommes\nPOUR & PERSONNES\nCuire les pommes.")
+    #expect(recette.portions == nil)
+    #expect(recette.ingredients.map(\.nom) == ["pommes"])
+}
+
+@Test func photoEcarteLesDureesDesIngredients() async throws {
+    let recette = try await recetteLueSurPhoto(
+        "Compote\n15 min de préparation - 25 min de cuisson\nIngrédients\n2 pommes\n25 minutes de cuisson\nCuire les pommes."
+    )
+    #expect(recette.titre == "Compote")
+    #expect(recette.ingredients.map(\.nom) == ["pommes"])
+}
+
+@Test func photoEcarteLesLignesSansNom() async throws {
+    let recette = try await recetteLueSurPhoto(
+        "Compote\nIngrédients\n\n•\n— ... !\n70 g\n1/2\n2 pommes\nCuire les pommes.")
+    #expect(recette.ingredients.map(\.nom) == ["pommes"])
+}
+
+@Test func photoRattacheLesRetoursDeLigneDesEtapesNumerotees() async throws {
+    let recette = try await recetteLueSurPhoto(
+        """
+        Moelleux aux abricots
+        Ingrédients
+        3 œufs
+        chocolat au lait
+        1-Fouetter les œufs jusqu'à ce
+        que le mélange double de volume. Ajouter
+        les biscuits puis incorporer le beurre fondu.
+        2-Cuire à 180 °C.
+        """)
+    #expect(recette.ingredients.map(\.nom) == ["œufs", "chocolat au lait"])
+    #expect(
+        recette.etapes == [
+            "Fouetter les œufs jusqu'à ce que le mélange double de volume. Ajouter les biscuits puis incorporer le beurre fondu.",
+            "Cuire à 180 °C.",
+        ])
+}
+
+@Test(arguments: [
+    "que le mélange double de volume. Ajouter les biscuits", "Incorporer le beurre fondu", "verser dans le moule.",
+])
+func photoClasseUnFragmentDePreparationCommeEtape(fragment: String) async throws {
+    let recette = try await recetteLueSurPhoto("Moelleux\nIngrédients\n3 œufs\n\(fragment)")
+    #expect(recette.ingredients.map(\.nom) == ["œufs"])
+    #expect(recette.etapes == [fragment])
+}
+
+private func recetteLueSurPhoto(_ texte: String) async throws -> BrouillonRecette {
+    let image = ContenuRecu(type: .image, contenu: Data([42]), origine: .phototheque)
+    let resultat = try await Extracteur(lecteurImage: LecteurBouchon(texte: texte)).extraire(image, cible: .recette)
+    return try #require(resultat.recette)
+}
+
 @Test func repliPhotoConserveSeulementLesCitationsDuTexteLu() async throws {
     let image = ContenuRecu(type: .image, contenu: Data([42]), origine: .phototheque)
     let sansLecteur = try await Extracteur().extraire(image, cible: .message) { _, _, _ in

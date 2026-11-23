@@ -100,8 +100,9 @@ public struct Extracteur: Sendable {
         }
         try Task.checkCancellation()
 
-        let analyse = cible == .recette ? try AnalyseTexteRecette(corpsPage ?? texte) : nil
-        var proposition = EtatExtraction(cible: cible, messageID: contenu.id, texte: texte, url: url)
+        let photo = contenu.type == .image
+        let analyse = cible == .recette ? try AnalyseTexteRecette(corpsPage ?? texte, photo: photo) : nil
+        var proposition = EtatExtraction(cible: cible, messageID: contenu.id, texte: texte, url: url, photo: photo)
         if let analyse {
             proposition.recette = structure ?? analyse.recette
             if let structure, structure.statut != .complet {
@@ -232,6 +233,7 @@ private struct EtatExtraction {
     let messageID: UUID
     let texte: String
     let url: URL?
+    let photo: Bool
     var recette = BrouillonRecette()
     var articles: [ArticleExtrait] = []
     var moteur = ProvenanceExtraction.manuel
@@ -300,7 +302,9 @@ private struct EtatExtraction {
                 for citation in try ancrages.citations(proposition.ingredients) {
                     try ancrages.verifierEcheance()
                     let ingredient = AnalyseIngredient.analyser(citation)
-                    guard !ingredient.ligneNonComprise, !recette.ingredients.contains(ingredient) else { continue }
+                    guard !ingredient.ligneNonComprise, !recette.ingredients.contains(ingredient),
+                        !photo || AnalyseTexteRecette.ingredientPhotoPlausible(citation, titre: recette.titre)
+                    else { continue }
                     if let index = try recette.ingredients.firstIndex(where: {
                         guard $0.nom.isEmpty else { return false }
                         let ligne = AncragesExtraction($0.texteOrigine, echeance: ancrages.echeance)
