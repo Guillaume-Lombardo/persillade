@@ -470,6 +470,8 @@ struct CorrectionRecette: View {
                 ligneIngredient($ligne, defilement: defilement)
             }
             .reorderable()
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
             Button("Ajouter un ingrédient", systemImage: "plus") {
                 let ligne = LigneIngredientCorrection(.init(nom: "", texteOrigine: ""))
                 formulaire.ingredients.append(ligne)
@@ -480,6 +482,7 @@ struct CorrectionRecette: View {
         } header: {
             Text("Ingrédients").typographie(.section)
         }
+        .listSectionSeparator(.hidden)
     }
 
     private func ligneIngredient(
@@ -554,7 +557,6 @@ struct CorrectionRecette: View {
         }
         .overlay(alignment: .bottom) { filetCorrection }
         .id(champ)
-        .ligneDeCorrection(marge: false)
         .listRowBackground(ligne.aVerifier ? CouleurPersillade.beurreFond.couleur : CouleurPersillade.page.couleur)
         .swipeActions(allowsFullSwipe: false) {
             Button("Supprimer", systemImage: "trash", role: .destructive) { supprimer(champ) }
@@ -575,7 +577,7 @@ struct CorrectionRecette: View {
                         .accessibilityIdentifier("texte-etape-correction")
                     poignee(champ)
                 }
-                .ligneDeCorrection()
+                .padding(.horizontal, GrillePersillade.marge)
                 .overlay(alignment: .bottom) { filetCorrection }
                 .id(champ)
                 .swipeActions(allowsFullSwipe: false) {
@@ -584,6 +586,8 @@ struct CorrectionRecette: View {
                 .accessibilityActions { actionsOrdre(champ) }
             }
             .reorderable()
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
             Button("Ajouter une étape", systemImage: "plus") {
                 let ligne = LigneEtapeCorrection(texte: "")
                 formulaire.etapes.append(ligne)
@@ -594,6 +598,7 @@ struct CorrectionRecette: View {
         } header: {
             Text("Étapes").typographie(.section)
         }
+        .listSectionSeparator(.hidden)
     }
 
     private var filetCorrection: some View {
@@ -803,9 +808,9 @@ private struct StylePastilleCorrection: LabelStyle {
 }
 
 extension View {
-    fileprivate func ligneDeCorrection(marge: Bool = true) -> some View {
-        padding(.horizontal, marge ? GrillePersillade.marge : 0)
-            .listRowInsets(.init())
+    fileprivate func ligneDeCorrection() -> some View {
+        padding(.horizontal, GrillePersillade.marge)
+            .listRowInsets(EdgeInsets())
             .listRowSeparator(.hidden)
     }
 

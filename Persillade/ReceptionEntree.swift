@@ -122,6 +122,7 @@ struct AccessoireReception: View {
     let ouvrir: () -> Void
 
     @Environment(\.tabViewBottomAccessoryPlacement) private var placement
+    @Environment(\.dynamicTypeSize) private var taille
 
     var body: some View {
         if let premier = contenus.first {
@@ -130,10 +131,12 @@ struct AccessoireReception: View {
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 0) {
                     let nombre = contenus.count
-                    if placement == .inline {
+                    if placement == .inline || taille.isAccessibilitySize {
                         Text(nombre == 1 ? "1 reçu" : "\(nombre) reçus").typographie(.precision)
                     } else {
                         Text(nombre == 1 ? "1 contenu reçu" : "\(nombre) contenus reçus").typographie(.bouton)
+                    }
+                    if placement != .inline {
                         Text("\(premier.libelleType), \(premier.recuLe.formatted(date: .omitted, time: .shortened))")
                             .typographie(.precision)
                     }

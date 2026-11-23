@@ -38,6 +38,10 @@
             XCTAssertEqual(app.textFields["titre-correction"].value as? String, "Crêpes maison")
             XCTAssertTrue(app.staticTexts["Absent du texte, 4 par défaut"].exists)
             XCTAssertTrue(app.buttons["Texte reçu"].exists)
+            let oeufs = app.buttons["œufs"]
+            let farine = app.buttons["farine"]
+            XCTAssertTrue(oeufs.exists && farine.exists)
+            XCTAssertEqual(farine.frame.midY - oeufs.frame.midY, 46, accuracy: 2)
             joindre("Correction-clair")
             try auditer(app)
 
@@ -450,6 +454,7 @@
                 XCTAssertEqual(action.frame.width, recette.frame.width, accuracy: 1)
                 XCTAssertGreaterThanOrEqual(action.frame.height, 44)
             }
+            XCTAssertLessThanOrEqual(app.staticTexts["apercu-destination"].frame.maxY, recette.frame.minY)
             XCTAssertLessThan(recette.frame.maxY, articles.frame.minY)
             XCTAssertLessThan(articles.frame.maxY, abandonner.frame.minY)
         }

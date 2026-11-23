@@ -48,9 +48,7 @@ struct ParcoursImport: View {
             contenuEtape.navigationBarTitleDisplayMode(.inline)
         }
         .tint(CouleurPersillade.persil.couleur)
-        .presentationDetents(
-            enSaisie || (taille >= .accessibility3 && etape != .destination) ? [.large] : [.medium, .large]
-        )
+        .presentationDetents(enSaisie || taille >= .accessibility3 ? [.large] : [.medium, .large])
         .presentationBackground(CouleurPersillade.page.couleur)
         .interactiveDismissDisabled(occupation || etape == .lecture || enSaisie)
         .alert(
@@ -178,10 +176,11 @@ struct ParcoursImport: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(GrillePersillade.marge)
+            .padding(.horizontal, GrillePersillade.marge)
+            .padding(.vertical, GrillePersillade.pas)
         }
-        .barreAction {
-            VStack(spacing: GrillePersillade.pas * 2) {
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: GrillePersillade.pas) {
                 CommandeRecettes(titre: "Recette", symbole: "text.book.closed", principale: true) {
                     etape = .lecture
                 }
@@ -196,6 +195,10 @@ struct ParcoursImport: View {
                 .accessibilityIdentifier("import-destination-abandonner")
             }
             .disabled(occupation)
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+            .padding(.horizontal, GrillePersillade.margeBarre)
+            .padding(.vertical, GrillePersillade.pas)
+            .background(CouleurPersillade.page.couleur)
         }
         .confirmationDialog("Abandonner ce contenu ?", isPresented: $confirmerAbandon, titleVisibility: .visible) {
             Button("Abandonner", role: .destructive) { Task { await abandonner(contenu) } }
