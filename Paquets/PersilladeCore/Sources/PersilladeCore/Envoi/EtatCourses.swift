@@ -8,7 +8,7 @@ public enum EtatEnvoiLigne: Equatable, Sendable {
     case echec(CauseEchecEnvoi)
 }
 
-public struct EtatCourses: Codable, Equatable, Sendable {
+public struct EtatCourses: Codable, Equatable, Sendable, DocumentVersionne {
     struct ResultatLigne: Codable, Equatable, Sendable {
         enum Issue: String, Codable, Sendable {
             case ajoutee, completee, couverte, echec
@@ -69,7 +69,8 @@ public struct EtatCourses: Codable, Equatable, Sendable {
         let rappelsAvant: [IdentifiantsRappel]
     }
 
-    public static let versionSchemaCourante = 1
+    public static let versionSchemaCourante = 2
+    package static let versionsSchemaLisibles = 1...versionSchemaCourante
 
     public internal(set) var liste = ListeCourses()
     public internal(set) var selection = SelectionSemaine()

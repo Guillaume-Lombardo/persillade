@@ -82,7 +82,9 @@ public actor MagasinDocumentFichiers: MagasinDocument {
         } catch {
             throw try isolerDocumentCorrompu(url)
         }
-        guard lue == version else { throw ErreurMagasinDocument.versionInconnue(lue) }
+        let versionsLisibles = (type as? any DocumentVersionne.Type)?.versionsSchemaLisibles
+        let migrable = versionsLisibles.map { $0.upperBound == version && $0.contains(lue) } ?? false
+        guard lue == version || migrable else { throw ErreurMagasinDocument.versionInconnue(lue) }
         do {
             return try decodeur.decode(Enveloppe<Document>.self, from: donnees).document
         } catch {

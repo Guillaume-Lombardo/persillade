@@ -413,11 +413,11 @@ private func preparer(_ recettes: [Recette], portions: Int) throws -> SelectionS
         try liste.ajouter(article("ail"))
         try liste.ajouter(article("farine"))
         let echalotes = liste.lignes[1...2].map(\.id)
-        #expect(liste.rayons.map(\.categorie) == [.fruitsEtLegumes, .epicerieSalee, .autres])
+        #expect(liste.rayons.map(\.categorie) == [.fruitsEtLegumes, .epicerie, .autres])
         #expect(liste.rayons[0].lignes.map(\.libelle) == ["ail", "échalotes", "Échalotes"])
         #expect(liste.rayons[0].lignes.dropFirst().map(\.id) == echalotes)
-        try liste.changerCategorie(liste.lignes[0].id, categorie: .boulangerie)
-        #expect(liste.rayons.map(\.categorie) == [.fruitsEtLegumes, .boulangerie, .epicerieSalee])
+        try liste.changerCategorie(liste.lignes[0].id, categorie: .boulangeriePatisserie)
+        #expect(liste.rayons.map(\.categorie) == [.fruitsEtLegumes, .epicerie, .boulangeriePatisserie])
     }
 }
 
@@ -522,16 +522,16 @@ private struct GenerateurCourses: RandomNumberGenerator {
         _ = try liste.integrer([article("huile")], messageId: message)
     }
 
-    @Test func schemaUnConserveQuantiteExacteCocheCategorieEtEnvoi() throws {
+    @Test func schemaDeuxConserveQuantiteExacteCocheCategorieEtEnvoi() throws {
         var liste = ListeCourses()
         try liste.ajouter(article("tomates", "3/2", .piece))
         let id = try #require(liste.lignes.first?.id)
-        try liste.changerCategorie(id, categorie: .epicerieSalee)
+        try liste.changerCategorie(id, categorie: .epicerie)
         try liste.cocher(id)
         liste.premierEnvoiLe = Date(timeIntervalSince1970: 42)
         let donnees = try JSONEncoder().encode(liste)
         let objet = try #require(JSONSerialization.jsonObject(with: donnees) as? [String: Any])
-        #expect(objet["version_schema"] as? Int == 1)
+        #expect(objet["version_schema"] as? Int == 2)
         #expect(objet["premier_envoi_le"] != nil)
         let lignes = try #require(objet["lignes"] as? [[String: Any]])
         #expect(lignes.first?["nom_normalise"] as? String == "tomate")
@@ -546,11 +546,11 @@ private struct GenerateurCourses: RandomNumberGenerator {
         try liste.ajouter(article("farine", "1", .g))
         let donnees = try JSONEncoder().encode(liste)
         var objet = try #require(JSONSerialization.jsonObject(with: donnees) as? [String: Any])
-        objet["version_schema"] = 2
-        #expect(throws: ListeCourses.Erreur.versionNonPriseEnCharge(2)) {
+        objet["version_schema"] = 3
+        #expect(throws: ListeCourses.Erreur.versionNonPriseEnCharge(3)) {
             try JSONDecoder().decode(ListeCourses.self, from: JSONSerialization.data(withJSONObject: objet))
         }
-        objet["version_schema"] = 1
+        objet["version_schema"] = 2
         let lignes = try #require(objet["lignes"] as? [[String: Any]])
         var seconde = try #require(lignes.first)
         seconde["id"] = UUID().uuidString

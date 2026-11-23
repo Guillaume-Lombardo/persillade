@@ -143,7 +143,7 @@ import XCTest
                 XCTAssertTrue(app.buttons["Choisir une liste"].isHittable, nom)
                 if nom == "AX5" {
                     app.swipeUp(velocity: .slow)
-                    let derniere = app.buttons["Ne pas envoyer farine"]
+                    let derniere = app.buttons["Ne pas envoyer œufs"]
                     XCTAssertTrue(derniere.waitForExistence(timeout: 10))
                     XCTAssertTrue(derniere.isHittable, nom)
                     XCTAssertLessThan(derniere.frame.midY, app.buttons["Choisir une liste"].frame.minY)
@@ -204,8 +204,9 @@ import XCTest
                 let ajouterArticle = bouton("Ajouter", dans: app)
                 joindreCapture("courses-envoyees-\(nom)")
                 XCTAssertEqual(ajouterArticle.frame.midY, renvoyer.frame.midY, accuracy: 2, nom)
-                XCTAssertTrue(oeufs.isHittable, nom)
-                XCTAssertLessThanOrEqual(oeufs.frame.maxY, min(ajouterArticle.frame.minY, renvoyer.frame.minY), nom)
+                let farine = bouton("article-farine", dans: app)
+                XCTAssertTrue(farine.isHittable, nom)
+                XCTAssertLessThanOrEqual(farine.frame.maxY, min(ajouterArticle.frame.minY, renvoyer.frame.minY), nom)
                 renvoyer.tap()
                 XCTAssertTrue(app.staticTexts["Rien à ajouter"].waitForExistence(timeout: 10))
                 joindreCapture("rapport-renvoi-\(nom)")

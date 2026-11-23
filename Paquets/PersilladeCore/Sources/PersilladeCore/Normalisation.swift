@@ -20,13 +20,23 @@ public func normaliserNom(_ nom: String) -> String {
         return (mot == "d" || mot == "l") && mot.endIndex < texte.endIndex
             && apostrophes.contains(texte[mot.endIndex])
     })
-    return sansArticlesInitiaux.map { mot in
-        if motsInvariables.contains(String(mot)) || articles.contains(String(mot)) {
-            return mot
-        }
-        if mot.count > 1 && (mot.last == "s" || mot.last == "x") { return mot.dropLast() }
+    return sansArticlesInitiaux.map(singulariserMot).joined(separator: " ")
+}
+
+func singulariserMot(_ mot: Substring) -> Substring {
+    if motsInvariables.contains(String(mot)) || articles.contains(String(mot)) {
         return mot
-    }.joined(separator: " ")
+    }
+    if mot.count > 1 && (mot.last == "s" || mot.last == "x") { return mot.dropLast() }
+    return mot
+}
+
+func retablirMotInvariable(_ mot: Substring) -> Substring {
+    for terminaison in ["s", "x"] {
+        let candidat = String(mot) + terminaison
+        if motsInvariables.contains(candidat) { return candidat[...] }
+    }
+    return mot
 }
 
 public func convertir(_ quantite: Quantite, _ source: Unite, _ cible: Unite) throws -> Quantite? {

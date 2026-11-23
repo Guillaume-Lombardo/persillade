@@ -13,15 +13,11 @@ extension Categorie {
     var symboleRayon: String {
         switch self {
         case .fruitsEtLegumes: "carrot.fill"
-        case .boulangerie: "oven.fill"
-        case .cremerieEtOeufs: "oval.portrait.fill"
-        case .viandesEtCharcuterie: "frying.pan.fill"
-        case .poissons: "fish.fill"
-        case .epicerieSalee: "cylinder.fill"
-        case .epicerieSucree: "birthday.cake.fill"
-        case .surgeles: "snowflake"
-        case .boissons: "waterbottle.fill"
-        case .hygieneEtMaison: "bubbles.and.sparkles.fill"
+        case .epicerie: "cylinder.fill"
+        case .boucher: "frying.pan.fill"
+        case .poissonnier: "fish.fill"
+        case .cremier: "oval.portrait.fill"
+        case .boulangeriePatisserie: "oven.fill"
         case .autres: "tag.fill"
         }
     }
@@ -29,15 +25,11 @@ extension Categorie {
     var teinteRayon: Color {
         switch self {
         case .fruitsEtLegumes: Color("fruitsEtLegumes")
-        case .boulangerie: Color("boulangerie")
-        case .cremerieEtOeufs: Color("cremerieEtOeufs")
-        case .viandesEtCharcuterie: Color("viandesEtCharcuterie")
-        case .poissons: Color("poissons")
-        case .epicerieSalee: Color("epicerieSalee")
-        case .epicerieSucree: Color("epicerieSucree")
-        case .surgeles: Color("surgeles")
-        case .boissons: Color("boissons")
-        case .hygieneEtMaison: Color("hygieneEtMaison")
+        case .epicerie: Color("epicerie")
+        case .boucher: Color("boucher")
+        case .poissonnier: Color("poissonnier")
+        case .cremier: Color("cremier")
+        case .boulangeriePatisserie: Color("boulangeriePatisserie")
         case .autres: CouleurPersillade.encre2.couleur
         }
     }

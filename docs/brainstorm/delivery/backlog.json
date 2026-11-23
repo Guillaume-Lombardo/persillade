@@ -267,7 +267,7 @@
         "id": "s6_cc3",
         "statement": "Arrêter la liste fixe prédéfinie des catégories de la V1.",
         "objective": "Permettre le regroupement par catégorie décidé en s2_d8.",
-        "definition_of_done": "La liste des catégories (proposition dans ct-categories) est validée par le porteur, avec « Autres » obligatoire, et intégrée avec un dictionnaire d'articles courants. L'affichage arrive avec s6_us11.",
+        "definition_of_done": "La liste des catégories validée par le porteur dans ct-categories est intégrée avec un dictionnaire d'articles courants et le rayon « Autres » obligatoire. L'affichage arrive avec s6_us11.",
         "link": "stage_4_impact_mapping:value_hypotheses:2",
         "capability": null,
         "ears_criteria": []
@@ -329,7 +329,7 @@
         },
         {
           "id": "ct-categories",
-          "specification": "Liste fixe, proposition à valider par le porteur (s6_cc3) : Fruits et légumes ; Boulangerie ; Crèmerie et œufs ; Viandes et charcuterie ; Poissons ; Épicerie salée ; Épicerie sucrée ; Surgelés ; Boissons ; Hygiène et maison ; Autres (obligatoire). categorieParDefaut(nom normalisé) → dictionnaire embarqué, sinon Autres. Affichage dans l'app seulement."
+          "specification": "Liste fixe validée par le porteur le 23/11/2026 (G1L-839), dans l'ordre d'affichage : Fruits et légumes ; Épicerie ; Boucher ; Poissonnier ; Crémier ; Boulangerie-pâtisserie ; Autres (obligatoire et par défaut). categorieParDefaut(nom normalisé) choisit la plus longue suite de mots reconnue dans le dictionnaire embarqué et privilégie Épicerie en présence de « au sirop ». Le rayon est modifiable et affiché dans l'app seulement. Le schéma de la liste et de son enveloppe passe en version 2. En lecture de la version 1, Boulangerie devient Boulangerie-pâtisserie, Crèmerie et œufs devient Crémier, Viandes et charcuterie devient Boucher, Poissons devient Poissonnier, Épicerie salée, Épicerie sucrée, Surgelés et Boissons deviennent Épicerie, Hygiène et maison devient Autres."
         },
         {
           "id": "ct-entree-partage",
