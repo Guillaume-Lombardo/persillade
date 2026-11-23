@@ -152,22 +152,42 @@ public struct LecteurImageVision: LecteurImageAvecEntete {
             return $0.cadre.midY > $1.cadre.midY
         }
 
-        // Une gouttière sépare deux blocs qui se chevauchent en hauteur. Un titre ou un pied
-        // de page peut traverser la gouttière hors de ces blocs.
         let hauteurs = lignes.map(\.cadre.height).sorted()
-        let hauteurMediane = hauteurs[hauteurs.count / 2]
-        let hauteurTitre = hauteurMediane * 1.25
-        let largeurGouttiere = hauteurMediane * rapportImage / 4
+        let hauteurMediane = (hauteurs[(hauteurs.count - 1) / 2] + hauteurs[hauteurs.count / 2]) / 2
+        let tailleTitre = hauteurMediane * 1.2
+        let taille: (Ligne) -> CGFloat = { ligne in
+            // La largeur moyenne d’un caractère aide lorsque les cadres OCR ont des hauteurs proches.
+            let caracteres = ligne.texte.filter { !$0.isWhitespace }.count
+            let largeurParCaractere = ligne.cadre.width / CGFloat(max(1, caracteres)) / rapportImage
+            return max(ligne.cadre.height, largeurParCaractere * 1.5)
+        }
+
+        // Une gouttière sépare deux blocs qui se chevauchent en hauteur.
+        let espacementMax = hauteurs[hauteurs.count / 2]
+        let largeurGouttiere = espacementMax * rapportImage / 4
         var meilleureLargeur = largeurGouttiere
         var ordre = lignes
-        var tailleEntete = lignes.count > 1 && lignes[0].cadre.minY >= lignes[1].cadre.maxY ? 1 : 0
+        var tailleEntete =
+            lignes.indices.dropLast().first {
+                taille(lignes[$0]) < tailleTitre && taille(lignes[$0 + 1]) < tailleTitre
+            } ?? (lignes.count > 1 && lignes[0].cadre.minY >= lignes[1].cadre.maxY ? 1 : 0)
+        var enColonnes = false
         for debutDroite in Set(lignes.map { $0.cadre.minX }).sorted() {
             let gauche = lignes.filter { $0.cadre.maxX <= debutDroite - largeurGouttiere }
             let droite = lignes.filter { $0.cadre.minX >= debutDroite }
-            guard let hautGauche = hautDuBloc(gauche, espacementMax: hauteurMediane),
-                let hautDroite = hautDuBloc(droite, espacementMax: hauteurMediane)
+            guard let debutGauche = debutDuBloc(gauche, espacementMax: espacementMax),
+                let debutDroit = debutDuBloc(droite, espacementMax: espacementMax)
             else { continue }
 
+            let premiereGauche = gauche[debutGauche]
+            let premiereDroite = droite[debutDroit]
+            // Un titre proche de sa colonne se distingue par sa taille et sa position au-dessus de l’autre bloc.
+            let titreAGauche =
+                premiereGauche.cadre.midY >= premiereDroite.cadre.maxY && taille(premiereGauche) >= tailleTitre
+            let titreADroite =
+                premiereDroite.cadre.midY >= premiereGauche.cadre.maxY && taille(premiereDroite) >= tailleTitre
+            let hautGauche = gauche[debutGauche + (titreAGauche ? 1 : 0)].cadre.maxY
+            let hautDroite = droite[debutDroit + (titreADroite ? 1 : 0)].cadre.maxY
             let blocGauche = gauche.reduce(CGRect.null) { $0.union($1.cadre) }
             let blocDroite = droite.reduce(CGRect.null) { $0.union($1.cadre) }
             let largeur = debutDroite - blocGauche.maxX
@@ -178,40 +198,34 @@ public struct LecteurImageVision: LecteurImageAvecEntete {
             let traversantes = lignes.filter {
                 $0.cadre.maxX > debutDroite - largeurGouttiere && $0.cadre.minX < debutDroite
             }
-            let haut = max(blocGauche.maxY, blocDroite.maxY)
-            let hautDesColonnes = max(hautGauche, hautDroite)
-            let bas = min(blocGauche.minY, blocDroite.minY)
             // Les premières lignes proches ancrent chaque colonne sous les éléments isolés du bandeau.
-            let coupure = lignes.indices.dropLast().last {
-                let cadre = lignes[$0].cadre
-                let espace = cadre.minY - lignes[$0 + 1].cadre.maxY
-                return cadre.minY >= hautDesColonnes
-                    && (espace >= hauteurMediane || (espace >= 0 && cadre.height >= hauteurTitre))
-            }
-            let seuilEntete = min(haut, coupure.map { lignes[$0].cadre.minY } ?? haut)
-            let avant = lignes.filter { $0.cadre.minY >= seuilEntete }
+            let seuilEntete = max(hautGauche, hautDroite)
+            let appartientEntete: (Ligne) -> Bool = { $0.cadre.midY >= seuilEntete }
+            let bas = min(blocGauche.minY, blocDroite.minY)
+            let avant = lignes.filter(appartientEntete)
             let apres = traversantes.filter { $0.cadre.maxY <= bas }
-            guard traversantes.allSatisfy({ $0.cadre.minY >= seuilEntete || $0.cadre.maxY <= bas }) else { continue }
+            guard traversantes.allSatisfy({ appartientEntete($0) || $0.cadre.maxY <= bas }) else { continue }
 
             meilleureLargeur = largeur
+            enColonnes = true
             tailleEntete = avant.count
             ordre =
-                avant + gauche.filter { $0.cadre.minY < seuilEntete }
-                + droite.filter { $0.cadre.minY < seuilEntete } + apres
+                avant + gauche.filter { !appartientEntete($0) }
+                + droite.filter { !appartientEntete($0) } + apres
         }
         let indiceTitre = ordre.indices.prefix(tailleEntete)
-            .filter { ordre[$0].cadre.height >= hauteurTitre }
+            .filter { enColonnes || taille(ordre[$0]) >= tailleTitre }
             .max {
-                let gauche = ordre[$0].cadre.height
-                let droite = ordre[$1].cadre.height
+                let gauche = taille(ordre[$0])
+                let droite = taille(ordre[$1])
                 return gauche == droite ? $0 > $1 : gauche < droite
             }
         return (ordre, indiceTitre)
     }
 
-    private static func hautDuBloc(_ lignes: [Ligne], espacementMax: CGFloat) -> CGFloat? {
-        zip(lignes, lignes.dropFirst()).first { haute, basse in
-            haute.cadre.minY - basse.cadre.maxY <= espacementMax
-        }?.0.cadre.maxY
+    private static func debutDuBloc(_ lignes: [Ligne], espacementMax: CGFloat) -> Int? {
+        lignes.indices.dropLast().first {
+            lignes[$0].cadre.minY - lignes[$0 + 1].cadre.maxY <= espacementMax
+        }
     }
 }

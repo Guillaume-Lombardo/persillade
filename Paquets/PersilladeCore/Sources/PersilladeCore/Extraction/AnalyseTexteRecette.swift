@@ -27,7 +27,9 @@ struct AnalyseTexteRecette {
     private static let etiquetteDureePhoto = #"(?:(?:temps\h+de\h+)?(?:pr[ée]paration|cuisson|repos)|temps\h+total)"#
     private static let dureePhoto =
         #"(?i)^(?:(?:\#(etiquetteDureePhoto)\h*:?\h*)?[0-9]+\h*(?:min(?:utes?)?|h(?:eures?)?|s(?:econdes?)?|jours?)(?!\p{L})|(?:cuisson|repos)\h*[:.]?\h*$)"#
+    private static let difficultePhoto = #"(?i)^(?:(?:tr[èe]s\h+)?facile|moyen(?:ne)?|difficile)\.?$"#
     private static let numeroEtapePhoto = #"\#(numeroEtape)|^[0-9]+\h*[-–—]\h*(?=\p{L})"#
+    private static let actionNumeroteePhoto = #"(?i)^\p{L}+(?:er|ir|re|ez)\h+(?:(?:le|la|les|un|une)\h+|l['’])"#
     private static let suiteIngredientPhoto = #"(?i)^(?:d['’]|(?:de|ou)\h+)"#
     private static let suiteEtapePhoto = #"(?i)^(?:que\b|qu['’]|jusqu['’]|puis\b|ensuite\b|afin de\b)"#
     private static let debutEtapePhoto =
@@ -53,8 +55,11 @@ struct AnalyseTexteRecette {
             else { continue }
             let mesurePrecedente = mesureEnAttente
             mesureEnAttente = nil
-            if photo, section == .etapes ? !ligne.contains(where: \.isLetter) : ligne.correspond(Self.dureePhoto) {
-                continue
+            if photo {
+                if ligne.correspond(Self.difficultePhoto) { continue }
+                if section == .etapes ? !ligne.contains(where: \.isLetter) : ligne.correspond(Self.dureePhoto) {
+                    continue
+                }
             }
             if section != .introduction, ligne.correspond(Self.enteteFin) {
                 section = .fin
@@ -120,10 +125,7 @@ struct AnalyseTexteRecette {
             let numerotee = sansNumero != ligne
             let etapeVerbale =
                 Self.amorceEtape(sansNumero, photo: photo)
-                || (photo && numerotee
-                    && sansNumero.split(separator: ",", maxSplits: 1).dropFirst().contains {
-                        Self.amorceEtape(String($0).epure, photo: true)
-                    })
+                || (photo && numerotee && Self.actionNumerotee(sansNumero))
             let ingredientNumerote = section == .ingredients && numerotee ? AnalyseIngredient.analyser(sansNumero) : nil
             let ingredientDose =
                 (photo || sansNumero.first?.isNumber == true)
@@ -213,6 +215,13 @@ struct AnalyseTexteRecette {
         ligne.correspond(verbeEtape) || (photo && ligne.correspond(debutEtapePhoto))
     }
 
+    private static func actionNumerotee(_ ligne: String) -> Bool {
+        ligne.split(separator: ",", maxSplits: 1).contains {
+            let segment = String($0).epure
+            return segment.correspond(actionNumeroteePhoto) || amorceEtape(segment, photo: true)
+        }
+    }
+
     private static func fragmentEtape(_ ligne: String) -> Bool {
         ligne.first?.isLetter == true && (ligne.correspond(suiteEtapePhoto) || ligne.correspond(phraseEtapePhoto))
     }
@@ -221,7 +230,8 @@ struct AnalyseTexteRecette {
         let texte = retirerPuce(ligne)
         return normaliserNom(texte) != normaliserNom(titre)
             && !texte.correspond(titreExplicite)
-            && !texte.correspond(Self.bruit) && !texte.correspond(portionsPhoto) && !texte.correspond(dureePhoto)
+            && !texte.correspond(Self.bruit) && !texte.correspond(portionsPhoto)
+            && !texte.correspond(dureePhoto) && !texte.correspond(difficultePhoto)
             && !amorceEtape(texte, photo: true)
             && !texte.correspond(numeroEtapePhoto) && !fragmentEtape(texte)
     }

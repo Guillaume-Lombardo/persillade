@@ -7,7 +7,8 @@ import UniformTypeIdentifiers
 
 enum PageCorpusExtraction {
     static func rendre(
-        _ source: String, manuscrite: Bool, rotation: Int = 0, enteteADroite: Bool = false, surtitre: String? = nil
+        _ source: String, manuscrite: Bool, rotation: Int = 0, enteteADroite: Bool = false, surtitre: String? = nil,
+        enteteRapprochee: Bool = false
     ) throws -> Data {
         let quartDeTour = rotation == 90 || rotation == 270
         let contexte = try #require(
@@ -31,10 +32,11 @@ enum PageCorpusExtraction {
 
         let police = manuscrite ? "Noteworthy-Light" : "Georgia"
         let blocs = source.components(separatedBy: "\n\n")
+        if let surtitre { tracer(surtitre[...], x: 76, y: 1_150, taille: 26) }
         if blocs.count == 3 {
-            if let surtitre { tracer(surtitre[...], x: 76, y: 1_150, taille: 26) }
             for (index, ligne) in blocs[0].split(whereSeparator: \.isNewline).enumerated() {
-                tracer(ligne, x: enteteADroite ? 585 : 76, y: 1_070 - CGFloat(index) * 72, taille: index == 0 ? 49 : 31)
+                let y: CGFloat = enteteRapprochee ? 937 : 1_070
+                tracer(ligne, x: enteteADroite ? 585 : 76, y: y - CGFloat(index) * 72, taille: index == 0 ? 49 : 31)
             }
             for (colonne, bloc) in blocs.dropFirst().enumerated() {
                 for (index, ligne) in bloc.split(whereSeparator: \.isNewline).enumerated() {

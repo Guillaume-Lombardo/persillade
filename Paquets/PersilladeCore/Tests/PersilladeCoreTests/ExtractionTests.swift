@@ -676,6 +676,13 @@ struct StructurePhotoRevueTests {
         #expect(recette.etapes == ["Mélanger le tout."])
     }
 
+    @Test func premiereEtapeNumeroteeApresLesIngredients() async throws {
+        let recette = try await recetteLueSurPhoto(
+            "Gâteau\nIngrédients\n2 œufs\n1. Ouvrir le four.\n2. Enfourner le gâteau.")
+        #expect(recette.ingredients.map(\.nom) == ["œufs"])
+        #expect(recette.etapes == ["Ouvrir le four.", "Enfourner le gâteau."])
+    }
+
     @Test(arguments: ["POUR 6 PERSONNES", "Pour 6 personnes (moule de 22 cm)"])
     func portionsAvantIngredientSansMesure(mention: String) async throws {
         let recette = try await recetteLueSurPhoto("Mousse\n\(mention)\nCHOCOLAT NOIR\n2 œufs\nMélanger le tout.")
@@ -687,6 +694,12 @@ struct StructurePhotoRevueTests {
     @Test func portionsAvecPrecisionApresUnIngredient() async throws {
         let recette = try await recetteLueSurPhoto(
             "Mousse\nIngrédients\n2 œufs\nPour 6 personnes (moule de 22 cm)\nMélanger le tout.")
+        #expect(recette.portions == 6)
+        #expect(recette.ingredients.map(\.nom) == ["œufs"])
+    }
+
+    @Test func difficulteApresLesPortions() async throws {
+        let recette = try await recetteLueSurPhoto("Gâteau\nPour 6 personnes\nFacile\n2 œufs\nCuire au four.")
         #expect(recette.portions == 6)
         #expect(recette.ingredients.map(\.nom) == ["œufs"])
     }

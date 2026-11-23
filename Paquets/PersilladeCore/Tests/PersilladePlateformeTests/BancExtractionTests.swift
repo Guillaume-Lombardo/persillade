@@ -18,20 +18,34 @@ struct BancExtractionTests {
         if let surtitre { #expect(lignes.first?.uppercased() == surtitre) }
         let titreLu = try #require(lignes.dropFirst(surtitre == nil ? 0 : 1).first)
         #expect(titreLu.uppercased().hasPrefix("CLAFOU"))
-        #expect(recette.titre == titreLu)
+        #expect(recette.titre == titreLu, "\(resultat.texteSource)")
         #expect(recette.ingredients.count == 2)
         #expect(recette.etapes.count == 2)
     }
 
-    @Test func titreImprimeCommencantParUnNombre() async throws {
+    @Test(arguments: [nil as String?, "DESSERTS"])
+    func titreImprimeCommencantParUnNombre(surtitre: String?) async throws {
         let image = try PageCorpusExtraction.rendre(
-            "4 QUARTS\n200 g de farine\n3 œufs\n1. Mélanger le tout.\n2. Cuire au four.", manuscrite: false)
+            "4 QUARTS\n200 g de farine\n3 œufs\n1. Mélanger le tout.\n2. Cuire au four.",
+            manuscrite: false, surtitre: surtitre)
         let contenu = ContenuRecu(type: .image, contenu: image, origine: .phototheque)
         let resultat = try await Extracteur(lecteurImage: LecteurImageVision()).extraire(contenu, cible: .recette)
         let recette = try #require(resultat.recette)
-        #expect(recette.titre == "4 QUARTS")
+        #expect(recette.titre == "4 QUARTS", "\(resultat.texteSource)")
         #expect(recette.ingredients.count == 2)
         #expect(recette.ingredients.first?.quantite == Quantite(200))
+        #expect(recette.etapes.count == 2)
+    }
+
+    @Test func titreNumeriqueRapprocheAuDessusDesEtapes() async throws {
+        let image = try PageCorpusExtraction.rendre(
+            "4 QUARTS\n\n2 œufs\n200 g de farine\n\n1. Mélanger le tout.\n2. Servir frais.",
+            manuscrite: false, rotation: 90, enteteADroite: true, surtitre: "DESSERTS", enteteRapprochee: true)
+        let contenu = ContenuRecu(type: .image, contenu: image, origine: .phototheque)
+        let resultat = try await Extracteur(lecteurImage: LecteurImageVision()).extraire(contenu, cible: .recette)
+        let recette = try #require(resultat.recette)
+        #expect(recette.titre == "4 QUARTS", "\(resultat.texteSource)")
+        #expect(recette.ingredients.count == 2)
         #expect(recette.etapes.count == 2)
     }
 
