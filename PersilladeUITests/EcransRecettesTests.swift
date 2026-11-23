@@ -18,6 +18,34 @@
             """
 
         @MainActor
+        func testInstructionsRecettesVidesVisiblesEtDefilables() throws {
+            let explication = "Importez une première recette. Depuis Safari ou Messages : Partager, puis Persillade."
+            for (nom, arguments) in [("clair", []), ("sombre", ["-recettes-sombre"])] {
+                let app = lancer(arguments: arguments)
+                let message = app.staticTexts[explication]
+                let coller = app.buttons["Coller un lien ou un texte"]
+                XCTAssertTrue(message.waitForExistence(timeout: 5))
+                XCTAssertLessThanOrEqual(message.frame.maxY, coller.frame.minY - 4, nom)
+                joindre("recettes-vide-\(nom)")
+                try auditer(app)
+                app.terminate()
+            }
+
+            let app = lancer(arguments: ["-recettes-ax5"])
+            let message = app.staticTexts[explication]
+            let coller = app.buttons["Coller un lien ou un texte"]
+            XCTAssertTrue(message.waitForExistence(timeout: 5))
+            let bordActions = coller.frame.minY - 4
+            for _ in 0..<4 {
+                if message.frame.maxY <= bordActions + 0.5 { break }
+                app.scrollViews.firstMatch.swipeUp(velocity: .slow)
+            }
+            XCTAssertTrue(message.isHittable)
+            XCTAssertLessThanOrEqual(message.frame.maxY, bordActions + 0.5)
+            try auditer(app)
+        }
+
+        @MainActor
         func testCollageCorrectionPortionsEtRelance() throws {
             let app = lancer()
             joindre("recettes-vide-clair")

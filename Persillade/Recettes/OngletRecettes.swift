@@ -144,7 +144,7 @@ struct OngletRecettes: View {
             ) {
                 Image(decorative: "PlancheVide")
                     .resizable()
-                    .frame(height: 352)
+                    .frame(height: 320)
             } actions: {
             }
         }
