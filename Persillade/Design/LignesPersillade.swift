@@ -135,6 +135,12 @@ struct BandeauRayon: View {
 }
 
 struct LigneArticle: View {
+    #if DEBUG
+        private static let exposerTextes = ProcessInfo.processInfo.arguments.contains("-mesurer-textes-article")
+    #else
+        private static let exposerTextes = false
+    #endif
+
     struct Marque {
         let libelle: String
         let symbole: String
@@ -242,11 +248,8 @@ struct LigneArticle: View {
                     .typographie(.precision)
                     .foregroundStyle(CouleurPersillade.encre2.couleur)
             }
-            ForEach(alternatives.indices, id: \.self) { index in
-                Text(alternatives[index])
-                    .typographie(.precision)
-                    .foregroundStyle(CouleurPersillade.encre2.couleur)
-                    .fixedSize(horizontal: false, vertical: true)
+            if colonnes.empilees {
+                mentionsAlternatives
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -256,13 +259,14 @@ struct LigneArticle: View {
                 ? hauteurSimple : GrillePersillade.ingredientAnnote
         )
         .contentShape(.rect)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: Self.exposerTextes ? .contain : .combine)
     }
 
     private var libelle: some View {
         VStack(alignment: .leading, spacing: GrillePersillade.pas) {
             Text(nom).typographie(.texte)
                 .foregroundStyle(exclu ? CouleurPersillade.encre2.couleur : CouleurPersillade.encre.couleur)
+                .accessibilityIdentifier("nom-ligne-article", isEnabled: Self.exposerTextes)
             if let precision {
                 Text(precision).typographie(.precision).foregroundStyle(CouleurPersillade.encre2.couleur)
             }
@@ -281,6 +285,19 @@ struct LigneArticle: View {
                 .typographie(marque.discrete ? .precision : .alerte)
                 .foregroundStyle(marque.couleur.couleur)
             }
+            if !colonnes.empilees {
+                mentionsAlternatives
+            }
+        }
+    }
+
+    private var mentionsAlternatives: some View {
+        ForEach(alternatives.indices, id: \.self) { index in
+            Text(alternatives[index])
+                .typographie(.precision)
+                .foregroundStyle(CouleurPersillade.encre2.couleur)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("alternative-ligne-article", isEnabled: Self.exposerTextes)
         }
     }
 }

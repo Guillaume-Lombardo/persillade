@@ -437,18 +437,25 @@
         func testAlternativesDeLaCorrectionAuxCourses() {
             let mention = "ou 12 oreillons d’abricots au sirop"
             for (nom, arguments) in [("clair", []), ("sombre", ["-recettes-sombre"]), ("AX5", ["-recettes-ax5"])] {
-                let app = lancer(arguments: arguments, texte: Self.recetteAvecAlternative)
+                let mesurer = nom != "AX5"
+                let lancement = arguments + (mesurer ? ["-mesurer-textes-article"] : [])
+                let app = lancer(arguments: lancement, texte: Self.recetteAvecAlternative)
                 coller(app)
                 ouvrirCorrection(app)
                 let correction = app.buttons["abricots"]
                 defilerPourVoir(correction, dans: app, auDessusDe: app.frame.maxY - 12)
                 XCTAssertTrue((correction.value as? String)?.contains(mention) == true, nom)
+                if mesurer { verifierAlignementAlternative(mention, dans: app, ecran: "Correction \(nom)") }
                 joindre("alternatives-correction-\(nom)")
 
                 enregistrer(app)
-                let fiche = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", mention)).firstMatch
+                let fiche =
+                    mesurer
+                    ? app.staticTexts["alternative-ligne-article"]
+                    : app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", mention)).firstMatch
                 let ajouterSemaine = app.buttons["Ajouter à la semaine"]
                 defilerPourVoir(fiche, dans: app, auDessusDe: ajouterSemaine.frame.minY - 8)
+                if mesurer { verifierAlignementAlternative(mention, dans: app, ecran: "Fiche \(nom)") }
                 joindre("alternatives-fiche-\(nom)")
                 ajouterSemaine.tap()
                 XCTAssertTrue(app.buttons["Retirer de la semaine"].waitForExistence(timeout: 5))
@@ -460,12 +467,23 @@
                 XCTAssertTrue(ajouterCourse.waitForExistence(timeout: 5))
                 defilerPourVoir(course, dans: app, auDessusDe: ajouterCourse.frame.minY)
                 XCTAssertTrue((course.value as? String)?.contains(mention) == true, nom)
+                if mesurer { verifierAlignementAlternative(mention, dans: app, ecran: "Courses \(nom)") }
                 XCTAssertFalse(
                     app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "article-oreillon"))
                         .firstMatch.exists)
                 joindre("alternatives-courses-\(nom)")
                 app.terminate()
             }
+        }
+
+        @MainActor
+        private func verifierAlignementAlternative(_ mention: String, dans app: XCUIApplication, ecran: String) {
+            let nom = app.staticTexts["nom-ligne-article"]
+            let alternative = app.staticTexts["alternative-ligne-article"]
+            XCTAssertTrue(nom.exists && alternative.exists, app.debugDescription)
+            XCTAssertEqual(nom.label, "abricots", ecran)
+            XCTAssertEqual(alternative.label, mention, ecran)
+            XCTAssertEqual(nom.frame.minX, alternative.frame.minX, accuracy: 1, ecran)
         }
 
         @MainActor
