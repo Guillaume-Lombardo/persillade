@@ -165,6 +165,12 @@ public struct LecteurImageVision: LecteurImageAvecEntete {
         // Une gouttière sépare deux blocs qui se chevauchent en hauteur.
         let espacementMax = hauteurs[hauteurs.count / 2]
         let largeurGouttiere = espacementMax * rapportImage / 4
+        let intertitreIngredients = lignes.first {
+            $0.texte.range(of: #"(?i)^ingr[ée]dients\h*:?$"#, options: .regularExpression) != nil
+        }
+        let intertitrePreparation = lignes.first {
+            $0.texte.range(of: #"(?i)^pr[ée]paration\h*:?$"#, options: .regularExpression) != nil
+        }
         var meilleureLargeur = largeurGouttiere
         var ordre = lignes
         var tailleEntete =
@@ -199,7 +205,15 @@ public struct LecteurImageVision: LecteurImageAvecEntete {
                 $0.cadre.maxX > debutDroite - largeurGouttiere && $0.cadre.minX < debutDroite
             }
             // Les premières lignes proches ancrent chaque colonne sous les éléments isolés du bandeau.
-            let seuilEntete = max(hautGauche, hautDroite)
+            var seuilEntete = max(hautGauche, hautDroite)
+            // Deux intertitres alignés ancrent le début des colonnes même s’ils sont espacés de leur texte.
+            if let ingredients = intertitreIngredients, let preparation = intertitrePreparation,
+                ingredients.cadre.maxX <= debutDroite - largeurGouttiere,
+                preparation.cadre.minX >= debutDroite,
+                abs(ingredients.cadre.midY - preparation.cadre.midY) <= espacementMax
+            {
+                seuilEntete = max(seuilEntete, ingredients.cadre.maxY, preparation.cadre.maxY)
+            }
             let appartientEntete: (Ligne) -> Bool = { $0.cadre.midY >= seuilEntete }
             let bas = min(blocGauche.minY, blocDroite.minY)
             let avant = lignes.filter(appartientEntete)

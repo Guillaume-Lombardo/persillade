@@ -257,6 +257,33 @@
     ]
   },
   {
+    "id": "photo-07",
+    "type": "imprime",
+    "rotation": 90,
+    "titre": "Moelleux aux abricots",
+    "portions": 6,
+    "ingredients": [
+      {
+        "nom": "abricots", "quantite": "6", "unite": "piece",
+        "alternatives": [{"nom": "oreillons d'abricots au sirop", "quantite": "12", "unite": "piece"}]
+      },
+      {"nom": "œufs", "quantite": "3", "unite": "piece"},
+      {"nom": "farine", "quantite": "150", "unite": "g"},
+      {"nom": "cassonade", "quantite": "120", "unite": "g"},
+      {"nom": "beurre fondu", "quantite": "80", "unite": "g"},
+      {"nom": "poudre d'amandes", "quantite": "70", "unite": "g"},
+      {"nom": "crème entière", "quantite": "100", "unite": "ml"},
+      {"nom": "levure chimique", "quantite": "1", "unite": "autre:sachet"},
+      {"nom": "sel"}
+    ],
+    "etapes": [
+      "Fouetter les œufs et la cassonade.",
+      "Ajouter la farine, la levure et le beurre fondu. Incorporer la poudre d'amandes, la crème et le sel.",
+      "Verser la pâte dans un moule. Déposer les abricots.",
+      "Cuire 25 minutes à 180 °C. Laisser tiédir."
+    ]
+  },
+  {
     "id": "fiche-01",
     "type": "manuscrit",
     "titre": "Soupe aux fanes de navet",
