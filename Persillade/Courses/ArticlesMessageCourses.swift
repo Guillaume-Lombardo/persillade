@@ -189,9 +189,9 @@ struct ArticlesMessageCourses: View {
                 let rayon = categorieParDefaut(normaliserNom(proposition.nom))
                 let nom =
                     proposition.nom.isEmpty ? proposition.texteNonCompris ?? "Article à préciser" : proposition.nom
+                let mesure = proposition.quantite?.composantesAffichage(unite: proposition.unite)
                 LigneArticle(
-                    nom: nom, quantite: proposition.quantite?.texteFrancais,
-                    unite: proposition.unite?.libelleLecturePersillade,
+                    nom: nom, quantite: mesure?.nombre, unite: mesure?.unite,
                     precision: proposition.article == nil
                         ? "Corriger · Cette ligne ne sera pas ajoutée." : rayon.rawValue,
                     exclu: proposition.exclue,

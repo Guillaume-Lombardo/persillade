@@ -53,6 +53,27 @@ struct EnvoiCoursesTests {
         try nettoyer()
     }
 
+    @Test(arguments: [nil, "ail 4 gousse"] as [String?])
+    func accordeLeTitreEtRenvoieSansDoublon(titreExistant: String?) async throws {
+        let (envoi, rappels) = scenario(titreExistant.map { [$0] } ?? [])
+        try await envoi.choisirDestination("courses")
+        try await envoi.modifier { liste, _ in
+            try liste.ajouter(ArticleCourses(nom: "ail", quantite: Quantite(4), unite: .autre("gousse")))
+        }
+        let ligne = try #require(try await envoi.lire().liste.lignes.first)
+        let titreAttendu = titreExistant ?? "ail 4 gousses"
+        let premier = try await envoi.renvoyer()
+        if titreExistant == nil {
+            #expect(premier.ajoutes == [ligne.id])
+        } else {
+            #expect(premier.ignores == [ligne.id])
+        }
+        #expect(try await rappels.lire(destinationId: "courses").map(\.titre) == [titreAttendu])
+        #expect(try await service(rappels).renvoyer().ignores == [ligne.id])
+        #expect(try await rappels.lire(destinationId: "courses").map(\.titre) == [titreAttendu])
+        try nettoyer()
+    }
+
     @Test func premierEnvoiCouvertFixeLeSeuilPuisLaCocheCompte() async throws {
         let (envoi, rappels) = scenario(["lait 2 l"])
         try await envoi.choisirDestination("courses")
