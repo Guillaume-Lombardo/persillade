@@ -35,20 +35,6 @@ extension Unite {
         }
         return canoniqueCourses == autre.canoniqueCourses
     }
-
-    fileprivate var symboleCourses: String {
-        switch self {
-        case .g: "g"
-        case .kg: "kg"
-        case .ml: "ml"
-        case .cl: "cl"
-        case .l: "l"
-        case .cac: "cac"
-        case .cas: "cas"
-        case .piece: ""
-        case .autre(let nom): nom
-        }
-    }
 }
 
 func arrondirPourCourses(_ quantite: Quantite, unite: Unite) throws -> Quantite {
@@ -70,9 +56,13 @@ func arrondirPourCourses(_ quantite: Quantite, unite: Unite) throws -> Quantite 
 
 /// Formate une quantité telle quelle, y compris un complément de Rappels.
 public func formaterQuantiteCourses(_ quantite: Quantite, unite: Unite) throws -> String {
-    let affichage = try mesureAffichableCourses(quantite, unite: unite)
-    if affichage.unite == .piece { return affichage.valeur.texteFrancais }
-    return "\(affichage.valeur.texteFrancais) \(affichage.unite.symboleCourses)"
+    switch unite {
+    case .cac: return "\(quantite.texteFrancais) cac"
+    case .cas: return "\(quantite.texteFrancais) cas"
+    default:
+        let affichage = try composantesQuantiteCourses(quantite, unite: unite)
+        return affichage.unite.map { "\(affichage.nombre) \($0)" } ?? affichage.nombre
+    }
 }
 
 public func composantesQuantiteCourses(_ quantite: Quantite, unite: Unite?) throws -> (

@@ -310,18 +310,21 @@
 
         @MainActor
         func testMessageDepuisDestination() {
-            let app = lancer(texte: "2 bananes\n500 g de farine")
+            let app = lancer(texte: "2 gousses d’ail\n500 g de farine")
             coller(app)
             app.buttons["Articles de courses"].tap()
             let ajouter = app.buttons["Ajouter 2 articles"]
             XCTAssertTrue(ajouter.waitForExistence(timeout: 10))
+            let ail = app.buttons["ail"]
+            XCTAssertEqual((ail.value as? String)?.components(separatedBy: ", ").first, "2 gousses")
+            joindre("Confirmation-message-gousses")
             ajouter.tap()
             let terminer = app.buttons["Terminé"]
             XCTAssertTrue(terminer.waitForExistence(timeout: 5))
             terminer.tap()
 
             XCTAssertTrue(app.navigationBars["Courses"].waitForExistence(timeout: 5))
-            XCTAssertTrue(app.buttons["Ne pas envoyer bananes"].exists)
+            XCTAssertTrue(app.buttons["Ne pas envoyer ail"].exists)
             XCTAssertTrue(app.buttons["Ne pas envoyer farine"].exists)
             app.tabBars.firstMatch.buttons["Recettes"].tap()
             XCTAssertTrue(app.navigationBars["Recettes"].waitForExistence(timeout: 5))
