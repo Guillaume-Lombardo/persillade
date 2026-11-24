@@ -37,7 +37,7 @@ public struct ListeCourses: Codable, Equatable, Identifiable, Sendable, Document
         public let lignes: [LigneCourses]
     }
 
-    public static let versionSchemaCourante = 2
+    public static let versionSchemaCourante = 3
     package static let versionsSchemaLisibles = 1...versionSchemaCourante
 
     public let versionSchema: Int

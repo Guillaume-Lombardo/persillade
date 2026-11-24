@@ -163,6 +163,7 @@ func sauvegardeUnDocumentCorrompuAvantRecuperation(ecriture: Bool) async throws 
     let etat = try await magasin.lire(EtatCourses.self, cle: "courses", version: version)
     let ligne = try #require(etat.liste.lignes.first)
     #expect(ligne.categorie == .epicerie)
+    #expect(ligne.alternatives.isEmpty)
     #expect(ligne.quantite == (try Quantite(texte: "3/2")))
     #expect(ligne.cochee)
     #expect(etat.liste.premierEnvoiLe == Date(timeIntervalSinceReferenceDate: 42))
@@ -175,10 +176,10 @@ func sauvegardeUnDocumentCorrompuAvantRecuperation(ecriture: Bool) async throws 
     let enveloppe = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: fichier)) as? [String: Any])
     let document = try #require(enveloppe["document"] as? [String: Any])
     let liste = try #require(document["liste"] as? [String: Any])
-    #expect(enveloppe["version_schema"] as? Int == 2)
-    #expect(liste["version_schema"] as? Int == 2)
+    #expect(enveloppe["version_schema"] as? Int == version)
+    #expect(liste["version_schema"] as? Int == ListeCourses.versionSchemaCourante)
     #expect(try await magasin.lire(EtatCourses.self, cle: "courses", version: version) == etat)
-    await #expect(throws: ErreurMagasinDocument.versionInconnue(2)) {
+    await #expect(throws: ErreurMagasinDocument.versionInconnue(version)) {
         try await magasin.lire(EtatCourses.self, cle: "courses", version: 1)
     }
 }

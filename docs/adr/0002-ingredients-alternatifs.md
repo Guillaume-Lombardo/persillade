@@ -14,5 +14,6 @@ une alternative en conservant la citation d’origine.
 La mise à l’échelle applique à chaque choix le rapport exact des portions. La liste de courses
 additionne les principaux et conserve les alternatives comme mentions indépendantes, dans
 l’ordre de rencontre. Les mentions strictement identiques ne sont affichées qu’une fois.
-Les listes enregistrées avant cette évolution ont des mentions vides. Le contrat d’envoi vers
+La liste et son enveloppe persistante passent de la v2 à la v3. Les documents v1 et v2
+sont relus avec des mentions vides. Le contrat d’envoi vers
 Rappels écrit le titre du principal et ne prévoit pas de champ de note.

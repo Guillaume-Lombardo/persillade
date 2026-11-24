@@ -69,7 +69,7 @@ public struct EtatCourses: Codable, Equatable, Sendable, DocumentVersionne {
         let rappelsAvant: [IdentifiantsRappel]
     }
 
-    public static let versionSchemaCourante = 2
+    public static let versionSchemaCourante = 3
     package static let versionsSchemaLisibles = 1...versionSchemaCourante
 
     public internal(set) var liste = ListeCourses()
