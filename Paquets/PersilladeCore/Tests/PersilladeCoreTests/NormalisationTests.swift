@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import PersilladeCore
@@ -63,7 +64,7 @@ func unitesNonComparables(a: Unite, b: Unite) throws {
 
 @Test func dictionnaireEmbarqueNormaliseEtSansDoublon() {
     var cles = Set<String>()
-    #expect(Set(articlesParCategorie.keys) == Set(Categorie.allCases).subtracting([.autres]))
+    #expect(Set(articlesParCategorie.keys) == Set(Categorie.allCases))
     for (categorie, articles) in articlesParCategorie {
         for article in articles.split(separator: "\n").map(String.init) {
             #expect(article == normaliserNom(article))
@@ -73,7 +74,65 @@ func unitesNonComparables(a: Unite, b: Unite) throws {
     }
     #expect(cles.count >= 350)
     #expect(categorieParDefaut("tomate cerise") == .fruitsEtLegumes)
-    #expect(categorieParDefaut("oeuf") == .cremerieEtOeufs)
-    #expect(categorieParDefaut("huile d olive") == .epicerieSalee)
+    #expect(categorieParDefaut("oeuf") == .cremier)
+    #expect(categorieParDefaut("huile d olive") == .epicerie)
     #expect(categorieParDefaut("article inconnu") == .autres)
+}
+
+@Test func rayonsDansLOrdreDAffichage() {
+    #expect(
+        Categorie.allCases.map(\.rawValue) == [
+            "Fruits et légumes", "Épicerie", "Boucher", "Poissonnier", "Crémier", "Boulangerie-pâtisserie", "Autres",
+        ])
+}
+
+@Test(
+    arguments: [
+        ("beurre fondu", .cremier),
+        ("crème entière liquide à 35% de matière grasse", .cremier),
+        ("pommes de terre bintje ou charlotte", .fruitsEtLegumes),
+        ("poudre d’amandes", .epicerie),
+        ("abricots au sirop", .epicerie),
+        ("fruits de la passion au sirop", .epicerie),
+        ("abricots mûrs", .fruitsEtLegumes),
+        ("tomates, coupées en dés", .fruitsEtLegumes),
+        ("«pois chiches»", .epicerie),
+        ("«anchois marinés»", .poissonnier),
+        ("biscuits pépito® ronds", .epicerie),
+        ("biscuits au beurre demi-sel", .epicerie),
+        ("amandes", .epicerie),
+        ("noix de beurre", .cremier),
+        ("noix de Saint-Jacques", .poissonnier),
+        ("sel", .epicerie),
+        ("viande hachée", .boucher),
+        ("chouquettes fraîches", .boulangeriePatisserie),
+        ("fleur de sel", .epicerie),
+        ("selsière", .autres),
+        ("appareil photo", .autres),
+        ("", .autres),
+    ] as [(String, Categorie)])
+func classeLesNomsQualifiesEtLesPluriels(nom: String, attendu: Categorie) {
+    #expect(categorieParDefaut(normaliserNom(nom)) == attendu)
+}
+
+@Test(
+    arguments: [
+        ("Fruits et légumes", .fruitsEtLegumes),
+        ("Boulangerie", .boulangeriePatisserie),
+        ("Crèmerie et œufs", .cremier),
+        ("Viandes et charcuterie", .boucher),
+        ("Poissons", .poissonnier),
+        ("Épicerie salée", .epicerie),
+        ("Épicerie sucrée", .epicerie),
+        ("Surgelés", .epicerie),
+        ("Boissons", .epicerie),
+        ("Hygiène et maison", .autres),
+        ("Autres", .autres),
+    ] as [(String, Categorie)])
+func anciensRayonsRelusPuisReecritsAvecLeNouveauLibelle(libelle: String, attendu: Categorie) throws {
+    let donnees = try JSONEncoder().encode(libelle)
+    let rayon = try JSONDecoder().decode(Categorie.self, from: donnees)
+    #expect(rayon == attendu)
+    let encode = try JSONEncoder().encode(rayon)
+    #expect(try JSONDecoder().decode(String.self, from: encode) == attendu.rawValue)
 }

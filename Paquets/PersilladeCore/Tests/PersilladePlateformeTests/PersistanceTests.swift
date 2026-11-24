@@ -102,3 +102,49 @@ func sauvegardeUnDocumentCorrompuAvantRecuperation(ecriture: Bool) async throws 
     try await magasin.ecrire(["Sel"], cle: "liste", version: 1)
     #expect(try await magasin.lire([String].self, cle: "liste", version: 1) == ["Sel"])
 }
+
+@Test func ouvreEtReecritLesCoursesDeVersionUn() async throws {
+    let dossier = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: dossier, withIntermediateDirectories: true)
+    defer { try! FileManager.default.removeItem(at: dossier) }
+    let fichier = dossier.appending(path: "636f7572736573.json")
+    let ancien = """
+        {"version_schema":1,"document":{
+          "liste":{"version_schema":1,"id":"10000000-0000-0000-0000-000000000001","premier_envoi_le":42,
+            "messages_integres":[],"lignes":[{"id":"10000000-0000-0000-0000-000000000002",
+              "libelle":"Tomates","nom_normalise":"tomate","categorie":"Épicerie salée","cochee":true,
+              "quantite":{"numerateur":3,"denominateur":2},"unite":"piece",
+              "origines":[{"type":"recette","ref":"10000000-0000-0000-0000-000000000003"}]}]},
+          "selection":{"version_schema":1,"choix":[]},"destination_id":"maison",
+          "journal":{"version_schema":1,"entrees":[{"rappel_id":"r1","destination_id":"maison",
+            "liste_id":"10000000-0000-0000-0000-000000000001","ligne_id":"10000000-0000-0000-0000-000000000002",
+            "article":{"nom_normalise":"tomate","quantite":{"numerateur":2,"denominateur":1},"unite":"piece"},
+            "titre_ecrit":"Tomates 2","date":43}]},
+          "en_attente":[],"coches_anterieures":[],"resultats":[]
+        }}
+        """
+    try Data(ancien.utf8).write(to: fichier)
+    let magasin = MagasinDocumentFichiers(dossier: dossier)
+    let version = EtatCourses.versionSchemaCourante
+    let etat = try await magasin.lire(EtatCourses.self, cle: "courses", version: version)
+    let ligne = try #require(etat.liste.lignes.first)
+    #expect(ligne.categorie == .epicerie)
+    #expect(ligne.quantite == (try Quantite(texte: "3/2")))
+    #expect(ligne.cochee)
+    #expect(etat.liste.premierEnvoiLe == Date(timeIntervalSinceReferenceDate: 42))
+    #expect(etat.destinationVerrouillee)
+    #expect(etat.journal.entrees.first?.ligneId == ligne.id)
+    #expect(etat.journal.entrees.first?.titreEcrit == "Tomates 2")
+    #expect(try Data(contentsOf: fichier) == Data(ancien.utf8))
+
+    try await magasin.ecrire(etat, cle: "courses", version: version)
+    let enveloppe = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: fichier)) as? [String: Any])
+    let document = try #require(enveloppe["document"] as? [String: Any])
+    let liste = try #require(document["liste"] as? [String: Any])
+    #expect(enveloppe["version_schema"] as? Int == 2)
+    #expect(liste["version_schema"] as? Int == 2)
+    #expect(try await magasin.lire(EtatCourses.self, cle: "courses", version: version) == etat)
+    await #expect(throws: ErreurMagasinDocument.versionInconnue(2)) {
+        try await magasin.lire(EtatCourses.self, cle: "courses", version: 1)
+    }
+}

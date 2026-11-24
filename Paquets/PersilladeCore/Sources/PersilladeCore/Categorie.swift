@@ -1,25 +1,65 @@
 public enum Categorie: String, CaseIterable, Codable, Hashable, Sendable {
     case fruitsEtLegumes = "Fruits et légumes"
-    case boulangerie = "Boulangerie"
-    case cremerieEtOeufs = "Crèmerie et œufs"
-    case viandesEtCharcuterie = "Viandes et charcuterie"
-    case poissons = "Poissons"
-    case epicerieSalee = "Épicerie salée"
-    case epicerieSucree = "Épicerie sucrée"
-    case surgeles = "Surgelés"
-    case boissons = "Boissons"
-    case hygieneEtMaison = "Hygiène et maison"
+    case epicerie = "Épicerie"
+    case boucher = "Boucher"
+    case poissonnier = "Poissonnier"
+    case cremier = "Crémier"
+    case boulangeriePatisserie = "Boulangerie-pâtisserie"
     case autres = "Autres"
+
+    public init(from decoder: any Decoder) throws {
+        let valeur = try decoder.singleValueContainer()
+        let libelle = try valeur.decode(String.self)
+        switch libelle {
+        case "Boulangerie": self = .boulangeriePatisserie
+        case "Crèmerie et œufs": self = .cremier
+        case "Viandes et charcuterie": self = .boucher
+        case "Poissons": self = .poissonnier
+        case "Épicerie salée", "Épicerie sucrée", "Surgelés", "Boissons": self = .epicerie
+        case "Hygiène et maison": self = .autres
+        default:
+            guard let categorie = Self(rawValue: libelle) else {
+                throw DecodingError.dataCorruptedError(in: valeur, debugDescription: "Rayon inconnu")
+            }
+            self = categorie
+        }
+    }
 }
 
 public func categorieParDefaut(_ nomNormalise: String) -> Categorie {
-    categoriesParNom[nomNormalise] ?? .autres
+    let mots = nomNormalise.split { !$0.isLetter && !$0.isNumber }.map { mot in
+        // La ponctuation accolée peut avoir masqué le pluriel à la normalisation.
+        if mot.endIndex < nomNormalise.endIndex, !nomNormalise[mot.endIndex].isWhitespace {
+            return singulariserMot(mot)
+        }
+        if mot.startIndex > nomNormalise.startIndex,
+            !nomNormalise[nomNormalise.index(before: mot.startIndex)].isWhitespace
+        {
+            return retablirMotInvariable(mot)
+        }
+        return mot
+    }
+    if zip(mots, mots.dropFirst()).contains(where: { $0 == "au" && $1 == "sirop" }) {
+        return .epicerie
+    }
+    let tailleMax = min(mots.count, longueurMaxArticle)
+    guard tailleMax > 0 else { return .autres }
+
+    for taille in (1...tailleMax).reversed() {
+        for debut in 0...(mots.count - taille) {
+            let extrait = mots[debut..<(debut + taille)].joined(separator: " ")
+            if let categorie = categoriesParNom[extrait] { return categorie }
+        }
+    }
+    return .autres
 }
 
 private let categoriesParNom = Dictionary(
     uniqueKeysWithValues: articlesParCategorie.flatMap { categorie, articles in
         articles.split(separator: "\n").map { (String($0), categorie) }
     })
+
+private let longueurMaxArticle = categoriesParNom.keys.map { $0.split(separator: " ").count }.max() ?? 0
 
 let articlesParCategorie: [Categorie: String] = [
     .fruitsEtLegumes: """
@@ -140,8 +180,19 @@ let articlesParCategorie: [Categorie: String] = [
     tomate cerise
     tomate verte
     topinambour
+    bleuet
+    citrouille
+    echalote grise
+    feve
+    fruit rouge
+    oignon nouveau
+    pomme bintje
+    pomme charlotte
+    radicchio
+    rutabaga
+    shiitake
     """,
-    .boulangerie: """
+    .boulangeriePatisserie: """
     bagel
     baguette
     biscotte
@@ -171,8 +222,19 @@ let articlesParCategorie: [Categorie: String] = [
     petit pain
     tortilla
     wrap
+    baba au rhum
+    chou a la creme
+    chouquette
+    eclair au chocolat
+    flan patissier
+    gateau
+    mille feuille
+    pain au cereale
+    pain burger
+    palmier
+    viennoiserie
     """,
-    .cremerieEtOeufs: """
+    .cremier: """
     beurre
     beurre demi sel
     beurre dou
@@ -229,8 +291,16 @@ let articlesParCategorie: [Categorie: String] = [
     yaourt grec
     yaourt nature
     yaourt vanille
+    creme
+    creme entiere liquide
+    creme liquide entiere
+    lait cru
+    noix de beurre
+    oeuf de cane
+    pont l eveque
+    tomme de brebis
     """,
-    .viandesEtCharcuterie: """
+    .boucher: """
     agneau
     andouille
     andouillette
@@ -279,8 +349,15 @@ let articlesParCategorie: [Categorie: String] = [
     steak hache
     veau
     viande hachee
+    cotelette d agneau
+    escalope de poulet
+    hachi de boeuf
+    jarret de veau
+    paleron
+    poitrine fumee
+    traver de porc
     """,
-    .poissons: """
+    .poissonnier: """
     anchois
     bar
     barbue
@@ -325,8 +402,17 @@ let articlesParCategorie: [Categorie: String] = [
     truite
     truite fumee
     turbot
+    bulot
+    encornet
+    langoustine
+    noix de petoncle
+    noix de saint jacque
+    petite seiche
+    seiche
+    thon frais
+    tourteau
     """,
-    .epicerieSalee: """
+    .epicerie: """
     agar agar
     ail en poudre
     amande
@@ -438,12 +524,12 @@ let articlesParCategorie: [Categorie: String] = [
     vinaigre balsamique
     vinaigre de cidre
     vinaigre de vin
-    """,
-    .epicerieSucree: """
     abricot sec
     amande en poudre
     biscuit
     biscuit a la cuillere
+    biscuit au beurre
+    biscuit pur beurre
     bonbon
     cacao
     cacao en poudre
@@ -490,8 +576,6 @@ let articlesParCategorie: [Categorie: String] = [
     sucre rou
     sucre vanille
     vanille
-    """,
-    .surgeles: """
     boulette surgelee
     brocoli surgele
     cabillaud surgele
@@ -514,8 +598,6 @@ let articlesParCategorie: [Categorie: String] = [
     saumon surgele
     sorbet
     steak hache surgele
-    """,
-    .boissons: """
     biere
     biere san alcool
     boisson a l avoine
@@ -557,8 +639,29 @@ let articlesParCategorie: [Categorie: String] = [
     vin rose
     vin rouge
     whisky
+    amidon de ble
+    biscuit pepito
+    boulgour complet
+    cacao amer
+    chocolat patissier
+    conserve
+    creme de soja
+    creme de marron
+    fruit confit
+    lait concentre
+    lait d amande
+    lait d avoine
+    lait en poudre
+    pain grille
+    poudre d amande
+    puree d amande
+    puree de tomate
+    sauce huitre
+    sucre perle
+    tortilla de mais
+    vermicelle de riz
     """,
-    .hygieneEtMaison: """
+    .autres: """
     alcool menager
     allumette
     assouplissant
@@ -599,5 +702,11 @@ let articlesParCategorie: [Categorie: String] = [
     serviette hygienique
     shampooing
     vinaigre menager
+    etiquette
+    gobelet
+    papier cadeau
+    papier kraft
+    sac reutilisable
+    sachet de congelation
     """,
 ]

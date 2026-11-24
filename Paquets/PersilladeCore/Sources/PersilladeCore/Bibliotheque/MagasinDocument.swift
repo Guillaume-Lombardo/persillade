@@ -1,5 +1,9 @@
 import Foundation
 
+package protocol DocumentVersionne {
+    static var versionsSchemaLisibles: ClosedRange<Int> { get }
+}
+
 public protocol MagasinDocument: Sendable {
     func lire<Document: Codable & Sendable>(
         _ type: Document.Type, cle: String, version: Int

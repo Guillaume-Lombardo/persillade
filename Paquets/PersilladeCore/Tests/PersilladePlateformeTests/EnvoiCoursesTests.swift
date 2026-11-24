@@ -46,7 +46,7 @@ struct EnvoiCoursesTests {
         }
         let etat = try await envoi.lire()
         let ordre = etat.liste.rayons.flatMap(\.lignes).filter { !$0.cochee }
-        #expect(ordre.map(\.libelle) == ["carottes", "pommes", "œufs", "sel"])
+        #expect(ordre.map(\.libelle) == ["carottes", "pommes", "sel", "œufs"])
         let rapport = try await envoi.envoyer(lignes: Array(etat.liste.lignes.map(\.id).reversed()))
         #expect(rapport.ajoutes == ordre.map(\.id))
         #expect(try await rappels.lire(destinationId: "courses").map(\.titre) == ordre.map(\.libelle))

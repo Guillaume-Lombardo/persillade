@@ -1,6 +1,6 @@
 import Foundation
 
-public struct ListeCourses: Codable, Equatable, Identifiable, Sendable {
+public struct ListeCourses: Codable, Equatable, Identifiable, Sendable, DocumentVersionne {
     public enum Erreur: Error, Equatable, Sendable {
         case versionNonPriseEnCharge(Int)
         case messageDejaIntegre(UUID)
@@ -37,7 +37,8 @@ public struct ListeCourses: Codable, Equatable, Identifiable, Sendable {
         public let lignes: [LigneCourses]
     }
 
-    public static let versionSchemaCourante = 1
+    public static let versionSchemaCourante = 2
+    package static let versionsSchemaLisibles = 1...versionSchemaCourante
 
     public let versionSchema: Int
     public let id: UUID
@@ -240,8 +241,8 @@ public struct ListeCourses: Codable, Equatable, Identifiable, Sendable {
     public init(from decoder: any Decoder) throws {
         let champs = try decoder.container(keyedBy: CodingKeys.self)
         let version = try champs.decode(Int.self, forKey: .versionSchema)
-        guard version == Self.versionSchemaCourante else { throw Erreur.versionNonPriseEnCharge(version) }
-        versionSchema = version
+        guard Self.versionsSchemaLisibles.contains(version) else { throw Erreur.versionNonPriseEnCharge(version) }
+        versionSchema = Self.versionSchemaCourante
         id = try champs.decode(UUID.self, forKey: .id)
         premierEnvoiLe = try champs.decodeIfPresent(Date.self, forKey: .premierEnvoiLe)
         selectionALaGeneration = try champs.decodeIfPresent(SelectionSemaine.self, forKey: .selectionALaGeneration)
