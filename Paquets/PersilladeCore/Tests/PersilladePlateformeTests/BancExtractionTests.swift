@@ -74,6 +74,24 @@ struct BancExtractionTests {
         #expect(alternative.quantite == Quantite(12))
     }
 
+    @Test(arguments: [0, 90])
+    func pageMagazineAvecIntertitresAlignes(rotation: Int) async throws {
+        let (corpus, cas) = try Self.chargerCorpus()
+        let fiche = try #require(cas.first { $0.id == "photo-07" })
+        let entree = try fiche.lire(dans: corpus, rotation: rotation)
+        let resultat = try await Extracteur(lecteurImage: LecteurImageVision()).extraire(
+            entree.contenu, cible: .recette)
+        let recette = try #require(resultat.recette)
+        #expect(resultat.statut == .complet)
+        #expect(resultat.moteur == .structure)
+        let corrections = try fiche.corrections(recette)
+        #expect(corrections == 0, "\(resultat.texteSource)")
+        let texte = resultat.texteSource
+        let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
+        let preparation = try #require(texte.range(of: "\nPréparation", options: options))
+        #expect(texte[..<preparation.lowerBound].range(of: "pincée de sel", options: options) != nil, "\(texte)")
+    }
+
     @available(iOS 27.0, macOS 27.0, *)
     @Test(
         .enabled(
