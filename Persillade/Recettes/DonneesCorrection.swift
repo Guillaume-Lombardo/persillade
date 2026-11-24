@@ -50,7 +50,9 @@ struct DonneesCorrection {
         let brouillon = BrouillonRecette(
             titre: recette.titre, portions: recette.portions,
             ingredients: recette.ingredients.map {
-                BrouillonIngredient(nom: $0.nom, quantite: $0.quantite, unite: $0.unite, texteOrigine: $0.texteOrigine)
+                BrouillonIngredient(
+                    nom: $0.nom, quantite: $0.quantite, unite: $0.unite, texteOrigine: $0.texteOrigine,
+                    alternatives: $0.alternatives)
             },
             etapes: recette.etapes)
         formulaire = FormulaireRecette(brouillon, source: recette.texteSource)
@@ -70,11 +72,12 @@ struct DonneesCorrection {
 struct LigneIngredientCorrection: Codable, Equatable, Identifiable, Sendable {
     let id: UUID
     let origine: String
-    let uniteLue: Unite?
+    var uniteLue: Unite?
     let citation: CorrespondancesSource.Citation?
     var nom: String
     var quantite: SaisieQuantite
     var nonComprise: Bool
+    private var choixAlternatifs: [AlternativeIngredient]?
 
     init(_ ingredient: BrouillonIngredient, citation: CorrespondancesSource.Citation? = nil) {
         id = UUID()
@@ -84,6 +87,12 @@ struct LigneIngredientCorrection: Codable, Equatable, Identifiable, Sendable {
         nom = ingredient.nom
         quantite = SaisieQuantite(quantite: ingredient.quantite, unite: ingredient.unite)
         nonComprise = ingredient.ligneNonComprise
+        alternatives = ingredient.alternatives
+    }
+
+    var alternatives: [AlternativeIngredient] {
+        get { choixAlternatifs ?? [] }
+        set { choixAlternatifs = newValue.isEmpty ? nil : newValue }
     }
 
     var nomVide: Bool { nom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
@@ -100,7 +109,19 @@ struct LigneIngredientCorrection: Codable, Equatable, Identifiable, Sendable {
 
     func valider() throws -> Ingredient {
         let (nombre, unite) = try quantite.valider()
-        return try Ingredient(nom: nom, quantite: nombre, unite: unite, texteOrigine: origine)
+        return try Ingredient(
+            nom: nom, quantite: nombre, unite: unite, texteOrigine: origine, alternatives: alternatives)
+    }
+
+    mutating func echangerAvecAlternative(_ index: Int) throws {
+        let (nombre, unite) = try quantite.valider()
+        let principal = try AlternativeIngredient(nom: nom, quantite: nombre, unite: unite)
+        let nouveau = alternatives[index]
+        alternatives[index] = principal
+        nom = nouveau.nom
+        quantite = SaisieQuantite(quantite: nouveau.quantite, unite: nouveau.unite)
+        uniteLue = nouveau.unite
+        nonComprise = false
     }
 }
 

@@ -320,7 +320,7 @@ struct ArticlesMessageCourses: View {
                 ).compactMap {
                     ligne in
                     let texte = String(ligne).trimmingCharacters(in: .whitespaces)
-                    guard !texte.isEmpty, AnalyseIngredient.analyser(texte).ligneNonComprise else { return nil }
+                    guard !texte.isEmpty, AnalyseIngredient.analyserArticle(texte).ligneNonComprise else { return nil }
                     return FormulaireMessage.Proposition(nom: "", quantite: nil, unite: nil, texteNonCompris: texte)
                 }
                 propositions.append(contentsOf: incomprises)

@@ -123,7 +123,8 @@ private struct CitationsRecette {
     var titre: String?
     @Guide(description: "Extrait indiquant le nombre de portions, par exemple « pour 4 personnes », ou aucun")
     var portions: String?
-    @Guide(description: "Une citation par ingrédient avec son éventuelle quantité et son unité")
+    @Guide(
+        description: "Une citation par ingrédient, avec sa quantité et ses éventuelles alternatives reliées par « ou »")
     var ingredients: [String]
     @Guide(description: "Une citation par étape tirée du texte")
     var etapes: [String]

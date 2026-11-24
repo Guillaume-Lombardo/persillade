@@ -36,22 +36,25 @@ public struct BrouillonIngredient: Equatable, Sendable {
     public var nom: String
     public var quantite: Quantite?
     public var unite: Unite?
+    public var alternatives: [AlternativeIngredient]
     public let texteOrigine: String
     public var ligneNonComprise: Bool
 
     public init(
         nom: String, quantite: Quantite? = nil, unite: Unite? = nil,
-        texteOrigine: String, ligneNonComprise: Bool = false
+        texteOrigine: String, ligneNonComprise: Bool = false, alternatives: [AlternativeIngredient] = []
     ) {
         self.nom = nom
         self.quantite = quantite
         self.unite = unite
+        self.alternatives = alternatives
         self.texteOrigine = texteOrigine
         self.ligneNonComprise = ligneNonComprise
     }
 
     public func valider() throws -> Ingredient {
-        try Ingredient(nom: nom, quantite: quantite, unite: unite, texteOrigine: texteOrigine)
+        try Ingredient(
+            nom: nom, quantite: quantite, unite: unite, texteOrigine: texteOrigine, alternatives: alternatives)
     }
 }
 

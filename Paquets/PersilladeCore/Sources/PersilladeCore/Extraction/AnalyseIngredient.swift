@@ -62,6 +62,44 @@ public enum AnalyseIngredient {
 
     public static func analyser(_ ligne: String) -> BrouillonIngredient {
         let texte = retirerPuce(ligne)
+        let separateurs = texte.ranges(of: #"(?i)\h+ou\h+(?!un\h+peu\b)(?=\#(plage))"#)
+        do {
+            if !separateurs.isEmpty {
+                var debut = texte.startIndex
+                var choix: [BrouillonIngredient] = []
+                for separateur in separateurs {
+                    choix.append(analyserArticle(String(texte[debut..<separateur.lowerBound])))
+                    debut = separateur.upperBound
+                }
+                choix.append(analyserArticle(String(texte[debut...])))
+                if choix.allSatisfy({ $0.quantite != nil && !$0.ligneNonComprise }) {
+                    let principal = choix[0]
+                    let alternatives = try choix.dropFirst().map {
+                        try AlternativeIngredient(nom: $0.nom, quantite: $0.quantite, unite: $0.unite)
+                    }
+                    return BrouillonIngredient(
+                        nom: principal.nom, quantite: principal.quantite, unite: principal.unite,
+                        texteOrigine: ligne, alternatives: alternatives)
+                }
+            }
+
+            var ingredient = analyserArticle(ligne)
+            if let quantite = ingredient.quantite,
+                ingredient.nom.correspond(#"(?i)^chocolat\h+noir\h+ou\h+au\h+lait\h*[.!?]?$"#)
+            {
+                ingredient.alternatives = [
+                    try AlternativeIngredient(nom: "chocolat au lait", quantite: quantite, unite: ingredient.unite)
+                ]
+                ingredient.nom = "chocolat noir"
+            }
+            return ingredient
+        } catch {
+            return incompris(ligne)
+        }
+    }
+
+    public static func analyserArticle(_ ligne: String) -> BrouillonIngredient {
+        let texte = retirerPuce(ligne)
         let sansMarque = sansMarquesQuantite(texte)
         let pinceeDeSel = #"(?i)^(?:une|1)\h+pinc[ée]e\h+(?=de\h+sel\b)"#
         if sansMarque != texte || texte.correspond(pinceeDeSel) {

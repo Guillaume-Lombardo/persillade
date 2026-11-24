@@ -19,6 +19,14 @@ extension Unite {
     }
 }
 
+extension AlternativeIngredient {
+    var mentionPersillade: String {
+        let mesure = quantite?.composantesAffichage(unite: unite)
+        let choix = [mesure?.nombre, mesure?.unite, nom].compactMap { $0 }.joined(separator: " ")
+        return "ou \(choix)"
+    }
+}
+
 struct ColonnesIngredient: DynamicProperty {
     static let espacement: CGFloat = GrillePersillade.pas
 
@@ -127,6 +135,12 @@ struct BandeauRayon: View {
 }
 
 struct LigneArticle: View {
+    #if DEBUG
+        private static let exposerTextes = ProcessInfo.processInfo.arguments.contains("-mesurer-textes-article")
+    #else
+        private static let exposerTextes = false
+    #endif
+
     struct Marque {
         let libelle: String
         let symbole: String
@@ -140,6 +154,7 @@ struct LigneArticle: View {
     var unite: String?
     var precision: String?
     var precisionPleineLargeur: String?
+    var alternatives: [String] = []
     var exclu = false
     var marque: Marque?
     var afficherMarque = true
@@ -197,8 +212,9 @@ struct LigneArticle: View {
 
     private var valeurAccessibilite: String {
         let quantiteAffichee = [quantite, unite].compactMap { $0 }.joined(separator: " ")
-        return [quantiteAffichee, precision, precisionPleineLargeur, exclu ? "Ne sera pas envoyé" : marque?.libelle]
-            .compactMap { $0 }
+        let details = [quantiteAffichee, precision, precisionPleineLargeur].compactMap { $0 }
+        let etat = exclu ? "Ne sera pas envoyé" : marque?.libelle
+        return (details + alternatives + [etat].compactMap { $0 })
             .filter { !$0.isEmpty }
             .joined(separator: ", ")
     }
@@ -232,21 +248,25 @@ struct LigneArticle: View {
                     .typographie(.precision)
                     .foregroundStyle(CouleurPersillade.encre2.couleur)
             }
+            if colonnes.empilees {
+                mentionsAlternatives
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, taille.isAccessibilitySize ? 8 : 2)
         .frame(
-            minHeight: precision == nil && precisionPleineLargeur == nil && !exclu
+            minHeight: precision == nil && precisionPleineLargeur == nil && alternatives.isEmpty && !exclu
                 ? hauteurSimple : GrillePersillade.ingredientAnnote
         )
         .contentShape(.rect)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: Self.exposerTextes ? .contain : .combine)
     }
 
     private var libelle: some View {
         VStack(alignment: .leading, spacing: GrillePersillade.pas) {
             Text(nom).typographie(.texte)
                 .foregroundStyle(exclu ? CouleurPersillade.encre2.couleur : CouleurPersillade.encre.couleur)
+                .accessibilityIdentifier("nom-ligne-article", isEnabled: Self.exposerTextes)
             if let precision {
                 Text(precision).typographie(.precision).foregroundStyle(CouleurPersillade.encre2.couleur)
             }
@@ -265,6 +285,19 @@ struct LigneArticle: View {
                 .typographie(marque.discrete ? .precision : .alerte)
                 .foregroundStyle(marque.couleur.couleur)
             }
+            if !colonnes.empilees {
+                mentionsAlternatives
+            }
+        }
+    }
+
+    private var mentionsAlternatives: some View {
+        ForEach(alternatives.indices, id: \.self) { index in
+            Text(alternatives[index])
+                .typographie(.precision)
+                .foregroundStyle(CouleurPersillade.encre2.couleur)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("alternative-ligne-article", isEnabled: Self.exposerTextes)
         }
     }
 }

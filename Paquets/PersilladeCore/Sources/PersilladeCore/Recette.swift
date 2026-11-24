@@ -66,10 +66,23 @@ public struct Ingredient: Codable, Hashable, Sendable {
     public let quantite: Quantite?
     public let unite: Unite?
     public let texteOrigine: String
+    public let alternatives: [AlternativeIngredient]
 
     public var aLUnite: Bool { unite == .piece }
 
-    public init(nom: String, quantite: Quantite? = nil, unite: Unite? = nil, texteOrigine: String) throws {
+    public init(
+        nom: String, quantite: Quantite? = nil, unite: Unite? = nil, texteOrigine: String,
+        alternatives: [AlternativeIngredient] = []
+    ) throws {
+        try Self.verifier(nom: nom, quantite: quantite, unite: unite)
+        self.nom = nom
+        self.quantite = quantite
+        self.unite = unite
+        self.texteOrigine = texteOrigine
+        self.alternatives = alternatives
+    }
+
+    fileprivate static func verifier(nom: String, quantite: Quantite?, unite: Unite?) throws {
         guard !nom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw Erreur.nomVide
         }
@@ -79,14 +92,10 @@ public struct Ingredient: Codable, Hashable, Sendable {
             throw Erreur.uniteSansQuantite
         }
         guard unite?.nomAutreNormalise != "" else { throw Erreur.uniteSansLibelle }
-        self.nom = nom
-        self.quantite = quantite
-        self.unite = unite
-        self.texteOrigine = texteOrigine
     }
 
     private enum CodingKeys: String, CodingKey {
-        case nom, quantite, unite
+        case nom, quantite, unite, alternatives
         case texteOrigine = "texte_origine"
     }
 
@@ -96,7 +105,37 @@ public struct Ingredient: Codable, Hashable, Sendable {
             nom: champs.decode(String.self, forKey: .nom),
             quantite: champs.decodeIfPresent(Quantite.self, forKey: .quantite),
             unite: champs.decodeIfPresent(Unite.self, forKey: .unite),
-            texteOrigine: champs.decode(String.self, forKey: .texteOrigine))
+            texteOrigine: champs.decode(String.self, forKey: .texteOrigine),
+            alternatives: champs.decodeIfPresent([AlternativeIngredient].self, forKey: .alternatives) ?? [])
+    }
+}
+
+public struct AlternativeIngredient: Codable, Hashable, Sendable {
+    public let nom: String
+    public let quantite: Quantite?
+    public let unite: Unite?
+
+    public init(nom: String, quantite: Quantite? = nil, unite: Unite? = nil) throws {
+        try Ingredient.verifier(nom: nom, quantite: quantite, unite: unite)
+        self.nom = nom
+        self.quantite = quantite
+        self.unite = unite
+    }
+
+    func multiplierQuantite(par rapport: Quantite) throws -> Self {
+        try Self(nom: nom, quantite: quantite.map { try $0 * rapport }, unite: unite)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case nom, quantite, unite
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let champs = try decoder.container(keyedBy: CodingKeys.self)
+        try self.init(
+            nom: champs.decode(String.self, forKey: .nom),
+            quantite: champs.decodeIfPresent(Quantite.self, forKey: .quantite),
+            unite: champs.decodeIfPresent(Unite.self, forKey: .unite))
     }
 }
 
@@ -107,7 +146,7 @@ public struct Recette: Codable, Hashable, Identifiable, Sendable {
         case versionNonPriseEnCharge(Int)
     }
 
-    public static let versionSchemaCourante = 1
+    public static let versionSchemaCourante = 2
 
     public let versionSchema: Int
     public let id: UUID
@@ -150,7 +189,7 @@ public struct Recette: Codable, Hashable, Identifiable, Sendable {
     public init(from decoder: any Decoder) throws {
         let champs = try decoder.container(keyedBy: CodingKeys.self)
         let version = try champs.decode(Int.self, forKey: .versionSchema)
-        guard version == Self.versionSchemaCourante else { throw Erreur.versionNonPriseEnCharge(version) }
+        guard (1...Self.versionSchemaCourante).contains(version) else { throw Erreur.versionNonPriseEnCharge(version) }
         try self.init(
             id: champs.decode(UUID.self, forKey: .id),
             titre: champs.decode(String.self, forKey: .titre),

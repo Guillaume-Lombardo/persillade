@@ -77,6 +77,40 @@ import Testing
     #expect(try await magasin.lire([String].self, cle: "liste", version: 2) == ["Poivre"])
 }
 
+@Test(arguments: Array(1..<EtatCourses.versionSchemaCourante))
+func lesCoursesAnterieuresReprennentSansAlternative(versionPrecedente: Int) async throws {
+    let dossier = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: dossier, withIntermediateDirectories: true)
+    defer { try! FileManager.default.removeItem(at: dossier) }
+    let fichier = dossier.appending(path: "636f7572736573.json")
+    let magasin = MagasinDocumentFichiers(dossier: dossier)
+    let courses = EnvoiCourses(documents: magasin, rappels: MagasinRappelsMemoire(destinations: []))
+    try await courses.modifier { liste, _ in
+        try liste.ajouter(ArticleCourses(nom: "abricots", quantite: Quantite(6)))
+    }
+
+    var enveloppe = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: fichier)) as? [String: Any])
+    var document = try #require(enveloppe["document"] as? [String: Any])
+    var liste = try #require(document["liste"] as? [String: Any])
+    var lignes = try #require(liste["lignes"] as? [[String: Any]])
+    lignes[0].removeValue(forKey: "alternatives")
+    liste["lignes"] = lignes
+    liste["version_schema"] = versionPrecedente
+    document["liste"] = liste
+    enveloppe["version_schema"] = versionPrecedente
+    enveloppe["document"] = document
+    try JSONSerialization.data(withJSONObject: enveloppe).write(to: fichier)
+
+    let relue = try await courses.lire().liste
+    #expect(relue.versionSchema == ListeCourses.versionSchemaCourante)
+    #expect(relue.lignes.first?.quantite == Quantite(6))
+    #expect(relue.lignes.first?.alternatives.isEmpty == true)
+    try await courses.modifier { liste, _ in
+        try liste.ajouter(ArticleCourses(nom: "abricots", quantite: Quantite(1)))
+    }
+    #expect(try await courses.lire().liste.lignes.first?.quantite == Quantite(7))
+}
+
 @Test(arguments: [false, true])
 func sauvegardeUnDocumentCorrompuAvantRecuperation(ecriture: Bool) async throws {
     let dossier = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
@@ -129,6 +163,7 @@ func sauvegardeUnDocumentCorrompuAvantRecuperation(ecriture: Bool) async throws 
     let etat = try await magasin.lire(EtatCourses.self, cle: "courses", version: version)
     let ligne = try #require(etat.liste.lignes.first)
     #expect(ligne.categorie == .epicerie)
+    #expect(ligne.alternatives.isEmpty)
     #expect(ligne.quantite == (try Quantite(texte: "3/2")))
     #expect(ligne.cochee)
     #expect(etat.liste.premierEnvoiLe == Date(timeIntervalSinceReferenceDate: 42))
@@ -141,10 +176,10 @@ func sauvegardeUnDocumentCorrompuAvantRecuperation(ecriture: Bool) async throws 
     let enveloppe = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: fichier)) as? [String: Any])
     let document = try #require(enveloppe["document"] as? [String: Any])
     let liste = try #require(document["liste"] as? [String: Any])
-    #expect(enveloppe["version_schema"] as? Int == 2)
-    #expect(liste["version_schema"] as? Int == 2)
+    #expect(enveloppe["version_schema"] as? Int == version)
+    #expect(liste["version_schema"] as? Int == ListeCourses.versionSchemaCourante)
     #expect(try await magasin.lire(EtatCourses.self, cle: "courses", version: version) == etat)
-    await #expect(throws: ErreurMagasinDocument.versionInconnue(2)) {
+    await #expect(throws: ErreurMagasinDocument.versionInconnue(version)) {
         try await magasin.lire(EtatCourses.self, cle: "courses", version: 1)
     }
 }

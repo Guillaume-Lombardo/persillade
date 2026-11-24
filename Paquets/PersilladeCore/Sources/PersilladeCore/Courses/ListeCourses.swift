@@ -37,7 +37,7 @@ public struct ListeCourses: Codable, Equatable, Identifiable, Sendable, Document
         public let lignes: [LigneCourses]
     }
 
-    public static let versionSchemaCourante = 2
+    public static let versionSchemaCourante = 3
     package static let versionsSchemaLisibles = 1...versionSchemaCourante
 
     public let versionSchema: Int
@@ -93,7 +93,8 @@ public struct ListeCourses: Codable, Equatable, Identifiable, Sendable, Document
         copie.selectionALaGeneration = preparation.selection
         for contribution in preparation.contributions {
             let origine = OrigineCourses(type: .recette, ref: contribution.recetteId)
-            let ligne = try LigneCourses(article: contribution.article, origine: origine)
+            let ligne = try LigneCourses(
+                article: contribution.article, origine: origine, alternatives: contribution.alternatives)
             if let index = copie.lignes.firstIndex(where: { $0.fusionnable(avec: ligne) }) {
                 try copie.lignes[index].fusionner(avec: ligne)
             } else {
